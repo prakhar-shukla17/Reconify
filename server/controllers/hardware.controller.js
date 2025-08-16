@@ -23,14 +23,14 @@ export const createHardware = async (req, res) => {
     const macAddress = hardwareData.system?.mac_address;
     console.log('MAC Address received:', macAddress);
     
-    // Check if MAC address exists
+   
     if (!macAddress) {
       return res.status(400).json({ 
         error: 'MAC address is required in system.mac_address' 
       });
     }
     
-    // Convert MAC address to string and use as _id
+   
     const macAddressString = String(macAddress);
     
     const dataWithCustomId = {
@@ -40,7 +40,7 @@ export const createHardware = async (req, res) => {
     
     console.log('Using MAC address as _id:', macAddressString);
     
-    // Save to MongoDB
+  
     const newHardware = new Hardware(dataWithCustomId);
     const savedHardware = await newHardware.save();
     
@@ -50,7 +50,7 @@ export const createHardware = async (req, res) => {
       id: savedHardware._id 
     });
   } catch (err) {
-    // Handle duplicate MAC address error
+   
     if (err.code === 11000) {
       console.error('MAC address already exists:', err.keyValue);
       res.status(409).json({ 
