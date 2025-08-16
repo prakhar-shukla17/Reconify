@@ -138,18 +138,18 @@ class WiFiBluetoothDetector:
     def run_complete_check(self):
         self.check_wifi_status()
         self.check_bluetooth_status()
-        self.export_to_json()
+        # self.export_to_json()
         return self.results
 
-    def export_to_json(self, filename=None):
-        if filename is None:
-            filename = f"wifi_bluetooth_status_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        try:
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(self.results, f, indent=2, ensure_ascii=False)
-            return filename
-        except Exception:
-            return None
+    # def export_to_json(self, filename=None):
+    #     if filename is None:
+    #         filename = f"wifi_bluetooth_status_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    #     try:
+    #         with open(filename, 'w', encoding='utf-8') as f:
+    #             json.dump(self.results, f, indent=2, ensure_ascii=False)
+    #         return filename
+    #     except Exception:
+    #         return None
 
 def main():
     detector = WiFiBluetoothDetector()
@@ -157,6 +157,7 @@ def main():
     return results
 
 if __name__ == "__main__":
-    main()
+    det=main()
+    print(det)
    
     
