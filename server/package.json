@@ -8,11 +8,16 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "start": "node index.js",
+    "setup": "node scripts/createAdmin.js"
   },
   "dependencies": {
     "express": "^5.1.0",
     "mongoose": "^8.17.1",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "cors": "^2.8.5"
   }
 }

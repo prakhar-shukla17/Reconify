@@ -371,6 +371,10 @@ class HardwareDetector:
             
             for partition in partitions:
                 try:
+                    # Skip if mountpoint is None or empty
+                    if not partition.mountpoint or not partition.mountpoint.strip():
+                        continue
+                    
                     usage = psutil.disk_usage(partition.mountpoint)
                     total_capacity += usage.total
                     
@@ -383,7 +387,9 @@ class HardwareDetector:
                         'free': f"{usage.free / (1024**3):.2f} GB",
                         'percentage': f"{(usage.used / usage.total) * 100:.1f}%"
                     })
-                except PermissionError:
+                except (PermissionError, OSError, SystemError, ValueError) as e:
+                    # Skip problematic partitions (system partitions, network drives, etc.)
+                    print(f"Skipping partition {partition.device} ({partition.mountpoint}): {e}")
                     continue
             
             storage_info['total_capacity'] = f"{total_capacity / (1024**3):.2f} GB"
