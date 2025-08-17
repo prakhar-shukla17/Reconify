@@ -15,27 +15,43 @@ const Navbar = () => {
 
   return (
     <nav className="bg-white shadow-lg border-b">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          <div className="flex items-center min-w-0">
             <Link href="/dashboard" className="flex-shrink-0 flex items-center">
               <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">IT</span>
               </div>
-              <span className="ml-2 text-xl font-semibold text-gray-900">
+              <span className="ml-2 text-lg sm:text-xl font-semibold text-gray-900 hidden sm:block">
                 Asset Manager
+              </span>
+              <span className="ml-2 text-lg font-semibold text-gray-900 sm:hidden">
+                ITAM
               </span>
             </Link>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-700">
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="hidden sm:flex items-center space-x-2 min-w-0 max-w-xs lg:max-w-sm">
+              <span className="text-sm text-gray-700 truncate">
                 Welcome, {user?.firstName || user?.username}
               </span>
               {user?.role === "admin" && (
                 <Shield
-                  className="h-4 w-4 text-blue-600"
+                  className="h-4 w-4 text-blue-600 flex-shrink-0"
+                  title="Administrator"
+                />
+              )}
+            </div>
+
+            {/* Mobile welcome - shorter version */}
+            <div className="sm:hidden flex items-center space-x-1">
+              <span className="text-xs text-gray-700 truncate max-w-20">
+                {user?.firstName || user?.username}
+              </span>
+              {user?.role === "admin" && (
+                <Shield
+                  className="h-3 w-3 text-blue-600 flex-shrink-0"
                   title="Administrator"
                 />
               )}

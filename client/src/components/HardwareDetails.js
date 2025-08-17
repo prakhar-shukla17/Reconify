@@ -52,12 +52,12 @@ const HardwareDetails = ({ hardware }) => {
     currency: "USD",
   });
   const [assetInfoForm, setAssetInfoForm] = useState({
-    vendor: "",
-    model: "",
-    serial_number: "",
-    asset_tag: "",
-    location: "",
-    department: "",
+    vendor: undefined,
+    model: undefined,
+    serial_number: undefined,
+    asset_tag: undefined,
+    location: undefined,
+    department: undefined,
     purchase_date: "",
     warranty_expiry: "",
     cost: 0,
@@ -208,12 +208,12 @@ const HardwareDetails = ({ hardware }) => {
   const startEditingAssetInfo = () => {
     const assetInfo = hardware.asset_info || {};
     setAssetInfoForm({
-      vendor: assetInfo.vendor || "",
-      model: assetInfo.model || "",
-      serial_number: assetInfo.serial_number || "",
-      asset_tag: assetInfo.asset_tag || "",
-      location: assetInfo.location || "",
-      department: assetInfo.department || "",
+      vendor: assetInfo.vendor || undefined,
+      model: assetInfo.model || undefined,
+      serial_number: assetInfo.serial_number || undefined,
+      asset_tag: assetInfo.asset_tag || undefined,
+      location: assetInfo.location || undefined,
+      department: assetInfo.department || undefined,
       purchase_date: assetInfo.purchase_date
         ? new Date(assetInfo.purchase_date).toISOString().split("T")[0]
         : "",
@@ -229,12 +229,12 @@ const HardwareDetails = ({ hardware }) => {
   const cancelAssetInfoEditing = () => {
     setEditingAssetInfo(false);
     setAssetInfoForm({
-      vendor: "",
-      model: "",
-      serial_number: "",
-      asset_tag: "",
-      location: "",
-      department: "",
+      vendor: undefined,
+      model: undefined,
+      serial_number: undefined,
+      asset_tag: undefined,
+      location: undefined,
+      department: undefined,
       purchase_date: "",
       warranty_expiry: "",
       cost: 0,
@@ -619,7 +619,7 @@ const HardwareDetails = ({ hardware }) => {
                     </label>
                     <input
                       type="text"
-                      value={assetInfoForm.vendor}
+                      value={assetInfoForm.vendor || ""}
                       onChange={(e) =>
                         setAssetInfoForm({
                           ...assetInfoForm,
@@ -627,7 +627,7 @@ const HardwareDetails = ({ hardware }) => {
                         })
                       }
                       className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                      placeholder="Enter vendor name"
+                      placeholder="Unknown"
                     />
                   </div>
 
@@ -637,7 +637,7 @@ const HardwareDetails = ({ hardware }) => {
                     </label>
                     <input
                       type="text"
-                      value={assetInfoForm.model}
+                      value={assetInfoForm.model || ""}
                       onChange={(e) =>
                         setAssetInfoForm({
                           ...assetInfoForm,
@@ -645,7 +645,7 @@ const HardwareDetails = ({ hardware }) => {
                         })
                       }
                       className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                      placeholder="Enter model name"
+                      placeholder="Unknown"
                     />
                   </div>
 
@@ -655,7 +655,7 @@ const HardwareDetails = ({ hardware }) => {
                     </label>
                     <input
                       type="text"
-                      value={assetInfoForm.serial_number}
+                      value={assetInfoForm.serial_number || ""}
                       onChange={(e) =>
                         setAssetInfoForm({
                           ...assetInfoForm,
@@ -663,7 +663,7 @@ const HardwareDetails = ({ hardware }) => {
                         })
                       }
                       className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                      placeholder="Enter serial number"
+                      placeholder="Unknown"
                     />
                   </div>
 
@@ -673,7 +673,7 @@ const HardwareDetails = ({ hardware }) => {
                     </label>
                     <input
                       type="text"
-                      value={assetInfoForm.asset_tag}
+                      value={assetInfoForm.asset_tag || ""}
                       onChange={(e) =>
                         setAssetInfoForm({
                           ...assetInfoForm,
@@ -681,7 +681,7 @@ const HardwareDetails = ({ hardware }) => {
                         })
                       }
                       className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                      placeholder="Enter asset tag"
+                      placeholder="Unknown"
                     />
                   </div>
                 </div>
@@ -699,7 +699,7 @@ const HardwareDetails = ({ hardware }) => {
                     </label>
                     <input
                       type="text"
-                      value={assetInfoForm.location}
+                      value={assetInfoForm.location || ""}
                       onChange={(e) =>
                         setAssetInfoForm({
                           ...assetInfoForm,
@@ -707,7 +707,7 @@ const HardwareDetails = ({ hardware }) => {
                         })
                       }
                       className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                      placeholder="Enter location"
+                      placeholder="Unknown"
                     />
                   </div>
 
@@ -717,7 +717,7 @@ const HardwareDetails = ({ hardware }) => {
                     </label>
                     <input
                       type="text"
-                      value={assetInfoForm.department}
+                      value={assetInfoForm.department || ""}
                       onChange={(e) =>
                         setAssetInfoForm({
                           ...assetInfoForm,
@@ -725,7 +725,7 @@ const HardwareDetails = ({ hardware }) => {
                         })
                       }
                       className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                      placeholder="Enter department"
+                      placeholder="Unknown"
                     />
                   </div>
                 </div>
