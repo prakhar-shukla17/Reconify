@@ -156,12 +156,7 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
     return new Date(dateString).toLocaleString();
   };
 
-  if (!ticket) {
-    console.log("TicketManagementModal: No ticket provided");
-    return null;
-  }
-
-  console.log("TicketManagementModal rendering for ticket:", ticket.ticket_id);
+  if (!ticket) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

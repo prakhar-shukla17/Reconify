@@ -41,12 +41,25 @@ const HardwareDetails = ({ hardware }) => {
   });
 
   const [editingComponent, setEditingComponent] = useState(null);
+  const [editingAssetInfo, setEditingAssetInfo] = useState(false);
   const [warrantyForm, setWarrantyForm] = useState({
     purchase_date: "",
     warranty_expiry: "",
     serial_number: "",
     model_number: "",
     vendor: "",
+    cost: 0,
+    currency: "USD",
+  });
+  const [assetInfoForm, setAssetInfoForm] = useState({
+    vendor: "",
+    model: "",
+    serial_number: "",
+    asset_tag: "",
+    location: "",
+    department: "",
+    purchase_date: "",
+    warranty_expiry: "",
     cost: 0,
     currency: "USD",
   });
@@ -190,6 +203,62 @@ const HardwareDetails = ({ hardware }) => {
       cost: 0,
       currency: "USD",
     });
+  };
+
+  const startEditingAssetInfo = () => {
+    const assetInfo = hardware.asset_info || {};
+    setAssetInfoForm({
+      vendor: assetInfo.vendor || "",
+      model: assetInfo.model || "",
+      serial_number: assetInfo.serial_number || "",
+      asset_tag: assetInfo.asset_tag || "",
+      location: assetInfo.location || "",
+      department: assetInfo.department || "",
+      purchase_date: assetInfo.purchase_date
+        ? new Date(assetInfo.purchase_date).toISOString().split("T")[0]
+        : "",
+      warranty_expiry: assetInfo.warranty_expiry
+        ? new Date(assetInfo.warranty_expiry).toISOString().split("T")[0]
+        : "",
+      cost: assetInfo.cost || 0,
+      currency: assetInfo.currency || "USD",
+    });
+    setEditingAssetInfo(true);
+  };
+
+  const cancelAssetInfoEditing = () => {
+    setEditingAssetInfo(false);
+    setAssetInfoForm({
+      vendor: "",
+      model: "",
+      serial_number: "",
+      asset_tag: "",
+      location: "",
+      department: "",
+      purchase_date: "",
+      warranty_expiry: "",
+      cost: 0,
+      currency: "USD",
+    });
+  };
+
+  const saveAssetInfo = async () => {
+    try {
+      const assetInfoData = {
+        ...assetInfoForm,
+        cost: parseFloat(assetInfoForm.cost) || 0,
+      };
+
+      await hardwareAPI.updateAssetInfo(hardware._id, assetInfoData);
+      toast.success("Asset information updated successfully");
+      setEditingAssetInfo(false);
+
+      // Refresh the page to show updated data
+      window.location.reload();
+    } catch (error) {
+      console.error("Error updating asset information:", error);
+      toast.error("Failed to update asset information");
+    }
   };
 
   const saveComponentWarranty = async () => {
@@ -512,6 +581,264 @@ const HardwareDetails = ({ hardware }) => {
         </div>
       )}
 
+      {/* Asset Information Editing Modal */}
+      {editingAssetInfo && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-auto max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    Edit Asset Information
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Update asset details and warranty information
+                  </p>
+                </div>
+                <button
+                  onClick={cancelAssetInfoEditing}
+                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-2 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="px-6 py-4 space-y-6">
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-medium text-gray-900">
+                  Basic Information
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      Vendor
+                    </label>
+                    <input
+                      type="text"
+                      value={assetInfoForm.vendor}
+                      onChange={(e) =>
+                        setAssetInfoForm({
+                          ...assetInfoForm,
+                          vendor: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      placeholder="Enter vendor name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      Model
+                    </label>
+                    <input
+                      type="text"
+                      value={assetInfoForm.model}
+                      onChange={(e) =>
+                        setAssetInfoForm({
+                          ...assetInfoForm,
+                          model: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      placeholder="Enter model name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      Serial Number
+                    </label>
+                    <input
+                      type="text"
+                      value={assetInfoForm.serial_number}
+                      onChange={(e) =>
+                        setAssetInfoForm({
+                          ...assetInfoForm,
+                          serial_number: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      placeholder="Enter serial number"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      Asset Tag
+                    </label>
+                    <input
+                      type="text"
+                      value={assetInfoForm.asset_tag}
+                      onChange={(e) =>
+                        setAssetInfoForm({
+                          ...assetInfoForm,
+                          asset_tag: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      placeholder="Enter asset tag"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Location Information */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-medium text-gray-900">
+                  Location & Department
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      Location
+                    </label>
+                    <input
+                      type="text"
+                      value={assetInfoForm.location}
+                      onChange={(e) =>
+                        setAssetInfoForm({
+                          ...assetInfoForm,
+                          location: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      placeholder="Enter location"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      Department
+                    </label>
+                    <input
+                      type="text"
+                      value={assetInfoForm.department}
+                      onChange={(e) =>
+                        setAssetInfoForm({
+                          ...assetInfoForm,
+                          department: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      placeholder="Enter department"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Purchase & Warranty Information */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-medium text-gray-900">
+                  Purchase & Warranty
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      Purchase Date
+                    </label>
+                    <input
+                      type="date"
+                      value={assetInfoForm.purchase_date}
+                      onChange={(e) =>
+                        setAssetInfoForm({
+                          ...assetInfoForm,
+                          purchase_date: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      Warranty Expiry
+                    </label>
+                    <input
+                      type="date"
+                      value={assetInfoForm.warranty_expiry}
+                      onChange={(e) =>
+                        setAssetInfoForm({
+                          ...assetInfoForm,
+                          warranty_expiry: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      Cost
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={assetInfoForm.cost}
+                      onChange={(e) =>
+                        setAssetInfoForm({
+                          ...assetInfoForm,
+                          cost: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      Currency
+                    </label>
+                    <select
+                      value={assetInfoForm.currency}
+                      onChange={(e) =>
+                        setAssetInfoForm({
+                          ...assetInfoForm,
+                          currency: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    >
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="GBP">GBP</option>
+                      <option value="INR">INR</option>
+                      <option value="CAD">CAD</option>
+                      <option value="AUD">AUD</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 rounded-b-xl">
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={cancelAssetInfoEditing}
+                  className="px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveAssetInfo}
+                  className="px-6 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all flex items-center space-x-2"
+                >
+                  <Save className="h-4 w-4" />
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
         <div className="flex items-center space-x-4">
@@ -641,7 +968,10 @@ const HardwareDetails = ({ hardware }) => {
 
           {/* Edit Asset Info Button (for admins) */}
           <div className="pt-4 border-t">
-            <button className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+            <button
+              onClick={startEditingAssetInfo}
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+            >
               <Edit className="h-4 w-4" />
               <span>Edit Asset Information</span>
             </button>

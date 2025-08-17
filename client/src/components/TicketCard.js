@@ -77,23 +77,7 @@ const TicketCard = ({ ticket, onClick, isAdmin = false }) => {
 
   return (
     <div
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log(
-          `TicketCard clicked: ${ticket.ticket_id} (isAdmin: ${isAdmin})`
-        );
-        console.log("onClick prop:", typeof onClick);
-        if (onClick) {
-          console.log(
-            `Calling onClick with ticket (isAdmin: ${isAdmin}):`,
-            ticket
-          );
-          onClick(ticket);
-        } else {
-          console.log("No onClick handler provided");
-        }
-      }}
+      onClick={() => onClick?.(ticket)}
       className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
     >
       {/* Header */}
