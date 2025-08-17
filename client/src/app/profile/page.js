@@ -96,7 +96,7 @@ export default function ProfilePage() {
                         },
                       })}
                       type="text"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                     />
                     {errors.firstName && (
                       <p className="mt-1 text-sm text-red-600">
@@ -121,7 +121,7 @@ export default function ProfilePage() {
                         },
                       })}
                       type="text"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                     />
                     {errors.lastName && (
                       <p className="mt-1 text-sm text-red-600">
@@ -176,7 +176,7 @@ export default function ProfilePage() {
                     <input
                       {...register("department")}
                       type="text"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                       placeholder="Enter your department"
                     />
                   </div>

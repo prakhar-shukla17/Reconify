@@ -164,7 +164,7 @@ const ManualAssetModal = ({ isOpen, onClose, onSuccess }) => {
               type="text"
               placeholder="e.g., DESKTOP-ABC123"
               {...register("hostname")}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
             />
             <p className="text-xs text-gray-500 mt-1">
               Leave empty to auto-generate based on model name

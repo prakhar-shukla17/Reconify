@@ -54,6 +54,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (activeTab === "assets") {
       fetchHardware();
+      fetchUsers(); // Always fetch users for assignment functionality
     } else if (activeTab === "users") {
       fetchUsers();
     } else if (activeTab === "tickets") {
@@ -78,6 +79,7 @@ export default function AdminPage() {
     try {
       setLoading(true);
       const response = await authAPI.getAllUsers();
+      console.log("Users API response:", response.data);
       setUsers(response.data.users || []);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -102,12 +104,16 @@ export default function AdminPage() {
 
   const handleAssignAsset = async (userId, macAddress) => {
     try {
-      await authAPI.assignAsset(userId, macAddress);
+      console.log("Assigning asset:", { userId, macAddress });
+      const response = await authAPI.assignAsset(userId, macAddress);
+      console.log("Assignment response:", response.data);
       toast.success("Asset assigned successfully");
       fetchUsers();
+      fetchHardware(); // Also refresh hardware to update assignment status
       setShowAssignModal(false);
     } catch (error) {
-      toast.error("Failed to assign asset");
+      console.error("Assignment error:", error);
+      toast.error(error.response?.data?.error || "Failed to assign asset");
     }
   };
 
@@ -398,7 +404,7 @@ export default function AdminPage() {
                         }
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                       />
                     </div>
 
@@ -409,7 +415,7 @@ export default function AdminPage() {
                           <select
                             value={filterType}
                             onChange={(e) => setFilterType(e.target.value)}
-                            className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                           >
                             <option value="all">All Assets</option>
                             <option value="assigned">Assigned</option>

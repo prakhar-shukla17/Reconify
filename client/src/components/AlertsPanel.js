@@ -253,7 +253,7 @@ const AlertsPanel = ({ className = "" }) => {
             <select
               value={alertDays}
               onChange={(e) => setAlertDays(parseInt(e.target.value))}
-              className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
             >
               <option value={7}>Next 7 days</option>
               <option value={14}>Next 14 days</option>
@@ -266,7 +266,7 @@ const AlertsPanel = ({ className = "" }) => {
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
             >
               <option value="all">All Severities</option>
               <option value="critical">Critical</option>

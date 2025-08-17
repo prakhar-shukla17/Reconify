@@ -234,7 +234,7 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
                   value={formData.assigned_to}
                   onChange={(e) => handleAssignment(e.target.value)}
                   disabled={loading}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                 >
                   <option value="">Unassigned</option>
                   {adminUsers.map((admin) => (
@@ -270,7 +270,7 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
                       placeholder="Enter resolution details..."
                       value={closeResolution}
                       onChange={(e) => setCloseResolution(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white text-sm"
                       rows="3"
                     />
                     <div className="flex space-x-2">

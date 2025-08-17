@@ -34,9 +34,11 @@ const EnhancedAssignmentModal = ({
 
   useEffect(() => {
     if (isOpen) {
+      console.log("EnhancedAssignmentModal opened with users:", users);
+      console.log("Users length:", users.length);
       fetchUnassignedAssets();
     }
-  }, [isOpen]);
+  }, [isOpen, users]);
 
   const fetchUnassignedAssets = async () => {
     try {
@@ -54,6 +56,10 @@ const EnhancedAssignmentModal = ({
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Debug filtered users
+  console.log("Filtered users:", filteredUsers);
+  console.log("Search term:", searchTerm);
 
   const handleUserToggle = (user) => {
     setSelectedUsers((prev) => {
@@ -186,7 +192,7 @@ const EnhancedAssignmentModal = ({
                   placeholder="Search users by name, email, or department..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
                 />
               </div>
             </div>

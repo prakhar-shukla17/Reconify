@@ -192,7 +192,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
                   message: "Title cannot exceed 200 characters",
                 },
               })}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white ${
                 errors.title ? "border-red-500" : "border-gray-300"
               }`}
             />
@@ -279,7 +279,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
                   message: "Description cannot exceed 2000 characters",
                 },
               })}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white resize-none ${
                 errors.description ? "border-red-500" : "border-gray-300"
               }`}
             />

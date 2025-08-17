@@ -75,7 +75,7 @@ const HardwareCard = ({ hardware, onClick }) => {
 
   return (
     <div
-      className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer border"
+      className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer border h-80 flex flex-col"
       onClick={() => onClick && onClick(hardware)}
     >
       {/* Header */}
@@ -102,7 +102,7 @@ const HardwareCard = ({ hardware, onClick }) => {
       </div>
 
       {/* Quick Stats Grid */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-2 gap-4 mb-4 flex-1">
         {/* CPU */}
         <div className="flex items-center space-x-2">
           <Cpu className="h-4 w-4 text-gray-600" />
@@ -182,7 +182,7 @@ const HardwareCard = ({ hardware, onClick }) => {
       </div>
 
       {/* Footer */}
-      <div className="flex justify-between items-center pt-4 border-t">
+      <div className="flex justify-between items-center pt-4 border-t mt-auto">
         <div className="flex flex-col space-y-1">
           <div className="text-xs text-gray-500">
             Last updated: {new Date(hardware.updatedAt).toLocaleDateString()}
