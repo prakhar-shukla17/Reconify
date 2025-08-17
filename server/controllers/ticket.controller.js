@@ -5,6 +5,13 @@ import User from "../models/user.models.js";
 // Create a new ticket
 export const createTicket = async (req, res) => {
   try {
+    // Check if user exists
+    if (!req.user) {
+      return res.status(401).json({
+        error: "Authentication required",
+      });
+    }
+
     const { title, description, priority, category, asset_id } = req.body;
 
     // Validate required fields
@@ -30,8 +37,13 @@ export const createTicket = async (req, res) => {
       });
     }
 
+    // Generate unique ticket ID manually
+    const ticketCount = await Ticket.countDocuments();
+    const ticketId = `TKT-${String(ticketCount + 1).padStart(6, "0")}`;
+
     // Create ticket
     const ticketData = {
+      ticket_id: ticketId, // Explicitly set the ticket_id
       title: title.trim(),
       description: description.trim(),
       priority: priority || "Medium",
@@ -156,7 +168,7 @@ export const getTicketById = async (req, res) => {
 export const updateTicket = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, priority, assigned_to, resolution } = req.body;
+    const { status, priority, assigned_to, resolution, category } = req.body;
     const user = req.user;
 
     const ticket = await Ticket.findById(id);
@@ -166,34 +178,78 @@ export const updateTicket = async (req, res) => {
       });
     }
 
-    // Update fields
-    if (status) ticket.status = status;
-    if (priority) ticket.priority = priority;
-    if (resolution) ticket.resolution = resolution;
+    // Store original status for logging
+    const originalStatus = ticket.status;
+
+    // Update basic fields
+    if (status && status !== ticket.status) {
+      ticket.status = status;
+    }
+    if (priority && priority !== ticket.priority) {
+      ticket.priority = priority;
+    }
+    if (category && category !== ticket.category) {
+      ticket.category = category;
+    }
+    if (resolution !== undefined) {
+      ticket.resolution = resolution;
+    }
 
     // Handle assignment
-    if (assigned_to) {
-      const assignedUser = await User.findById(assigned_to);
-      if (assignedUser && assignedUser.role === "admin") {
+    if (assigned_to !== undefined) {
+      if (assigned_to === null || assigned_to === "") {
+        // Unassign ticket
+        ticket.assigned_to = null;
+        ticket.assigned_to_name = null;
+      } else {
+        // Assign to admin
+        const assignedUser = await User.findById(assigned_to);
+        if (!assignedUser) {
+          return res.status(400).json({
+            error: "Assigned user not found",
+          });
+        }
+        if (assignedUser.role !== "admin") {
+          return res.status(400).json({
+            error: "Tickets can only be assigned to admin users",
+          });
+        }
         ticket.assigned_to = assigned_to;
         ticket.assigned_to_name = assignedUser.username;
       }
     }
 
-    // Handle resolution
+    // Handle resolution status changes
     if (status === "Resolved" || status === "Closed") {
-      ticket.resolved_at = new Date();
-      ticket.resolved_by = user._id;
-      ticket.resolved_by_name = user.username;
+      if (originalStatus !== "Resolved" && originalStatus !== "Closed") {
+        ticket.resolved_at = new Date();
+        ticket.resolved_by = user._id;
+        ticket.resolved_by_name = user.username;
+      }
+    } else if (originalStatus === "Resolved" || originalStatus === "Closed") {
+      // Ticket was reopened
+      ticket.resolved_at = null;
+      ticket.resolved_by = null;
+      ticket.resolved_by_name = null;
     }
 
     ticket.updated_at = new Date();
     const updatedTicket = await ticket.save();
 
+    // Populate the response
+    const populatedTicket = await Ticket.findById(updatedTicket._id)
+      .populate("created_by", "username email")
+      .populate("assigned_to", "username email")
+      .populate("resolved_by", "username email");
+
     res.json({
       success: true,
-      message: "Ticket updated successfully",
-      data: updatedTicket,
+      message: `Ticket ${
+        originalStatus !== status
+          ? "status updated to " + status
+          : "updated successfully"
+      }`,
+      data: populatedTicket,
     });
   } catch (error) {
     console.error("Update ticket error:", error);
@@ -352,6 +408,205 @@ export const getUserAssets = async (req, res) => {
     console.error("Get user assets error:", error);
     res.status(500).json({
       error: "Failed to fetch user assets",
+      details: error.message,
+    });
+  }
+};
+
+// Quick status update (admin only)
+export const updateTicketStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const user = req.user;
+
+    if (!status) {
+      return res.status(400).json({
+        error: "Status is required",
+      });
+    }
+
+    const validStatuses = [
+      "Open",
+      "In Progress",
+      "Resolved",
+      "Closed",
+      "Rejected",
+    ];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        error: "Invalid status. Must be one of: " + validStatuses.join(", "),
+      });
+    }
+
+    const ticket = await Ticket.findById(id);
+    if (!ticket) {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    const originalStatus = ticket.status;
+    ticket.status = status;
+
+    // Handle resolution status changes
+    if (status === "Resolved" || status === "Closed") {
+      if (originalStatus !== "Resolved" && originalStatus !== "Closed") {
+        ticket.resolved_at = new Date();
+        ticket.resolved_by = user._id;
+        ticket.resolved_by_name = user.username;
+      }
+    } else if (originalStatus === "Resolved" || originalStatus === "Closed") {
+      // Ticket was reopened
+      ticket.resolved_at = null;
+      ticket.resolved_by = null;
+      ticket.resolved_by_name = null;
+    }
+
+    ticket.updated_at = new Date();
+    const updatedTicket = await ticket.save();
+
+    res.json({
+      success: true,
+      message: `Ticket status updated to ${status}`,
+      data: {
+        ticket_id: updatedTicket.ticket_id,
+        status: updatedTicket.status,
+        resolved_at: updatedTicket.resolved_at,
+        resolved_by_name: updatedTicket.resolved_by_name,
+      },
+    });
+  } catch (error) {
+    console.error("Update ticket status error:", error);
+    res.status(500).json({
+      error: "Failed to update ticket status",
+      details: error.message,
+    });
+  }
+};
+
+// Assign ticket to admin (admin only)
+export const assignTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { assigned_to } = req.body; // Can be null to unassign
+
+    const ticket = await Ticket.findById(id);
+    if (!ticket) {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    if (assigned_to === null || assigned_to === "") {
+      // Unassign ticket
+      ticket.assigned_to = null;
+      ticket.assigned_to_name = null;
+    } else {
+      // Assign to admin
+      const assignedUser = await User.findById(assigned_to);
+      if (!assignedUser) {
+        return res.status(400).json({
+          error: "Assigned user not found",
+        });
+      }
+      if (assignedUser.role !== "admin") {
+        return res.status(400).json({
+          error: "Tickets can only be assigned to admin users",
+        });
+      }
+      ticket.assigned_to = assigned_to;
+      ticket.assigned_to_name = assignedUser.username;
+    }
+
+    ticket.updated_at = new Date();
+    const updatedTicket = await ticket.save();
+
+    res.json({
+      success: true,
+      message: ticket.assigned_to
+        ? `Ticket assigned to ${ticket.assigned_to_name}`
+        : "Ticket unassigned",
+      data: {
+        ticket_id: updatedTicket.ticket_id,
+        assigned_to: updatedTicket.assigned_to,
+        assigned_to_name: updatedTicket.assigned_to_name,
+      },
+    });
+  } catch (error) {
+    console.error("Assign ticket error:", error);
+    res.status(500).json({
+      error: "Failed to assign ticket",
+      details: error.message,
+    });
+  }
+};
+
+// Get all admin users (for assignment dropdown)
+export const getAdminUsers = async (req, res) => {
+  try {
+    const admins = await User.find({ role: "admin", isActive: true })
+      .select("_id username email")
+      .sort({ username: 1 });
+
+    res.json({
+      success: true,
+      data: admins,
+    });
+  } catch (error) {
+    console.error("Get admin users error:", error);
+    res.status(500).json({
+      error: "Failed to fetch admin users",
+      details: error.message,
+    });
+  }
+};
+
+// Close ticket with resolution (admin only)
+export const closeTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { resolution, status = "Closed" } = req.body;
+    const user = req.user;
+
+    if (!resolution || resolution.trim().length === 0) {
+      return res.status(400).json({
+        error: "Resolution is required when closing a ticket",
+      });
+    }
+
+    const ticket = await Ticket.findById(id);
+    if (!ticket) {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    // Update ticket
+    ticket.status = status;
+    ticket.resolution = resolution.trim();
+    ticket.resolved_at = new Date();
+    ticket.resolved_by = user._id;
+    ticket.resolved_by_name = user.username;
+    ticket.updated_at = new Date();
+
+    const updatedTicket = await ticket.save();
+
+    // Populate the response
+    const populatedTicket = await Ticket.findById(updatedTicket._id)
+      .populate("created_by", "username email")
+      .populate("assigned_to", "username email")
+      .populate("resolved_by", "username email");
+
+    res.json({
+      success: true,
+      message: `Ticket ${status.toLowerCase()} successfully`,
+      data: populatedTicket,
+    });
+  } catch (error) {
+    console.error("Close ticket error:", error);
+    res.status(500).json({
+      error: "Failed to close ticket",
       details: error.message,
     });
   }

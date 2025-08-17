@@ -110,6 +110,14 @@ export const ticketsAPI = {
     api.post(`/tickets/${id}/comments`, commentData),
   getStatistics: () => api.get("/tickets/admin/statistics"),
   getUserAssets: () => api.get("/tickets/user-assets"),
+
+  // Admin management endpoints
+  updateStatus: (id, statusData) =>
+    api.patch(`/tickets/${id}/status`, statusData),
+  assignTicket: (id, assignmentData) =>
+    api.patch(`/tickets/${id}/assign`, assignmentData),
+  closeTicket: (id, closeData) => api.post(`/tickets/${id}/close`, closeData),
+  getAdminUsers: () => api.get("/tickets/admin/users"),
 };
 
 export default api;

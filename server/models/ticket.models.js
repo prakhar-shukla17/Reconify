@@ -148,7 +148,7 @@ const TicketSchema = new mongoose.Schema(
 // Generate unique ticket ID
 TicketSchema.pre("save", async function (next) {
   if (this.isNew) {
-    const count = await mongoose.model("Ticket").countDocuments();
+    const count = await this.constructor.countDocuments();
     this.ticket_id = `TKT-${String(count + 1).padStart(6, "0")}`;
   }
   next();

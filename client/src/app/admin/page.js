@@ -11,6 +11,7 @@ import AlertsPanel from "../../components/AlertsPanel";
 import EnhancedAssignmentModal from "../../components/EnhancedAssignmentModal";
 import ManualAssetModal from "../../components/ManualAssetModal";
 import TicketCard from "../../components/TicketCard";
+import TicketManagementModal from "../../components/TicketManagementModal";
 import { hardwareAPI, authAPI, ticketsAPI } from "../../lib/api";
 import toast from "react-hot-toast";
 import {
@@ -47,6 +48,8 @@ export default function AdminPage() {
   const [showManualAssetModal, setShowManualAssetModal] = useState(false);
   const [tickets, setTickets] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [showTicketManagementModal, setShowTicketManagementModal] =
+    useState(false);
 
   useEffect(() => {
     if (activeTab === "assets") {
@@ -87,8 +90,11 @@ export default function AdminPage() {
   const fetchTickets = async () => {
     try {
       setLoading(true);
+      console.log("Fetching tickets...");
       const response = await ticketsAPI.getAll();
+      console.log("Tickets response:", response.data);
       setTickets(response.data.data || []);
+      console.log("Tickets set:", response.data.data || []);
     } catch (error) {
       console.error("Error fetching tickets:", error);
       toast.error("Failed to load tickets");
@@ -476,14 +482,31 @@ export default function AdminPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {tickets.map((ticket) => (
-                      <TicketCard
-                        key={ticket._id}
-                        ticket={ticket}
-                        onClick={setSelectedTicket}
-                        isAdmin={true}
-                      />
-                    ))}
+                    {tickets.map((ticket) => {
+                      console.log(
+                        "Rendering TicketCard for admin with isAdmin=true"
+                      );
+                      return (
+                        <TicketCard
+                          key={ticket._id}
+                          ticket={ticket}
+                          onClick={(ticket) => {
+                            console.log(
+                              "Admin ticket click handler called:",
+                              ticket.ticket_id
+                            );
+                            console.log("Setting selectedTicket to:", ticket);
+                            setSelectedTicket(ticket);
+                            console.log(
+                              "Setting showTicketManagementModal to true"
+                            );
+                            setShowTicketManagementModal(true);
+                            console.log("State should be updated now");
+                          }}
+                          isAdmin={true}
+                        />
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -773,6 +796,43 @@ export default function AdminPage() {
             setShowManualAssetModal(false);
           }}
         />
+
+        {/* Ticket Management Modal */}
+        {showTicketManagementModal && selectedTicket && (
+          <TicketManagementModal
+            ticket={selectedTicket}
+            onClose={() => {
+              console.log("Closing ticket management modal");
+              setShowTicketManagementModal(false);
+              setSelectedTicket(null);
+            }}
+            onUpdate={() => {
+              fetchTickets();
+            }}
+          />
+        )}
+
+        {/* Debug info */}
+        {process.env.NODE_ENV === "development" && (
+          <div
+            style={{
+              position: "fixed",
+              top: "10px",
+              right: "10px",
+              background: "black",
+              color: "white",
+              padding: "10px",
+              fontSize: "12px",
+              zIndex: 9999,
+            }}
+          >
+            Modal: {showTicketManagementModal ? "OPEN" : "CLOSED"}
+            <br />
+            Ticket: {selectedTicket ? selectedTicket.ticket_id : "NONE"}
+            <br />
+            Tickets count: {tickets.length}
+          </div>
+        )}
       </div>
     </ProtectedRoute>
   );

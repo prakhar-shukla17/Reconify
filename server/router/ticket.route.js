@@ -7,6 +7,10 @@ import {
   addComment,
   getTicketStatistics,
   getUserAssets,
+  updateTicketStatus,
+  assignTicket,
+  getAdminUsers,
+  closeTicket,
 } from "../controllers/ticket.controller.js";
 import { verifyToken, requireAdmin } from "../middleware/auth.js";
 
@@ -21,6 +25,10 @@ router.post("/:id/comments", verifyToken, addComment);
 
 // Admin only routes
 router.put("/:id", verifyToken, requireAdmin, updateTicket);
+router.patch("/:id/status", verifyToken, requireAdmin, updateTicketStatus);
+router.patch("/:id/assign", verifyToken, requireAdmin, assignTicket);
+router.post("/:id/close", verifyToken, requireAdmin, closeTicket);
 router.get("/admin/statistics", verifyToken, requireAdmin, getTicketStatistics);
+router.get("/admin/users", verifyToken, requireAdmin, getAdminUsers);
 
 export default router;
