@@ -6,6 +6,9 @@ import ProtectedRoute from "../../components/ProtectedRoute";
 import Navbar from "../../components/Navbar";
 import HardwareCard from "../../components/HardwareCard";
 import HardwareDetails from "../../components/HardwareDetails";
+import AlertsWidget from "../../components/AlertsWidget";
+import AlertsPanel from "../../components/AlertsPanel";
+import EnhancedAssignmentModal from "../../components/EnhancedAssignmentModal";
 import { hardwareAPI, authAPI } from "../../lib/api";
 import toast from "react-hot-toast";
 import {
@@ -22,6 +25,7 @@ import {
   X,
   Check,
   Eye,
+  Bell,
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -35,6 +39,8 @@ export default function AdminPage() {
   const [filterType, setFilterType] = useState("all");
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
+  const [selectedAssets, setSelectedAssets] = useState([]);
+  const [showEnhancedAssignModal, setShowEnhancedAssignModal] = useState(false);
 
   useEffect(() => {
     if (activeTab === "assets") {
@@ -79,6 +85,39 @@ export default function AdminPage() {
     } catch (error) {
       toast.error("Failed to assign asset");
     }
+  };
+
+  const handleAssetSelection = (assetId, isSelected) => {
+    setSelectedAssets((prev) => {
+      if (isSelected) {
+        return [...prev, assetId];
+      } else {
+        return prev.filter((id) => id !== assetId);
+      }
+    });
+  };
+
+  const handleSelectAllAssets = () => {
+    const allAssetIds = filteredHardware.map((item) => item._id);
+    setSelectedAssets(allAssetIds);
+  };
+
+  const handleDeselectAllAssets = () => {
+    setSelectedAssets([]);
+  };
+
+  const handleEnhancedAssignment = () => {
+    if (selectedAssets.length === 0) {
+      toast.error("Please select at least one asset");
+      return;
+    }
+    setShowEnhancedAssignModal(true);
+  };
+
+  const handleAssignmentComplete = () => {
+    setSelectedAssets([]);
+    fetchUsers();
+    fetchHardware();
   };
 
   const handleRemoveAsset = async (userId, macAddress) => {
@@ -295,60 +334,73 @@ export default function AdminPage() {
                     <Users className="h-4 w-4 inline mr-2" />
                     User Management
                   </button>
+                  <button
+                    onClick={() => setActiveTab("alerts")}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === "alerts"
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    <Bell className="h-4 w-4 inline mr-2" />
+                    Warranty Alerts
+                  </button>
                 </nav>
               </div>
 
               {/* Search and Filter Bar */}
-              <div className="p-6">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder={
-                        activeTab === "assets"
-                          ? "Search assets..."
-                          : "Search users..."
-                      }
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div className="flex items-center space-x-4">
-                    {activeTab === "assets" && (
-                      <div className="relative">
-                        <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <select
-                          value={filterType}
-                          onChange={(e) => setFilterType(e.target.value)}
-                          className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="all">All Assets</option>
-                          <option value="assigned">Assigned</option>
-                          <option value="unassigned">Unassigned</option>
-                        </select>
-                      </div>
-                    )}
-
-                    <button
-                      onClick={
-                        activeTab === "assets" ? fetchHardware : fetchUsers
-                      }
-                      disabled={loading}
-                      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                    >
-                      <RefreshCw
-                        className={`h-4 w-4 mr-2 ${
-                          loading ? "animate-spin" : ""
-                        }`}
+              {activeTab !== "alerts" && (
+                <div className="p-6">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder={
+                          activeTab === "assets"
+                            ? "Search assets..."
+                            : "Search users..."
+                        }
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
-                      Refresh
-                    </button>
+                    </div>
+
+                    <div className="flex items-center space-x-4">
+                      {activeTab === "assets" && (
+                        <div className="relative">
+                          <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <select
+                            value={filterType}
+                            onChange={(e) => setFilterType(e.target.value)}
+                            className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="all">All Assets</option>
+                            <option value="assigned">Assigned</option>
+                            <option value="unassigned">Unassigned</option>
+                          </select>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={
+                          activeTab === "assets" ? fetchHardware : fetchUsers
+                        }
+                        disabled={loading}
+                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                      >
+                        <RefreshCw
+                          className={`h-4 w-4 mr-2 ${
+                            loading ? "animate-spin" : ""
+                          }`}
+                        />
+                        Refresh
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Content */}
@@ -356,6 +408,8 @@ export default function AdminPage() {
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               </div>
+            ) : activeTab === "alerts" ? (
+              <AlertsPanel />
             ) : activeTab === "assets" ? (
               // Assets Tab
               filteredHardware.length === 0 ? (
@@ -371,37 +425,106 @@ export default function AdminPage() {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredHardware.map((item) => (
-                    <div key={item._id} className="relative">
-                      <HardwareCard
-                        hardware={item}
-                        onClick={setSelectedHardware}
-                      />
-                      <div className="absolute top-2 right-2 flex space-x-2">
-                        {isAssetAssigned(item.system?.mac_address) ? (
-                          <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                            Assigned to{" "}
-                            {
-                              getAssignedUser(item.system?.mac_address)
-                                ?.username
+                <div>
+                  {/* Bulk Actions Bar */}
+                  <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={
+                              selectedAssets.length ===
+                                filteredHardware.length &&
+                              filteredHardware.length > 0
                             }
+                            onChange={(e) =>
+                              e.target.checked
+                                ? handleSelectAllAssets()
+                                : handleDeselectAllAssets()
+                            }
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                          <span className="text-sm font-medium text-gray-700">
+                            Select All ({selectedAssets.length}/
+                            {filteredHardware.length})
+                          </span>
+                        </div>
+                        {selectedAssets.length > 0 && (
+                          <div className="text-sm text-gray-600">
+                            {selectedAssets.length} asset
+                            {selectedAssets.length !== 1 ? "s" : ""} selected
                           </div>
-                        ) : (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedAsset(item);
-                              setShowAssignModal(true);
-                            }}
-                            className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full hover:bg-blue-200"
-                          >
-                            Assign
-                          </button>
                         )}
                       </div>
+                      {selectedAssets.length > 0 && (
+                        <button
+                          onClick={handleEnhancedAssignment}
+                          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <UserPlus className="h-4 w-4" />
+                          <span>Bulk Assign ({selectedAssets.length})</span>
+                        </button>
+                      )}
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredHardware.map((item) => {
+                      const isSelected = selectedAssets.includes(item._id);
+                      return (
+                        <div
+                          key={item._id}
+                          className={`relative ${
+                            isSelected
+                              ? "ring-2 ring-blue-500 ring-opacity-50"
+                              : ""
+                          }`}
+                        >
+                          {/* Selection Checkbox */}
+                          <div className="absolute top-2 left-2 z-10">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) =>
+                                handleAssetSelection(item._id, e.target.checked)
+                              }
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+
+                          <HardwareCard
+                            hardware={item}
+                            onClick={setSelectedHardware}
+                          />
+
+                          <div className="absolute top-2 right-2 flex space-x-2">
+                            {isAssetAssigned(item.system?.mac_address) ? (
+                              <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                                Assigned to{" "}
+                                {
+                                  getAssignedUser(item.system?.mac_address)
+                                    ?.username
+                                }
+                              </div>
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedAsset(item);
+                                  setShowAssignModal(true);
+                                }}
+                                className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full hover:bg-blue-200"
+                              >
+                                Assign
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )
             ) : (
@@ -554,6 +677,15 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {/* Enhanced Assignment Modal */}
+        <EnhancedAssignmentModal
+          isOpen={showEnhancedAssignModal}
+          onClose={() => setShowEnhancedAssignModal(false)}
+          selectedAssets={selectedAssets}
+          users={users}
+          onAssignmentComplete={handleAssignmentComplete}
+        />
       </div>
     </ProtectedRoute>
   );

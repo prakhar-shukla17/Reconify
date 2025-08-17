@@ -361,45 +361,34 @@ class HardwareDetector:
         """Get detailed storage information."""
         storage_info = {
             'drives': [],
-            'total_capacity': 0,
-            'partitions': []
+            'total_capacity': '0 GB',
+            'partitions': []  # Keep empty array for compatibility
         }
         
-        if PSUTIL_AVAILABLE:
-            partitions = psutil.disk_partitions()
-            total_capacity = 0
-            
-            for partition in partitions:
-                try:
-                    # Skip if mountpoint is None or empty
-                    if not partition.mountpoint or not partition.mountpoint.strip():
-                        continue
-                    
-                    usage = psutil.disk_usage(partition.mountpoint)
-                    total_capacity += usage.total
-                    
-                    storage_info['partitions'].append({
-                        'device': partition.device,
-                        'mountpoint': partition.mountpoint,
-                        'filesystem': partition.fstype,
-                        'total': f"{usage.total / (1024**3):.2f} GB",
-                        'used': f"{usage.used / (1024**3):.2f} GB",
-                        'free': f"{usage.free / (1024**3):.2f} GB",
-                        'percentage': f"{(usage.used / usage.total) * 100:.1f}%"
-                    })
-                except (PermissionError, OSError, SystemError, ValueError) as e:
-                    # Skip problematic partitions (system partitions, network drives, etc.)
-                    print(f"Skipping partition {partition.device} ({partition.mountpoint}): {e}")
-                    continue
-            
-            storage_info['total_capacity'] = f"{total_capacity / (1024**3):.2f} GB"
-        
+        # Get storage drives using OS-specific methods (no partition scanning)
         if self.system == 'windows':
             storage_info['drives'].extend(self._get_storage_info_windows())
         elif self.system == 'linux':
             storage_info['drives'].extend(self._get_storage_info_linux())
         elif self.system == 'darwin':
             storage_info['drives'].extend(self._get_storage_info_macos())
+        
+        # Calculate total capacity from drives
+        total_capacity = 0
+        for drive in storage_info['drives']:
+            if 'size' in drive and drive['size'] != 'Unknown':
+                try:
+                    # Extract numeric value from size string (e.g., "500.0 GB" -> 500.0)
+                    size_str = drive['size'].replace(' GB', '').replace(' TB', '000')
+                    if 'TB' in drive['size']:
+                        size_str = size_str.replace('000', '')
+                        total_capacity += float(size_str) * 1000  # Convert TB to GB
+                    else:
+                        total_capacity += float(size_str)
+                except (ValueError, AttributeError):
+                    continue
+        
+        storage_info['total_capacity'] = f"{total_capacity:.2f} GB"
         
         return storage_info
     
@@ -766,7 +755,9 @@ class HardwareDetector:
                             for i in range(40, -1, -8)])
             if mac == "00:00:00:00:00:00":
                 mac = "Unknown"
-        return mac
+        
+        # Ensure consistent uppercase format
+        return mac.upper() if mac != "Unknown" else mac
 
     
     # def export_hardware_info(self, filename=None):

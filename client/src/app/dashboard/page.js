@@ -6,7 +6,9 @@ import ProtectedRoute from "../../components/ProtectedRoute";
 import Navbar from "../../components/Navbar";
 import HardwareCard from "../../components/HardwareCard";
 import HardwareDetails from "../../components/HardwareDetails";
-import { hardwareAPI } from "../../lib/api";
+import AlertsWidget from "../../components/AlertsWidget";
+import AlertsPanel from "../../components/AlertsPanel";
+import { hardwareAPI, softwareAPI } from "../../lib/api";
 import toast from "react-hot-toast";
 import {
   Monitor,
@@ -18,19 +20,30 @@ import {
   RefreshCw,
   ArrowLeft,
   Package,
+  Settings,
+  Play,
+  Bell,
 } from "lucide-react";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [hardware, setHardware] = useState([]);
+  const [software, setSoftware] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedHardware, setSelectedHardware] = useState(null);
+  const [selectedSoftware, setSelectedSoftware] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
+  const [activeTab, setActiveTab] = useState("hardware");
+  const [showAlertsPanel, setShowAlertsPanel] = useState(false);
 
   useEffect(() => {
-    fetchHardware();
-  }, []);
+    if (activeTab === "hardware") {
+      fetchHardware();
+    } else if (activeTab === "software") {
+      fetchSoftware();
+    }
+  }, [activeTab]);
 
   const fetchHardware = async () => {
     try {
@@ -40,6 +53,19 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error fetching hardware:", error);
       toast.error("Failed to load hardware data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSoftware = async () => {
+    try {
+      setLoading(true);
+      const response = await softwareAPI.getAll();
+      setSoftware(response.data.data || []);
+    } catch (error) {
+      console.error("Error fetching software:", error);
+      toast.error("Failed to load software data");
     } finally {
       setLoading(false);
     }
@@ -64,18 +90,47 @@ export default function DashboardPage() {
     return matchesSearch && matchesFilter;
   });
 
+  const filteredSoftware = software.filter((item) => {
+    const matchesSearch =
+      item.system?.hostname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.system?.mac_address
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+    return matchesSearch;
+  });
+
   const getSystemStats = () => {
-    const stats = {
-      total: hardware.length,
-      desktop: hardware.filter((h) =>
-        h.system?.platform?.toLowerCase().includes("windows")
-      ).length,
-      laptop: hardware.filter((h) => h.power_thermal?.battery).length,
-      server: hardware.filter((h) =>
-        h.system?.platform?.toLowerCase().includes("linux")
-      ).length,
-    };
-    return stats;
+    if (activeTab === "hardware") {
+      const stats = {
+        total: hardware.length,
+        desktop: hardware.filter((h) =>
+          h.system?.platform?.toLowerCase().includes("windows")
+        ).length,
+        laptop: hardware.filter((h) => h.power_thermal?.battery).length,
+        server: hardware.filter((h) =>
+          h.system?.platform?.toLowerCase().includes("linux")
+        ).length,
+      };
+      return stats;
+    } else {
+      const stats = {
+        total: software.length,
+        totalPackages: software.reduce(
+          (sum, s) => sum + (s.scan_metadata?.total_software_count || 0),
+          0
+        ),
+        services: software.reduce(
+          (sum, s) => sum + (s.services?.length || 0),
+          0
+        ),
+        startupPrograms: software.reduce(
+          (sum, s) => sum + (s.startup_programs?.length || 0),
+          0
+        ),
+      };
+      return stats;
+    }
   };
 
   const stats = getSystemStats();
@@ -102,6 +157,280 @@ export default function DashboardPage() {
     );
   }
 
+  if (selectedSoftware) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gray-50">
+          <Navbar />
+          <div className="py-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <button
+                onClick={() => setSelectedSoftware(null)}
+                className="flex items-center text-blue-600 hover:text-blue-700 mb-4"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Dashboard
+              </button>
+
+              {/* Software Details */}
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h1 className="text-2xl font-bold text-gray-900">
+                        {selectedSoftware.system?.hostname || "Unknown System"}
+                      </h1>
+                      <p className="text-green-600 font-medium">
+                        {selectedSoftware.system?.platform} Software Inventory
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-500">MAC Address</p>
+                      <p className="font-mono text-gray-900">
+                        {selectedSoftware.system?.mac_address || "Unknown"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Summary Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 p-6 bg-gray-50 border-b">
+                  <div className="text-center">
+                    <Package className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-gray-900">
+                      {selectedSoftware.installed_software?.length || 0}
+                    </p>
+                    <p className="text-sm text-gray-600">Installed Packages</p>
+                  </div>
+                  <div className="text-center">
+                    <Settings className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-gray-900">
+                      {selectedSoftware.services?.length || 0}
+                    </p>
+                    <p className="text-sm text-gray-600">System Services</p>
+                  </div>
+                  <div className="text-center">
+                    <Play className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-gray-900">
+                      {selectedSoftware.startup_programs?.length || 0}
+                    </p>
+                    <p className="text-sm text-gray-600">Startup Programs</p>
+                  </div>
+                  <div className="text-center">
+                    <Monitor className="h-8 w-8 text-orange-600 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-gray-900">
+                      {selectedSoftware.scan_metadata?.total_software_count ||
+                        0}
+                    </p>
+                    <p className="text-sm text-gray-600">Total Items</p>
+                  </div>
+                </div>
+
+                {/* Installed Software List */}
+                <div className="p-6">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                    <Package className="h-5 w-5 text-blue-600 mr-2" />
+                    Installed Software (
+                    {selectedSoftware.installed_software?.length || 0})
+                  </h2>
+
+                  {selectedSoftware.installed_software?.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Software Name
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Version
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Vendor
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Install Date
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Size
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {selectedSoftware.installed_software.map(
+                            (software, index) => (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="flex items-center">
+                                    <Package className="h-4 w-4 text-blue-500 mr-2" />
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {software.name}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  {software.version || "Unknown"}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  {software.vendor || "Unknown"}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  {software.install_date || "Unknown"}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  {software.size || "Unknown"}
+                                </td>
+                              </tr>
+                            )
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">
+                        No installed software found
+                      </p>
+                    </div>
+                  )}
+
+                  {/* System Services Section */}
+                  {selectedSoftware.services?.length > 0 && (
+                    <div className="mt-8">
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                        <Settings className="h-5 w-5 text-green-600 mr-2" />
+                        System Services ({selectedSoftware.services.length})
+                      </h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {selectedSoftware.services
+                          .slice(0, 12)
+                          .map((service, index) => (
+                            <div
+                              key={index}
+                              className="bg-gray-50 rounded-lg p-4 border"
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <h3 className="font-medium text-gray-900 truncate">
+                                  {service.name}
+                                </h3>
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    service.state
+                                      ?.toLowerCase()
+                                      .includes("running")
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-gray-100 text-gray-800"
+                                  }`}
+                                >
+                                  {service.state || "Unknown"}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600 truncate">
+                                {service.display_name || "No description"}
+                              </p>
+                            </div>
+                          ))}
+                        {selectedSoftware.services.length > 12 && (
+                          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 flex items-center justify-center">
+                            <p className="text-blue-600 font-medium">
+                              +{selectedSoftware.services.length - 12} more
+                              services
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Startup Programs Section */}
+                  {selectedSoftware.startup_programs?.length > 0 && (
+                    <div className="mt-8">
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                        <Play className="h-5 w-5 text-purple-600 mr-2" />
+                        Startup Programs (
+                        {selectedSoftware.startup_programs.length})
+                      </h2>
+                      <div className="space-y-3">
+                        {selectedSoftware.startup_programs
+                          .slice(0, 10)
+                          .map((program, index) => (
+                            <div
+                              key={index}
+                              className="bg-gray-50 rounded-lg p-4 border"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h3 className="font-medium text-gray-900">
+                                    {program.name}
+                                  </h3>
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    Location: {program.location || "Unknown"}
+                                  </p>
+                                  {program.command && (
+                                    <div className="mt-2 p-2 bg-white rounded border">
+                                      <p className="text-xs font-mono text-gray-700 break-all">
+                                        {program.command}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        {selectedSoftware.startup_programs.length > 10 && (
+                          <div className="bg-purple-50 rounded-lg p-4 border border-purple-200 text-center">
+                            <p className="text-purple-600 font-medium">
+                              +{selectedSoftware.startup_programs.length - 10}{" "}
+                              more startup programs
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Scan Information */}
+                  <div className="mt-8 bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <h3 className="font-medium text-blue-900 mb-2">
+                      Scan Information
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className="text-blue-600">Last Scan:</p>
+                        <p className="text-blue-900 font-medium">
+                          {new Date(
+                            selectedSoftware.scan_metadata?.last_updated ||
+                              selectedSoftware.updatedAt
+                          ).toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-blue-600">Scanner Version:</p>
+                        <p className="text-blue-900 font-medium">
+                          {selectedSoftware.scan_metadata?.scanner_version ||
+                            "1.0"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-blue-600">Platform:</p>
+                        <p className="text-blue-900 font-medium">
+                          {selectedSoftware.system?.platform}{" "}
+                          {selectedSoftware.system?.platform_release}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
@@ -119,6 +448,51 @@ export default function DashboardPage() {
                   ? "Manage and monitor all IT assets in the organization"
                   : "View and monitor your assigned IT assets"}
               </p>
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="mb-8">
+              <nav className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setActiveTab("hardware")}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                    activeTab === "hardware"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Monitor className="h-4 w-4" />
+                    <span>Hardware Assets</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab("software")}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                    activeTab === "software"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Package className="h-4 w-4" />
+                    <span>Software Inventory</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab("alerts")}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                    activeTab === "alerts"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Bell className="h-4 w-4" />
+                    <span>Warranty Alerts</span>
+                  </div>
+                </button>
+              </nav>
             </div>
 
             {/* Stats Cards */}
@@ -184,6 +558,13 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {/* Alerts Widget - Only show on hardware/software tabs */}
+            {activeTab !== "alerts" && (
+              <div className="mb-8">
+                <AlertsWidget onViewAll={() => setActiveTab("alerts")} />
+              </div>
+            )}
+
             {/* Search and Filter Bar */}
             <div className="bg-white rounded-lg shadow p-6 mb-8">
               <div className="flex flex-col sm:flex-row gap-4">
@@ -229,41 +610,152 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Hardware Grid */}
+            {/* Content Grid */}
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               </div>
-            ) : filteredHardware.length === 0 ? (
+            ) : activeTab === "alerts" ? (
+              <AlertsPanel />
+            ) : activeTab === "hardware" ? (
+              filteredHardware.length === 0 ? (
+                <div className="text-center py-12">
+                  <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No hardware assets found
+                  </h3>
+                  <p className="text-gray-500">
+                    {searchTerm || filterType !== "all"
+                      ? "Try adjusting your search or filter criteria."
+                      : user?.role === "admin"
+                      ? "No assets have been registered yet."
+                      : "No assets have been assigned to you yet."}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredHardware.map((item) => (
+                    <HardwareCard
+                      key={item._id}
+                      hardware={item}
+                      onClick={setSelectedHardware}
+                    />
+                  ))}
+                </div>
+              )
+            ) : filteredSoftware.length === 0 ? (
               <div className="text-center py-12">
                 <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No assets found
+                  No software data found
                 </h3>
                 <p className="text-gray-500">
-                  {searchTerm || filterType !== "all"
-                    ? "Try adjusting your search or filter criteria."
-                    : user?.role === "admin"
-                    ? "No assets have been registered yet."
-                    : "No assets have been assigned to you yet."}
+                  {searchTerm
+                    ? "Try adjusting your search criteria."
+                    : "No software inventory data available yet."}
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredHardware.map((item) => (
-                  <HardwareCard
+                {filteredSoftware.map((item) => (
+                  <div
                     key={item._id}
-                    hardware={item}
-                    onClick={setSelectedHardware}
-                  />
+                    className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border cursor-pointer"
+                    onClick={() => setSelectedSoftware(item)}
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
+                          <Package className="h-6 w-6 text-green-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {item.system?.hostname || "Unknown System"}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {item.system?.platform} Software
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500">MAC Address</p>
+                        <p className="text-sm font-mono text-gray-700">
+                          {item.system?.mac_address || "Unknown"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div className="flex items-center space-x-2">
+                        <Package className="h-4 w-4 text-gray-600" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-gray-500">Installed</p>
+                          <p className="text-sm font-medium text-gray-900">
+                            {item.installed_software?.length || 0}
+                          </p>
+                          <p className="text-xs text-gray-500">packages</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Settings className="h-4 w-4 text-gray-600" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-gray-500">Services</p>
+                          <p className="text-sm font-medium text-gray-900">
+                            {item.services?.length || 0}
+                          </p>
+                          <p className="text-xs text-gray-500">running</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Play className="h-4 w-4 text-gray-600" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-gray-500">Startup</p>
+                          <p className="text-sm font-medium text-gray-900">
+                            {item.startup_programs?.length || 0}
+                          </p>
+                          <p className="text-xs text-gray-500">programs</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Monitor className="h-4 w-4 text-gray-600" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-gray-500">Total</p>
+                          <p className="text-sm font-medium text-gray-900">
+                            {item.scan_metadata?.total_software_count || 0}
+                          </p>
+                          <p className="text-xs text-gray-500">items</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-4 border-t">
+                      <div className="text-xs text-gray-500">
+                        Last scan:{" "}
+                        {new Date(
+                          item.scan_metadata?.last_updated || item.updatedAt
+                        ).toLocaleDateString()}
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                        <span className="text-xs text-gray-600">Scanned</span>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
 
             {/* Results Info */}
-            {!loading && filteredHardware.length > 0 && (
+            {!loading && activeTab !== "alerts" && (
               <div className="mt-8 text-center text-sm text-gray-500">
-                Showing {filteredHardware.length} of {hardware.length} assets
+                {activeTab === "hardware"
+                  ? filteredHardware.length > 0 &&
+                    `Showing ${filteredHardware.length} of ${hardware.length} hardware assets`
+                  : filteredSoftware.length > 0 &&
+                    `Showing ${filteredSoftware.length} of ${software.length} software inventories`}
               </div>
             )}
           </div>

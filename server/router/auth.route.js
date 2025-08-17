@@ -7,6 +7,9 @@ import {
   getAllUsers,
   assignAsset,
   removeAsset,
+  bulkAssignAssets,
+  getAssignmentStatistics,
+  getUnassignedAssets,
 } from "../controllers/auth.controller.js";
 import { verifyToken, requireAdmin } from "../middleware/auth.js";
 
@@ -24,5 +27,18 @@ router.put("/profile", verifyToken, updateProfile);
 router.get("/users", verifyToken, requireAdmin, getAllUsers);
 router.post("/assign-asset", verifyToken, requireAdmin, assignAsset);
 router.post("/remove-asset", verifyToken, requireAdmin, removeAsset);
+router.post("/bulk-assign", verifyToken, requireAdmin, bulkAssignAssets);
+router.get(
+  "/assignment-stats",
+  verifyToken,
+  requireAdmin,
+  getAssignmentStatistics
+);
+router.get(
+  "/unassigned-assets",
+  verifyToken,
+  requireAdmin,
+  getUnassignedAssets
+);
 
 export default router;
