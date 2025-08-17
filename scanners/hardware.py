@@ -779,6 +779,7 @@ def main():
 
     detector = HardwareDetector()
     hardware_data = detector.get_comprehensive_hardware_info()
+   
 
     response = requests.post('http://localhost:3000/api/hardware/', json=hardware_data)
     print(response.status_code, response.json())

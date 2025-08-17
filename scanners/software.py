@@ -559,9 +559,9 @@ def main():
         print(f"Startup Programs: {len(software_data['startup_programs'])} programs")
         
         # Save to JSON file for debugging
-        with open('software_data.json', 'w') as f:
-            json.dump(software_data, f, indent=2)
-        print(f"\n✓ Software data saved to software_data.json")
+        # with open('software_data.json', 'w') as f:
+        #     json.dump(software_data, f, indent=2)
+        # print(f"\n✓ Software data saved to software_data.json")
         
         # Send to server
         success = detector.send_to_server(software_data)
