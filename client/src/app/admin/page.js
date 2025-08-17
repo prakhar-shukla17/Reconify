@@ -9,7 +9,9 @@ import HardwareDetails from "../../components/HardwareDetails";
 import AlertsWidget from "../../components/AlertsWidget";
 import AlertsPanel from "../../components/AlertsPanel";
 import EnhancedAssignmentModal from "../../components/EnhancedAssignmentModal";
-import { hardwareAPI, authAPI } from "../../lib/api";
+import ManualAssetModal from "../../components/ManualAssetModal";
+import TicketCard from "../../components/TicketCard";
+import { hardwareAPI, authAPI, ticketsAPI } from "../../lib/api";
 import toast from "react-hot-toast";
 import {
   Users,
@@ -26,6 +28,7 @@ import {
   Check,
   Eye,
   Bell,
+  Ticket,
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -41,12 +44,17 @@ export default function AdminPage() {
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [selectedAssets, setSelectedAssets] = useState([]);
   const [showEnhancedAssignModal, setShowEnhancedAssignModal] = useState(false);
+  const [showManualAssetModal, setShowManualAssetModal] = useState(false);
+  const [tickets, setTickets] = useState([]);
+  const [selectedTicket, setSelectedTicket] = useState(null);
 
   useEffect(() => {
     if (activeTab === "assets") {
       fetchHardware();
     } else if (activeTab === "users") {
       fetchUsers();
+    } else if (activeTab === "tickets") {
+      fetchTickets();
     }
   }, [activeTab]);
 
@@ -71,6 +79,19 @@ export default function AdminPage() {
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to load users data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTickets = async () => {
+    try {
+      setLoading(true);
+      const response = await ticketsAPI.getAll();
+      setTickets(response.data.data || []);
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      toast.error("Failed to load tickets");
     } finally {
       setLoading(false);
     }
@@ -345,11 +366,22 @@ export default function AdminPage() {
                     <Bell className="h-4 w-4 inline mr-2" />
                     Warranty Alerts
                   </button>
+                  <button
+                    onClick={() => setActiveTab("tickets")}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === "tickets"
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    <Ticket className="h-4 w-4 inline mr-2" />
+                    Support Tickets
+                  </button>
                 </nav>
               </div>
 
               {/* Search and Filter Bar */}
-              {activeTab !== "alerts" && (
+              {activeTab !== "alerts" && activeTab !== "tickets" && (
                 <div className="p-6">
                   <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex-1 relative">
@@ -397,6 +429,16 @@ export default function AdminPage() {
                         />
                         Refresh
                       </button>
+
+                      {activeTab === "assets" && (
+                        <button
+                          onClick={() => setShowManualAssetModal(true)}
+                          className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500"
+                        >
+                          <Package className="h-4 w-4 mr-2" />
+                          Add Manual Asset
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -410,6 +452,41 @@ export default function AdminPage() {
               </div>
             ) : activeTab === "alerts" ? (
               <AlertsPanel />
+            ) : activeTab === "tickets" ? (
+              // Tickets Tab
+              <div className="p-6">
+                <div className="mb-6">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                    Support Tickets Management
+                  </h2>
+                  <p className="text-gray-600">
+                    View and manage all support tickets from users
+                  </p>
+                </div>
+
+                {tickets.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Ticket className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No support tickets found
+                    </h3>
+                    <p className="text-gray-500">
+                      No users have created support tickets yet.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {tickets.map((ticket) => (
+                      <TicketCard
+                        key={ticket._id}
+                        ticket={ticket}
+                        onClick={setSelectedTicket}
+                        isAdmin={true}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             ) : activeTab === "assets" ? (
               // Assets Tab
               filteredHardware.length === 0 ? (
@@ -685,6 +762,16 @@ export default function AdminPage() {
           selectedAssets={selectedAssets}
           users={users}
           onAssignmentComplete={handleAssignmentComplete}
+        />
+
+        {/* Manual Asset Modal */}
+        <ManualAssetModal
+          isOpen={showManualAssetModal}
+          onClose={() => setShowManualAssetModal(false)}
+          onSuccess={() => {
+            fetchHardware();
+            setShowManualAssetModal(false);
+          }}
         />
       </div>
     </ProtectedRoute>

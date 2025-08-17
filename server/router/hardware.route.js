@@ -7,6 +7,9 @@ import {
   getExpiringWarranties,
   getWarrantyStats,
   updateComponentWarranty,
+  createManualAsset,
+  getManualEntries,
+  getUnassignedAssets,
 } from "../controllers/hardware.controller.js";
 import {
   verifyToken,
@@ -41,5 +44,14 @@ router.get("/admin/warranty-stats", verifyToken, getWarrantyStats);
 
 // POST route to save hardware data (public - for scanners)
 router.post("/", createHardware);
+
+// POST route to create manual asset entry (admin only)
+router.post("/manual", verifyToken, requireAdmin, createManualAsset);
+
+// GET route to fetch manual entries (admin only)
+router.get("/admin/manual-entries", verifyToken, requireAdmin, getManualEntries);
+
+// GET route to fetch unassigned assets (admin only)
+router.get("/admin/unassigned", verifyToken, requireAdmin, getUnassignedAssets);
 
 export default router;

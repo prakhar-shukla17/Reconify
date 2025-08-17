@@ -5,6 +5,7 @@ import hardwarerouter from "./router/hardware.route.js";
 import authrouter from "./router/auth.route.js";
 import softwarerouter from "./router/software.route.js";
 import alertsrouter from "./router/alerts.route.js";
+import ticketrouter from "./router/ticket.route.js";
 
 const app = express();
 const PORT = 3000;
@@ -23,6 +24,7 @@ app.use("/api/hardware", hardwarerouter);
 app.use("/api/auth", authrouter);
 app.use("/api/software", softwarerouter);
 app.use("/api/alerts", alertsrouter);
+app.use("/api/tickets", ticketrouter);
 // MongoDB connection URI
 const mongoUri =
   "mongodb+srv://202111077:202111077@cluster0.rwwnyps.mongodb.net/";

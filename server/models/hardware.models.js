@@ -141,6 +141,12 @@ const HardwareSchema = new mongoose.Schema(
       department: { type: String, default: "Unknown" },
       cost: { type: Number, default: 0 },
       currency: { type: String, default: "USD" },
+      // Manual entry specific fields
+      entry_type: { type: String, enum: ["scanner", "manual"], default: "scanner" },
+      category: { type: String, default: "Unknown" },
+      created_manually_at: { type: Date, default: null },
+      created_manually_by: { type: String, default: null },
+      status: { type: String, default: "Active" },
     },
 
     // CPU Information

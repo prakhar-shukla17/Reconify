@@ -8,7 +8,9 @@ import HardwareCard from "../../components/HardwareCard";
 import HardwareDetails from "../../components/HardwareDetails";
 import AlertsWidget from "../../components/AlertsWidget";
 import AlertsPanel from "../../components/AlertsPanel";
-import { hardwareAPI, softwareAPI } from "../../lib/api";
+import CreateTicketModal from "../../components/CreateTicketModal";
+import TicketCard from "../../components/TicketCard";
+import { hardwareAPI, softwareAPI, ticketsAPI } from "../../lib/api";
 import toast from "react-hot-toast";
 import {
   Monitor,
@@ -23,6 +25,9 @@ import {
   Settings,
   Play,
   Bell,
+  Ticket,
+  Plus,
+  AlertCircle,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -36,12 +41,17 @@ export default function DashboardPage() {
   const [filterType, setFilterType] = useState("all");
   const [activeTab, setActiveTab] = useState("hardware");
   const [showAlertsPanel, setShowAlertsPanel] = useState(false);
+  const [tickets, setTickets] = useState([]);
+  const [showCreateTicketModal, setShowCreateTicketModal] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
 
   useEffect(() => {
     if (activeTab === "hardware") {
       fetchHardware();
     } else if (activeTab === "software") {
       fetchSoftware();
+    } else if (activeTab === "tickets") {
+      fetchTickets();
     }
   }, [activeTab]);
 
@@ -66,6 +76,19 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error fetching software:", error);
       toast.error("Failed to load software data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTickets = async () => {
+    try {
+      setLoading(true);
+      const response = await ticketsAPI.getAll();
+      setTickets(response.data.data || []);
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      toast.error("Failed to load tickets");
     } finally {
       setLoading(false);
     }
@@ -111,6 +134,15 @@ export default function DashboardPage() {
         server: hardware.filter((h) =>
           h.system?.platform?.toLowerCase().includes("linux")
         ).length,
+      };
+      return stats;
+    } else if (activeTab === "tickets") {
+      const stats = {
+        total: tickets.length,
+        open: tickets.filter((t) => t.status === "Open").length,
+        inProgress: tickets.filter((t) => t.status === "In Progress").length,
+        resolved: tickets.filter((t) => t.status === "Resolved").length,
+        critical: tickets.filter((t) => t.priority === "Critical").length,
       };
       return stats;
     } else {
@@ -492,70 +524,214 @@ export default function DashboardPage() {
                     <span>Warranty Alerts</span>
                   </div>
                 </button>
+                <button
+                  onClick={() => setActiveTab("tickets")}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                    activeTab === "tickets"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Ticket className="h-4 w-4" />
+                    <span>Support Tickets</span>
+                  </div>
+                </button>
               </nav>
             </div>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Package className="h-8 w-8 text-blue-600" />
+              {activeTab === "tickets" ? (
+                <>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Ticket className="h-8 w-8 text-blue-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">
+                          Total Tickets
+                        </p>
+                        <p className="text-2xl font-semibold text-gray-900">
+                          {stats.total}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">
-                      Total Assets
-                    </p>
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {stats.total}
-                    </p>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <AlertCircle className="h-8 w-8 text-red-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">
+                          Open
+                        </p>
+                        <p className="text-2xl font-semibold text-gray-900">
+                          {stats.open}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Monitor className="h-8 w-8 text-green-600" />
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Settings className="h-8 w-8 text-yellow-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">
+                          In Progress
+                        </p>
+                        <p className="text-2xl font-semibold text-gray-900">
+                          {stats.inProgress}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">
-                      Desktops
-                    </p>
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {stats.desktop}
-                    </p>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Bell className="h-8 w-8 text-red-500" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">
+                          Critical
+                        </p>
+                        <p className="text-2xl font-semibold text-gray-900">
+                          {stats.critical}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Cpu className="h-8 w-8 text-purple-600" />
+                </>
+              ) : activeTab === "hardware" ? (
+                <>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Package className="h-8 w-8 text-blue-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">
+                          Total Assets
+                        </p>
+                        <p className="text-2xl font-semibold text-gray-900">
+                          {stats.total}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Laptops</p>
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {stats.laptop}
-                    </p>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Monitor className="h-8 w-8 text-green-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">
+                          Desktops
+                        </p>
+                        <p className="text-2xl font-semibold text-gray-900">
+                          {stats.desktop}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <HardDrive className="h-8 w-8 text-red-600" />
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Cpu className="h-8 w-8 text-purple-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">
+                          Laptops
+                        </p>
+                        <p className="text-2xl font-semibold text-gray-900">
+                          {stats.laptop}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Servers</p>
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {stats.server}
-                    </p>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <HardDrive className="h-8 w-8 text-red-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">
+                          Servers
+                        </p>
+                        <p className="text-2xl font-semibold text-gray-900">
+                          {stats.server}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Package className="h-8 w-8 text-blue-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">
+                          Total Systems
+                        </p>
+                        <p className="text-2xl font-semibold text-gray-900">
+                          {stats.total}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Package className="h-8 w-8 text-green-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">
+                          Software Packages
+                        </p>
+                        <p className="text-2xl font-semibold text-gray-900">
+                          {stats.totalPackages}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Settings className="h-8 w-8 text-purple-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">
+                          Services
+                        </p>
+                        <p className="text-2xl font-semibold text-gray-900">
+                          {stats.services}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Play className="h-8 w-8 text-red-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">
+                          Startup Programs
+                        </p>
+                        <p className="text-2xl font-semibold text-gray-900">
+                          {stats.startupPrograms}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Alerts Widget - Only show on hardware/software tabs */}
@@ -617,6 +793,53 @@ export default function DashboardPage() {
               </div>
             ) : activeTab === "alerts" ? (
               <AlertsPanel />
+            ) : activeTab === "tickets" ? (
+              <div>
+                {/* Create Ticket Button */}
+                <div className="mb-6 flex justify-between items-center">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Your Support Tickets
+                  </h2>
+                  <button
+                    onClick={() => setShowCreateTicketModal(true)}
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-colors"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Ticket
+                  </button>
+                </div>
+
+                {/* Tickets List */}
+                {tickets.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Ticket className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No support tickets found
+                    </h3>
+                    <p className="text-gray-500 mb-4">
+                      You haven't created any support tickets yet.
+                    </p>
+                    <button
+                      onClick={() => setShowCreateTicketModal(true)}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-colors"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Your First Ticket
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {tickets.map((ticket) => (
+                      <TicketCard
+                        key={ticket._id}
+                        ticket={ticket}
+                        onClick={setSelectedTicket}
+                        isAdmin={false}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             ) : activeTab === "hardware" ? (
               filteredHardware.length === 0 ? (
                 <div className="text-center py-12">
@@ -760,6 +983,17 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* Create Ticket Modal */}
+        <CreateTicketModal
+          isOpen={showCreateTicketModal}
+          onClose={() => setShowCreateTicketModal(false)}
+          onSuccess={(newTicket) => {
+            setTickets([newTicket, ...tickets]);
+            setShowCreateTicketModal(false);
+            toast.success("Ticket created successfully!");
+          }}
+        />
       </div>
     </ProtectedRoute>
   );

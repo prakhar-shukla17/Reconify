@@ -70,9 +70,80 @@ export const createHardware = async (req, res) => {
     // Convert MAC address to string and use as _id
     const macAddressString = String(macAddress);
 
+    // Check if this is an update to an existing manual entry
+    const existingHardware = await Hardware.findById(macAddressString);
+
+    if (
+      existingHardware &&
+      existingHardware.asset_info?.entry_type === "manual"
+    ) {
+      // Update existing manual entry with scanner data
+      console.log(
+        "Updating existing manual entry with scanner data:",
+        macAddressString
+      );
+
+      const updatedData = {
+        ...hardwareData,
+        asset_info: {
+          ...hardwareData.asset_info,
+          // Preserve manual entry specific fields
+          entry_type: "manual",
+          category: existingHardware.asset_info.category,
+          model: existingHardware.asset_info.model,
+          created_manually_at: existingHardware.asset_info.created_manually_at,
+          created_manually_by: existingHardware.asset_info.created_manually_by,
+          // Update other fields from manual entry if they exist
+          vendor:
+            existingHardware.asset_info.vendor !== "Unknown"
+              ? existingHardware.asset_info.vendor
+              : hardwareData.asset_info?.vendor,
+          purchase_date:
+            existingHardware.asset_info.purchase_date ||
+            hardwareData.asset_info?.purchase_date,
+          warranty_expiry:
+            existingHardware.asset_info.warranty_expiry ||
+            hardwareData.asset_info?.warranty_expiry,
+          status: "Scanned - Data Updated",
+        },
+        scan_metadata: {
+          ...hardwareData.scan_metadata,
+          scan_status: "completed",
+          last_scan: new Date(),
+          scanner_version:
+            hardwareData.scan_metadata?.scanner_version || "v1.0",
+        },
+      };
+
+      const updatedHardware = await Hardware.findByIdAndUpdate(
+        macAddressString,
+        updatedData,
+        { new: true }
+      );
+
+      console.log(
+        "Manual entry updated with scanner data:",
+        updatedHardware._id
+      );
+      return res.status(200).json({
+        message: "Manual entry updated with scanner data successfully",
+        data: updatedHardware,
+        updated: true,
+      });
+    }
+
     const dataWithCustomId = {
       _id: macAddressString,
       ...hardwareData,
+      asset_info: {
+        ...hardwareData.asset_info,
+        entry_type: "scanner",
+      },
+      scan_metadata: {
+        ...hardwareData.scan_metadata,
+        scan_status: "completed",
+        last_scan: new Date(),
+      },
     };
 
     console.log("Using MAC address as _id:", macAddressString);
@@ -90,7 +161,6 @@ export const createHardware = async (req, res) => {
       id: savedHardware._id,
     });
   } catch (err) {
-   
     if (err.code === 11000) {
       console.error("MAC address already exists:", err.keyValue);
       res.status(409).json({
@@ -402,5 +472,172 @@ export const updateComponentWarranty = async (req, res) => {
       success: false,
       error: error.message,
     });
+  }
+};
+
+// Create a manual asset entry
+export const createManualAsset = async (req, res) => {
+  try {
+    const { macAddress, modelName, category, hostname } = req.body;
+
+    // Validate required fields
+    if (!macAddress || !modelName || !category) {
+      return res.status(400).json({
+        error: "MAC address, model name, and category are required",
+      });
+    }
+
+    // Validate MAC address format (basic validation)
+    const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
+    if (!macRegex.test(macAddress)) {
+      return res.status(400).json({
+        error: "Invalid MAC address format",
+      });
+    }
+
+    // Convert MAC address to uppercase for consistency
+    const normalizedMacAddress = macAddress.toUpperCase();
+
+    // Check if asset already exists
+    const existingAsset = await Hardware.findById(normalizedMacAddress);
+    if (existingAsset) {
+      return res.status(409).json({
+        error: "Asset with this MAC address already exists",
+      });
+    }
+
+    // Create minimal manual entry
+    const manualAssetData = {
+      _id: normalizedMacAddress,
+      system: {
+        mac_address: normalizedMacAddress,
+        hostname: hostname || `Manual-${normalizedMacAddress.slice(-6)}`,
+        platform: "Unknown",
+        platform_release: "Unknown",
+        platform_version: "Unknown",
+        architecture: "Unknown",
+        processor: "Unknown",
+        boot_time: new Date().toISOString(),
+      },
+      asset_info: {
+        model: modelName,
+        category: category,
+        entry_type: "manual",
+        created_manually_at: new Date(),
+        created_manually_by: req.user.id,
+        vendor: "Unknown",
+        serial_number: "Unknown",
+        status: "Manual Entry - Awaiting Scan",
+      },
+      scan_metadata: {
+        scan_status: "manual_entry_pending_scan",
+        last_scan: new Date(),
+        scan_duration: 0,
+        scanner_version: "manual-v1.0",
+      },
+      // Initialize empty sections that will be filled by scanner
+      cpu: {
+        brand: "Unknown",
+        architecture: "Unknown",
+        cores: 0,
+        threads: 0,
+        frequency: "Unknown",
+      },
+      memory: {
+        total_memory: "Unknown",
+        available_memory: "Unknown",
+        memory_slots: [],
+      },
+      storage: {
+        total_storage: "Unknown",
+        drives: [],
+      },
+      graphics: {
+        gpus: [],
+      },
+      network: {
+        interfaces: [],
+      },
+    };
+
+    const newManualAsset = new Hardware(manualAssetData);
+    const savedAsset = await newManualAsset.save();
+
+    console.log("Manual asset entry created:", savedAsset._id);
+
+    res.status(201).json({
+      success: true,
+      message: "Manual asset entry created successfully",
+      data: savedAsset,
+    });
+  } catch (error) {
+    console.error("Create manual asset error:", error);
+    res.status(500).json({
+      error: "Failed to create manual asset entry",
+      details: error.message,
+    });
+  }
+};
+
+// Get all manual entries (assets created manually but not yet scanned)
+export const getManualEntries = async (req, res) => {
+  try {
+    const manualAssets = await Hardware.find({
+      "asset_info.entry_type": "manual",
+      "scan_metadata.scan_status": "manual_entry_pending_scan",
+    });
+
+    res.json({
+      success: true,
+      data: manualAssets.map((asset) => ({
+        id: asset._id,
+        macAddress: asset._id,
+        modelName: asset.asset_info?.model_name,
+        category: asset.asset_info?.category,
+        description: asset.asset_info?.description,
+        location: asset.asset_info?.location,
+        createdAt: asset.asset_info?.created_manually_at,
+        status: asset.scan_metadata?.scan_status,
+      })),
+      total: manualAssets.length,
+    });
+  } catch (error) {
+    console.error("Get manual entries error:", error);
+    res.status(500).json({ error: "Failed to get manual entries" });
+  }
+};
+
+// Get unassigned assets
+export const getUnassignedAssets = async (req, res) => {
+  try {
+    const User = (await import("../models/user.models.js")).default;
+
+    const allAssets = await Hardware.find(
+      {},
+      "_id system.hostname system.mac_address"
+    );
+    const users = await User.find({}, "assignedAssets");
+
+    const assignedMacAddresses = new Set();
+    users.forEach((user) => {
+      user.assignedAssets.forEach((mac) => assignedMacAddresses.add(mac));
+    });
+
+    const unassignedAssets = allAssets.filter(
+      (asset) => !assignedMacAddresses.has(asset._id)
+    );
+
+    res.json({
+      success: true,
+      unassignedAssets: unassignedAssets.map((asset) => ({
+        id: asset._id,
+        macAddress: asset._id,
+        hostname: asset.system?.hostname || "Unknown Device",
+      })),
+      total: unassignedAssets.length,
+    });
+  } catch (error) {
+    console.error("Get unassigned assets error:", error);
+    res.status(500).json({ error: "Failed to get unassigned assets" });
   }
 };

@@ -76,6 +76,10 @@ export const hardwareAPI = {
   getExpiringWarranties: (days = 30) =>
     api.get(`/hardware/admin/expiring-warranties?days=${days}`),
   getWarrantyStats: () => api.get("/hardware/admin/warranty-stats"),
+  // Manual asset entry functions
+  createManualAsset: (assetData) => api.post("/hardware/manual", assetData),
+  getManualEntries: () => api.get("/hardware/admin/manual-entries"),
+  getUnassignedAssets: () => api.get("/hardware/admin/unassigned"),
 };
 
 // Software API calls
@@ -94,6 +98,18 @@ export const softwareAPI = {
 export const alertsAPI = {
   getWarrantyAlerts: (days = 30) => api.get(`/alerts/warranty?days=${days}`),
   getStatistics: () => api.get("/alerts/statistics"),
+};
+
+// Tickets API calls
+export const ticketsAPI = {
+  create: (ticketData) => api.post("/tickets", ticketData),
+  getAll: (params = {}) => api.get("/tickets", { params }),
+  getById: (id) => api.get(`/tickets/${id}`),
+  update: (id, updateData) => api.put(`/tickets/${id}`, updateData),
+  addComment: (id, commentData) =>
+    api.post(`/tickets/${id}/comments`, commentData),
+  getStatistics: () => api.get("/tickets/admin/statistics"),
+  getUserAssets: () => api.get("/tickets/user-assets"),
 };
 
 export default api;
