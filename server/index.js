@@ -1,6 +1,7 @@
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
+import { configDotenv } from "dotenv";
 import hardwarerouter from "./router/hardware.route.js";
 import authrouter from "./router/auth.route.js";
 import softwarerouter from "./router/software.route.js";
@@ -8,7 +9,8 @@ import alertsrouter from "./router/alerts.route.js";
 import ticketrouter from "./router/ticket.route.js";
 
 const app = express();
-const PORT = 3000;
+configDotenv()
+
 
 // Middleware
 app.use(
@@ -26,8 +28,9 @@ app.use("/api/software", softwarerouter);
 app.use("/api/alerts", alertsrouter);
 app.use("/api/tickets", ticketrouter);
 // MongoDB connection URI
-const mongoUri =
-  "mongodb+srv://202111077:202111077@cluster0.rwwnyps.mongodb.net/";
+const mongoUri = process.env.MONGODB_URI;
+const PORT = process.env.PORT;
+  
 
 // Connect to MongoDB
 mongoose
