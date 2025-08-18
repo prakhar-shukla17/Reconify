@@ -23,6 +23,7 @@ import {
   Plus,
   Save,
   X,
+  Activity,
 } from "lucide-react";
 import { hardwareAPI } from "../lib/api";
 import toast from "react-hot-toast";
@@ -982,7 +983,11 @@ const HardwareDetails = ({ hardware }) => {
       </InfoCard>
 
       {/* ML Predictions */}
-      <InfoCard title="ML Predictions & Analytics" icon={Activity} sectionKey="ml_predictions">
+      <InfoCard
+        title="ML Predictions & Analytics"
+        icon={Activity}
+        sectionKey="ml_predictions"
+      >
         <MLPredictionsPanel macAddress={hardware.system?.mac_address} />
       </InfoCard>
 
