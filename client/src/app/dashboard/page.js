@@ -10,6 +10,7 @@ import AlertsWidget from "../../components/AlertsWidget";
 import AlertsPanel from "../../components/AlertsPanel";
 import CreateTicketModal from "../../components/CreateTicketModal";
 import TicketCard from "../../components/TicketCard";
+import MLServiceControlPanel from "../../components/MLServiceControlPanel";
 import { hardwareAPI, softwareAPI, ticketsAPI } from "../../lib/api";
 import toast from "react-hot-toast";
 import {
@@ -28,6 +29,7 @@ import {
   Ticket,
   Plus,
   AlertCircle,
+  Brain,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -44,6 +46,7 @@ export default function DashboardPage() {
   const [tickets, setTickets] = useState([]);
   const [showCreateTicketModal, setShowCreateTicketModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [showMLControlPanel, setShowMLControlPanel] = useState(false);
 
   useEffect(() => {
     if (activeTab === "hardware") {
@@ -68,7 +71,6 @@ export default function DashboardPage() {
     }
   };
 
-  
   const fetchSoftware = async () => {
     try {
       setLoading(true);
@@ -538,6 +540,15 @@ export default function DashboardPage() {
                     <span>Support Tickets</span>
                   </div>
                 </button>
+                <button
+                  onClick={() => setShowMLControlPanel(true)}
+                  className="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Brain className="h-4 w-4" />
+                    <span>ML Analytics</span>
+                  </div>
+                </button>
               </nav>
             </div>
 
@@ -994,6 +1005,12 @@ export default function DashboardPage() {
             setShowCreateTicketModal(false);
             toast.success("Ticket created successfully!");
           }}
+        />
+
+        {/* ML Service Control Panel */}
+        <MLServiceControlPanel
+          isOpen={showMLControlPanel}
+          onClose={() => setShowMLControlPanel(false)}
         />
       </div>
     </ProtectedRoute>

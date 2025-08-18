@@ -120,4 +120,10 @@ export const ticketsAPI = {
   getAdminUsers: () => api.get("/tickets/admin/users"),
 };
 
+// Telemetry API calls
+export const telemetryAPI = {
+  getTelemetry: (macAddress) => api.get(`/telemetry/${macAddress}`),
+  getHealthSummary: () => api.get("/telemetry/health-summary"),
+};
+
 export default api;

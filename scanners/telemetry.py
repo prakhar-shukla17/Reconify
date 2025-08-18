@@ -79,6 +79,8 @@ def send_telemetry(api_url):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-# Example usage: replace URL with your API endpoint
-result = send_telemetry("http://localhost:3000/api/telemetry")
-# Result holds success status, response, and data
+if __name__ == "__main__":
+    # Example usage: replace URL with your API endpoint
+    result = send_telemetry("http://localhost:3000/api/telemetry")
+    print("Telemetry Result:", result)
+    # Result holds success status, response, and data

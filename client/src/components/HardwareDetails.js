@@ -26,11 +26,13 @@ import {
 } from "lucide-react";
 import { hardwareAPI } from "../lib/api";
 import toast from "react-hot-toast";
+import MLPredictionsPanel from "./MLPredictionsPanel";
 
 const HardwareDetails = ({ hardware }) => {
   const [expandedSections, setExpandedSections] = useState({
     system: true,
     asset_info: true,
+    ml_predictions: false,
     cpu: false,
     memory: false,
     storage: false,
@@ -977,6 +979,11 @@ const HardwareDetails = ({ hardware }) => {
             </button>
           </div>
         </div>
+      </InfoCard>
+
+      {/* ML Predictions */}
+      <InfoCard title="ML Predictions & Analytics" icon={Activity} sectionKey="ml_predictions">
+        <MLPredictionsPanel macAddress={hardware.system?.mac_address} />
       </InfoCard>
 
       {/* CPU Information */}

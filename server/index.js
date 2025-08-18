@@ -7,10 +7,10 @@ import authrouter from "./router/auth.route.js";
 import softwarerouter from "./router/software.route.js";
 import alertsrouter from "./router/alerts.route.js";
 import ticketrouter from "./router/ticket.route.js";
+import telemetryrouter from "./router/telemetry.route.js";
 
 const app = express();
-configDotenv()
-
+configDotenv();
 
 // Middleware
 app.use(
@@ -27,10 +27,10 @@ app.use("/api/auth", authrouter);
 app.use("/api/software", softwarerouter);
 app.use("/api/alerts", alertsrouter);
 app.use("/api/tickets", ticketrouter);
+app.use("/api/telemetry", telemetryrouter);
 // MongoDB connection URI
 const mongoUri = process.env.MONGODB_URI;
 const PORT = process.env.PORT;
-  
 
 // Connect to MongoDB
 mongoose

@@ -12,6 +12,9 @@ import EnhancedAssignmentModal from "../../components/EnhancedAssignmentModal";
 import ManualAssetModal from "../../components/ManualAssetModal";
 import TicketCard from "../../components/TicketCard";
 import TicketManagementModal from "../../components/TicketManagementModal";
+import HealthDashboard from "../../components/HealthDashboard";
+import MLAnalyticsDashboard from "../../components/MLAnalyticsDashboard";
+import MLServiceControlPanel from "../../components/MLServiceControlPanel";
 import { hardwareAPI, authAPI, ticketsAPI } from "../../lib/api";
 import toast from "react-hot-toast";
 import {
@@ -30,6 +33,8 @@ import {
   Eye,
   Bell,
   Ticket,
+  Activity,
+  Brain,
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -50,6 +55,9 @@ export default function AdminPage() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showTicketManagementModal, setShowTicketManagementModal] =
     useState(false);
+  const [showHealthDashboard, setShowHealthDashboard] = useState(false);
+  const [showMLDashboard, setShowMLDashboard] = useState(false);
+  const [showMLControlPanel, setShowMLControlPanel] = useState(false);
 
   useEffect(() => {
     if (activeTab === "assets") {
@@ -385,6 +393,20 @@ export default function AdminPage() {
                   >
                     <Ticket className="h-4 w-4 inline mr-2" />
                     Support Tickets
+                  </button>
+                  <button
+                    onClick={() => setShowHealthDashboard(true)}
+                    className="py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  >
+                    <Activity className="h-4 w-4 inline mr-2" />
+                    System Health
+                  </button>
+                  <button
+                    onClick={() => setShowMLDashboard(true)}
+                    className="py-4 px-1 border-b-2 border-transparent font-medium text-sm text-indigo-600 hover:text-indigo-700 hover:border-indigo-300"
+                  >
+                    <Brain className="h-4 w-4 inline mr-2" />
+                    ML Analytics
                   </button>
                 </nav>
               </div>
@@ -800,6 +822,54 @@ export default function AdminPage() {
             }}
           />
         )}
+
+        {/* Health Dashboard */}
+        <HealthDashboard
+          isOpen={showHealthDashboard}
+          onClose={() => setShowHealthDashboard(false)}
+        />
+
+        {/* ML Analytics Dashboard */}
+        {showMLDashboard && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[95vh] overflow-hidden">
+              <div className="flex justify-between items-center p-6 border-b border-gray-200">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                    <Brain className="h-6 w-6 mr-2 text-indigo-600" />
+                    ML Analytics Dashboard
+                  </h2>
+                  <p className="text-gray-600 mt-1">
+                    Advanced machine learning insights and predictions
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setShowMLControlPanel(true)}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
+                  >
+                    ML Service Control
+                  </button>
+                  <button
+                    onClick={() => setShowMLDashboard(false)}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="overflow-y-auto max-h-[calc(95vh-100px)]">
+                <MLAnalyticsDashboard />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ML Service Control Panel */}
+        <MLServiceControlPanel
+          isOpen={showMLControlPanel}
+          onClose={() => setShowMLControlPanel(false)}
+        />
       </div>
     </ProtectedRoute>
   );
