@@ -15,7 +15,7 @@ configDotenv();
 // Middleware
 app.use(
   cors({
-    origin: "http://localhost:3001", // Next.js default port
+    origin: "http://localhost:3001", // Frontend runs on port 3001
     credentials: true,
   })
 );
@@ -29,8 +29,8 @@ app.use("/api/alerts", alertsrouter);
 app.use("/api/tickets", ticketrouter);
 app.use("/api/telemetry", telemetryrouter);
 // MongoDB connection URI
-const mongoUri = process.env.MONGODB_URI;
-const PORT = process.env.PORT;
+const mongoUri = process.env.MONGODB_URI || "mongodb+srv://202111077:202111077@cluster0.rwwnyps.mongodb.net/";
+const PORT = process.env.PORT || 3000;
 
 // Connect to MongoDB
 mongoose
