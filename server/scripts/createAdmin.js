@@ -2,8 +2,9 @@ import mongoose from "mongoose";
 import User from "../models/user.models.js";
 
 // MongoDB connection URI
-const mongoUri =
-  "mongodb+srv://202111077:202111077@cluster0.rwwnyps.mongodb.net/";
+const mongoUri = process.env.MONGODB_URI;
+
+
 
 async function createAdminUser() {
   try {
