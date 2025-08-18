@@ -29,7 +29,9 @@ app.use("/api/alerts", alertsrouter);
 app.use("/api/tickets", ticketrouter);
 app.use("/api/telemetry", telemetryrouter);
 // MongoDB connection URI
-const mongoUri = process.env.MONGODB_URI || "mongodb+srv://202111077:202111077@cluster0.rwwnyps.mongodb.net/";
+const mongoUri =
+  process.env.MONGODB_URI ||
+  "mongodb+srv://202111077:202111077@cluster0.rwwnyps.mongodb.net/";
 const PORT = process.env.PORT || 3000;
 
 // Connect to MongoDB
