@@ -10,11 +10,13 @@ import AlertsWidget from "../../components/AlertsWidget";
 import AlertsPanel from "../../components/AlertsPanel";
 import EnhancedAssignmentModal from "../../components/EnhancedAssignmentModal";
 import ManualAssetModal from "../../components/ManualAssetModal";
+import CsvImportModal from "../../components/CsvImportModal";
 import TicketCard from "../../components/TicketCard";
 import TicketManagementModal from "../../components/TicketManagementModal";
 import HealthDashboard from "../../components/HealthDashboard";
 import MLAnalyticsDashboard from "../../components/MLAnalyticsDashboard";
 import MLServiceControlPanel from "../../components/MLServiceControlPanel";
+import Pagination from "../../components/Pagination";
 import { hardwareAPI, authAPI, ticketsAPI } from "../../lib/api";
 import toast from "react-hot-toast";
 import {
@@ -35,6 +37,7 @@ import {
   Ticket,
   Activity,
   Brain,
+  FileText,
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -58,10 +61,18 @@ export default function AdminPage() {
   const [showHealthDashboard, setShowHealthDashboard] = useState(false);
   const [showMLDashboard, setShowMLDashboard] = useState(false);
   const [showMLControlPanel, setShowMLControlPanel] = useState(false);
+  const [showCsvImportModal, setShowCsvImportModal] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalItems, setTotalItems] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
 
   useEffect(() => {
     if (activeTab === "assets") {
-      fetchHardware();
+      setCurrentPage(1); // Reset to first page when switching to assets tab
+      fetchHardware(1);
       fetchUsers(); // Always fetch users for assignment functionality
     } else if (activeTab === "users") {
       fetchUsers();
@@ -70,11 +81,21 @@ export default function AdminPage() {
     }
   }, [activeTab]);
 
-  const fetchHardware = async () => {
+  const fetchHardware = async (page = currentPage, limit = itemsPerPage) => {
     try {
       setLoading(true);
-      const response = await hardwareAPI.getAll();
+      const response = await hardwareAPI.getAll({
+        page: page,
+        limit: limit,
+      });
       setHardware(response.data.data || []);
+
+      // Update pagination info
+      if (response.data.pagination) {
+        setCurrentPage(response.data.pagination.currentPage);
+        setTotalPages(response.data.pagination.totalPages);
+        setTotalItems(response.data.pagination.totalItems);
+      }
     } catch (error) {
       console.error("Error fetching hardware:", error);
       toast.error("Failed to load hardware data");
@@ -95,6 +116,11 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    fetchHardware(page);
   };
 
   const fetchTickets = async () => {
@@ -168,6 +194,14 @@ export default function AdminPage() {
     }
   };
 
+  const isAssetAssigned = (macAddress) => {
+    return users.some((user) => user.assignedAssets?.includes(macAddress));
+  };
+
+  const getAssignedUser = (macAddress) => {
+    return users.find((user) => user.assignedAssets?.includes(macAddress));
+  };
+
   const filteredHardware = hardware.filter((item) => {
     const matchesSearch =
       item.system?.hostname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -193,14 +227,6 @@ export default function AdminPage() {
       user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.lastName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const isAssetAssigned = (macAddress) => {
-    return users.some((user) => user.assignedAssets?.includes(macAddress));
-  };
-
-  const getAssignedUser = (macAddress) => {
-    return users.find((user) => user.assignedAssets?.includes(macAddress));
-  };
 
   const getSystemStats = () => {
     const totalAssets = hardware.length;
@@ -432,23 +458,48 @@ export default function AdminPage() {
 
                     <div className="flex items-center space-x-4">
                       {activeTab === "assets" && (
-                        <div className="relative">
-                          <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          <select
-                            value={filterType}
-                            onChange={(e) => setFilterType(e.target.value)}
-                            className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
-                          >
-                            <option value="all">All Assets</option>
-                            <option value="assigned">Assigned</option>
-                            <option value="unassigned">Unassigned</option>
-                          </select>
-                        </div>
+                        <>
+                          <div className="relative">
+                            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <select
+                              value={filterType}
+                              onChange={(e) => setFilterType(e.target.value)}
+                              className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                            >
+                              <option value="all">All Assets</option>
+                              <option value="assigned">Assigned</option>
+                              <option value="unassigned">Unassigned</option>
+                            </select>
+                          </div>
+
+                          <div className="relative">
+                            <select
+                              value={itemsPerPage}
+                              onChange={(e) => {
+                                const newLimit = parseInt(e.target.value);
+                                setItemsPerPage(newLimit);
+                                setCurrentPage(1);
+                                fetchHardware(1, newLimit);
+                              }}
+                              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                            >
+                              <option value={6}>6 per page</option>
+                              <option value={12}>12 per page</option>
+                              <option value={24}>24 per page</option>
+                              <option value={48}>48 per page</option>
+                            </select>
+                          </div>
+                        </>
                       )}
 
                       <button
                         onClick={
-                          activeTab === "assets" ? fetchHardware : fetchUsers
+                          activeTab === "assets"
+                            ? () => {
+                                setCurrentPage(1);
+                                fetchHardware(1);
+                              }
+                            : fetchUsers
                         }
                         disabled={loading}
                         className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
@@ -462,13 +513,22 @@ export default function AdminPage() {
                       </button>
 
                       {activeTab === "assets" && (
-                        <button
-                          onClick={() => setShowManualAssetModal(true)}
-                          className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500"
-                        >
-                          <Package className="h-4 w-4 mr-2" />
-                          Add Manual Asset
-                        </button>
+                        <>
+                          <button
+                            onClick={() => setShowCsvImportModal(true)}
+                            className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:ring-2 focus:ring-purple-500"
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Import CSV
+                          </button>
+                          <button
+                            onClick={() => setShowManualAssetModal(true)}
+                            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500"
+                          >
+                            <Package className="h-4 w-4 mr-2" />
+                            Add Manual Asset
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -528,122 +588,150 @@ export default function AdminPage() {
               </div>
             ) : activeTab === "assets" ? (
               // Assets Tab
-              filteredHardware.length === 0 ? (
-                <div className="text-center py-12">
-                  <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No assets found
-                  </h3>
-                  <p className="text-gray-500">
-                    {searchTerm || filterType !== "all"
-                      ? "Try adjusting your search or filter criteria."
-                      : "No assets have been registered yet."}
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  {/* Bulk Actions Bar */}
-                  <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            checked={
-                              selectedAssets.length ===
-                                filteredHardware.length &&
-                              filteredHardware.length > 0
-                            }
-                            onChange={(e) =>
-                              e.target.checked
-                                ? handleSelectAllAssets()
-                                : handleDeselectAllAssets()
-                            }
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
-                          <span className="text-sm font-medium text-gray-700">
-                            Select All ({selectedAssets.length}/
-                            {filteredHardware.length})
-                          </span>
-                        </div>
-                        {selectedAssets.length > 0 && (
-                          <div className="text-sm text-gray-600">
-                            {selectedAssets.length} asset
-                            {selectedAssets.length !== 1 ? "s" : ""} selected
-                          </div>
-                        )}
-                      </div>
-                      {selectedAssets.length > 0 && (
-                        <button
-                          onClick={handleEnhancedAssignment}
-                          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                          <UserPlus className="h-4 w-4" />
-                          <span>Bulk Assign ({selectedAssets.length})</span>
-                        </button>
-                      )}
+              <div>
+                {/* Page Info */}
+                {totalItems > 0 && (
+                  <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
+                    <div className="flex items-center justify-between text-sm text-gray-600">
+                      <span>
+                        Page {currentPage} of {totalPages} • {totalItems} total
+                        assets
+                      </span>
                     </div>
                   </div>
+                )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredHardware.map((item) => {
-                      const isSelected = selectedAssets.includes(item._id);
-                      return (
-                        <div
-                          key={item._id}
-                          className={`relative ${
-                            isSelected
-                              ? "ring-2 ring-blue-500 ring-opacity-50"
-                              : ""
-                          }`}
-                        >
-                          {/* Selection Checkbox */}
-                          <div className="absolute top-2 left-2 z-10">
+                {filteredHardware.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No assets found
+                    </h3>
+                    <p className="text-gray-500">
+                      {searchTerm || filterType !== "all"
+                        ? "Try adjusting your search or filter criteria."
+                        : "No assets have been registered yet."}
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    {/* Bulk Actions Bar */}
+                    <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-2">
                             <input
                               type="checkbox"
-                              checked={isSelected}
+                              checked={
+                                selectedAssets.length ===
+                                  filteredHardware.length &&
+                                filteredHardware.length > 0
+                              }
                               onChange={(e) =>
-                                handleAssetSelection(item._id, e.target.checked)
+                                e.target.checked
+                                  ? handleSelectAllAssets()
+                                  : handleDeselectAllAssets()
                               }
                               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                              onClick={(e) => e.stopPropagation()}
                             />
+                            <span className="text-sm font-medium text-gray-700">
+                              Select All ({selectedAssets.length}/
+                              {filteredHardware.length})
+                            </span>
                           </div>
-
-                          <HardwareCard
-                            hardware={item}
-                            onClick={setSelectedHardware}
-                          />
-
-                          <div className="absolute top-2 right-2 flex space-x-2">
-                            {isAssetAssigned(item.system?.mac_address) ? (
-                              <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                                Assigned to{" "}
-                                {
-                                  getAssignedUser(item.system?.mac_address)
-                                    ?.username
-                                }
-                              </div>
-                            ) : (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedAsset(item);
-                                  setShowAssignModal(true);
-                                }}
-                                className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full hover:bg-blue-200"
-                              >
-                                Assign
-                              </button>
-                            )}
-                          </div>
+                          {selectedAssets.length > 0 && (
+                            <div className="text-sm text-gray-600">
+                              {selectedAssets.length} asset
+                              {selectedAssets.length !== 1 ? "s" : ""} selected
+                            </div>
+                          )}
                         </div>
-                      );
-                    })}
+                        {selectedAssets.length > 0 && (
+                          <button
+                            onClick={handleEnhancedAssignment}
+                            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            <UserPlus className="h-4 w-4" />
+                            <span>Bulk Assign ({selectedAssets.length})</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filteredHardware.map((item) => {
+                        const isSelected = selectedAssets.includes(item._id);
+                        return (
+                          <div
+                            key={item._id}
+                            className={`relative ${
+                              isSelected
+                                ? "ring-2 ring-blue-500 ring-opacity-50"
+                                : ""
+                            }`}
+                          >
+                            {/* Selection Checkbox */}
+                            <div className="absolute top-2 left-2 z-10">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) =>
+                                  handleAssetSelection(
+                                    item._id,
+                                    e.target.checked
+                                  )
+                                }
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+
+                            <HardwareCard
+                              hardware={item}
+                              onClick={setSelectedHardware}
+                            />
+
+                            <div className="absolute top-2 right-2 flex space-x-2">
+                              {isAssetAssigned(item.system?.mac_address) ? (
+                                <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                                  Assigned to{" "}
+                                  {
+                                    getAssignedUser(item.system?.mac_address)
+                                      ?.username
+                                  }
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedAsset(item);
+                                    setShowAssignModal(true);
+                                  }}
+                                  className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full hover:bg-blue-200"
+                                >
+                                  Assign
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalItems}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={handlePageChange}
+                      />
+                    )}
                   </div>
-                </div>
-              )
-            ) : (
+                )}
+              </div>
+            ) : activeTab === "users" ? (
               // Users Tab
               <div className="bg-white rounded-lg shadow overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -741,7 +829,7 @@ export default function AdminPage() {
                   </tbody>
                 </table>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -808,7 +896,8 @@ export default function AdminPage() {
           isOpen={showManualAssetModal}
           onClose={() => setShowManualAssetModal(false)}
           onSuccess={() => {
-            fetchHardware();
+            setCurrentPage(1);
+            fetchHardware(1);
             setShowManualAssetModal(false);
           }}
         />
@@ -874,6 +963,20 @@ export default function AdminPage() {
         <MLServiceControlPanel
           isOpen={showMLControlPanel}
           onClose={() => setShowMLControlPanel(false)}
+        />
+
+        {/* CSV Import Modal */}
+        <CsvImportModal
+          isOpen={showCsvImportModal}
+          onClose={() => setShowCsvImportModal(false)}
+          onImportComplete={(results) => {
+            toast.success(
+              `Successfully imported ${results.data.successCount} assets`
+            );
+            setCurrentPage(1);
+            fetchHardware(1);
+            setShowCsvImportModal(false);
+          }}
         />
       </div>
     </ProtectedRoute>

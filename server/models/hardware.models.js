@@ -142,7 +142,11 @@ const HardwareSchema = new mongoose.Schema(
       cost: { type: Number, default: 0 },
       currency: { type: String, default: "USD" },
       // Manual entry specific fields
-      entry_type: { type: String, enum: ["scanner", "manual"], default: "scanner" },
+      entry_type: {
+        type: String,
+        enum: ["scanner", "manual", "csv_import"],
+        default: "scanner",
+      },
       category: { type: String, default: "Unknown" },
       created_manually_at: { type: Date, default: null },
       created_manually_by: { type: String, default: null },

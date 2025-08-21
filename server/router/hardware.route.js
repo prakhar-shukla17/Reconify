@@ -1,4 +1,5 @@
 import express from "express";
+import multer from "multer";
 import {
   getAll,
   getById,
@@ -10,12 +11,29 @@ import {
   createManualAsset,
   getManualEntries,
   getUnassignedAssets,
+  importCsvAssets,
+  getDashboardStats,
 } from "../controllers/hardware.controller.js";
 import {
   verifyToken,
   canAccessAsset,
   requireAdmin,
 } from "../middleware/auth.js";
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === "text/csv" || file.originalname.endsWith(".csv")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only CSV files are allowed"), false);
+    }
+  },
+});
 
 const router = express.Router();
 
@@ -42,6 +60,9 @@ router.get("/admin/expiring-warranties", verifyToken, getExpiringWarranties);
 // GET route to fetch warranty statistics (protected)
 router.get("/admin/warranty-stats", verifyToken, getWarrantyStats);
 
+// GET route to fetch dashboard statistics (protected)
+router.get("/stats", verifyToken, getDashboardStats);
+
 // POST route to save hardware data (public - for scanners)
 router.post("/", createHardware);
 
@@ -49,9 +70,23 @@ router.post("/", createHardware);
 router.post("/manual", verifyToken, requireAdmin, createManualAsset);
 
 // GET route to fetch manual entries (admin only)
-router.get("/admin/manual-entries", verifyToken, requireAdmin, getManualEntries);
+router.get(
+  "/admin/manual-entries",
+  verifyToken,
+  requireAdmin,
+  getManualEntries
+);
 
 // GET route to fetch unassigned assets (admin only)
 router.get("/admin/unassigned", verifyToken, requireAdmin, getUnassignedAssets);
+
+// POST route to import CSV assets (admin only)
+router.post(
+  "/import/csv",
+  verifyToken,
+  requireAdmin,
+  upload.single("csvFile"),
+  importCsvAssets
+);
 
 export default router;
