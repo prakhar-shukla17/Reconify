@@ -1,0 +1,178 @@
+{
+  "timestamp": "2025-08-20T16:55:40.671283",
+  "system_info": {
+    "os": "Windows",
+    "release": "11",
+    "architecture": "AMD64",
+    "python_version": "3.13.6"
+  },
+  "package_managers": [
+    "Pip"
+  ],
+  "summary": {
+    "total_packages": 11,
+    "packages_with_updates": 1,
+    "packages_up_to_date": 10,
+    "managers_scanned": 1
+  },
+  "all_packages": [
+    {
+      "name": "certifi",
+      "current_version": "2025.8.3",
+      "manager": "pip",
+      "latest_version": "2025.8.3",
+      "update_available": false
+    },
+    {
+      "name": "charset-normalizer",
+      "current_version": "3.4.3",
+      "manager": "pip",
+      "latest_version": "3.4.3",
+      "update_available": false
+    },
+    {
+      "name": "GPUtil",
+      "current_version": "1.4.0",
+      "manager": "pip",
+      "latest_version": "1.4.0",
+      "update_available": false
+    },
+    {
+      "name": "idna",
+      "current_version": "3.10",
+      "manager": "pip",
+      "latest_version": "3.10",
+      "update_available": false
+    },
+    {
+      "name": "pip",
+      "current_version": "25.2",
+      "manager": "pip",
+      "latest_version": "25.2",
+      "update_available": false
+    },
+    {
+      "name": "psutil",
+      "current_version": "7.0.0",
+      "manager": "pip",
+      "latest_version": "7.0.0",
+      "update_available": false
+    },
+    {
+      "name": "pyasn1",
+      "current_version": "0.6.1",
+      "manager": "pip",
+      "latest_version": "0.6.1",
+      "update_available": false
+    },
+    {
+      "name": "pysnmp",
+      "current_version": "7.1.21",
+      "manager": "pip",
+      "latest_version": "7.1.21",
+      "update_available": false
+    },
+    {
+      "name": "requests",
+      "current_version": "2.32.4",
+      "manager": "pip",
+      "latest_version": "2.32.5",
+      "update_available": true
+    },
+    {
+      "name": "scapy",
+      "current_version": "2.6.1",
+      "manager": "pip",
+      "latest_version": "2.6.1",
+      "update_available": false
+    },
+    {
+      "name": "urllib3",
+      "current_version": "2.5.0",
+      "manager": "pip",
+      "latest_version": "2.5.0",
+      "update_available": false
+    }
+  ],
+  "packages_with_updates": [
+    {
+      "name": "requests",
+      "current_version": "2.32.4",
+      "manager": "pip",
+      "latest_version": "2.32.5",
+      "update_available": true
+    }
+  ],
+  "packages_up_to_date": [
+    {
+      "name": "certifi",
+      "current_version": "2025.8.3",
+      "manager": "pip",
+      "latest_version": "2025.8.3",
+      "update_available": false
+    },
+    {
+      "name": "charset-normalizer",
+      "current_version": "3.4.3",
+      "manager": "pip",
+      "latest_version": "3.4.3",
+      "update_available": false
+    },
+    {
+      "name": "GPUtil",
+      "current_version": "1.4.0",
+      "manager": "pip",
+      "latest_version": "1.4.0",
+      "update_available": false
+    },
+    {
+      "name": "idna",
+      "current_version": "3.10",
+      "manager": "pip",
+      "latest_version": "3.10",
+      "update_available": false
+    },
+    {
+      "name": "pip",
+      "current_version": "25.2",
+      "manager": "pip",
+      "latest_version": "25.2",
+      "update_available": false
+    },
+    {
+      "name": "psutil",
+      "current_version": "7.0.0",
+      "manager": "pip",
+      "latest_version": "7.0.0",
+      "update_available": false
+    },
+    {
+      "name": "pyasn1",
+      "current_version": "0.6.1",
+      "manager": "pip",
+      "latest_version": "0.6.1",
+      "update_available": false
+    },
+    {
+      "name": "pysnmp",
+      "current_version": "7.1.21",
+      "manager": "pip",
+      "latest_version": "7.1.21",
+      "update_available": false
+    },
+    {
+      "name": "scapy",
+      "current_version": "2.6.1",
+      "manager": "pip",
+      "latest_version": "2.6.1",
+      "update_available": false
+    },
+    {
+      "name": "urllib3",
+      "current_version": "2.5.0",
+      "manager": "pip",
+      "latest_version": "2.5.0",
+      "update_available": false
+    }
+  ]
+}
