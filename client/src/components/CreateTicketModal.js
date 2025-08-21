@@ -68,7 +68,6 @@ const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
         asset_id: data.asset_id,
       });
 
-      toast.success("Ticket created successfully!");
       onSuccess?.(response.data.data);
       handleClose();
     } catch (error) {

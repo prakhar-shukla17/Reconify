@@ -88,7 +88,19 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       const response = await ticketsAPI.getAll();
-      setTickets(response.data.data || []);
+      const ticketsData = response.data.data || [];
+      
+      // Sort tickets: active tickets first, closed tickets last
+      const sortedTickets = ticketsData.sort((a, b) => {
+        const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+        const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+        
+        if (aIsClosed && !bIsClosed) return 1;  // a goes after b
+        if (!aIsClosed && bIsClosed) return -1; // a goes before b
+        return 0; // keep original order for same status type
+      });
+      
+      setTickets(sortedTickets);
     } catch (error) {
       console.error("Error fetching tickets:", error);
       toast.error("Failed to load tickets");
@@ -1006,7 +1018,18 @@ export default function DashboardPage() {
           isOpen={showCreateTicketModal}
           onClose={() => setShowCreateTicketModal(false)}
           onSuccess={(newTicket) => {
-            setTickets([newTicket, ...tickets]);
+            // Add new ticket and maintain sorting (active tickets first, closed last)
+            const updatedTickets = [newTicket, ...tickets];
+            const sortedTickets = updatedTickets.sort((a, b) => {
+              const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+              const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+              
+              if (aIsClosed && !bIsClosed) return 1;  // a goes after b
+              if (!aIsClosed && bIsClosed) return -1; // a goes before b
+              return 0; // keep original order for same status type
+            });
+            
+            setTickets(sortedTickets);
             setShowCreateTicketModal(false);
             toast.success("Ticket created successfully!");
           }}
