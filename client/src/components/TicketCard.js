@@ -14,49 +14,49 @@ const TicketCard = ({ ticket, onClick, isAdmin = false }) => {
   const getStatusIcon = (status) => {
     switch (status) {
       case "Open":
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
+        return <AlertCircle className="h-3 w-3 text-rose-500" />;
       case "In Progress":
-        return <Pause className="h-4 w-4 text-yellow-500" />;
+        return <Pause className="h-3 w-3 text-amber-500" />;
       case "Resolved":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-3 w-3 text-emerald-500" />;
       case "Closed":
-        return <XCircle className="h-4 w-4 text-gray-500" />;
+        return <XCircle className="h-3 w-3 text-slate-500" />;
       case "Rejected":
-        return <XCircle className="h-4 w-4 text-red-500" />;
+        return <XCircle className="h-3 w-3 text-rose-500" />;
       default:
-        return <AlertCircle className="h-4 w-4 text-gray-500" />;
+        return <AlertCircle className="h-3 w-3 text-slate-500" />;
     }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
       case "Open":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "bg-rose-50 text-rose-700 border-rose-200";
       case "In Progress":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+        return "bg-amber-50 text-amber-700 border-amber-200";
       case "Resolved":
-        return "bg-green-100 text-green-800 border-green-200";
+        return "bg-emerald-50 text-emerald-700 border-emerald-200";
       case "Closed":
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-slate-50 text-slate-700 border-slate-200";
       case "Rejected":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "bg-rose-50 text-rose-700 border-rose-200";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-slate-50 text-slate-700 border-slate-200";
     }
   };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
       case "Critical":
-        return "bg-red-500 text-white";
+        return "bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm";
       case "High":
-        return "bg-orange-500 text-white";
+        return "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm";
       case "Medium":
-        return "bg-yellow-500 text-white";
+        return "bg-gradient-to-r from-amber-500 to-yellow-500 text-white shadow-sm";
       case "Low":
-        return "bg-green-500 text-white";
+        return "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm";
       default:
-        return "bg-gray-500 text-white";
+        return "bg-gradient-to-r from-slate-500 to-gray-500 text-white shadow-sm";
     }
   };
 
@@ -64,45 +64,80 @@ const TicketCard = ({ ticket, onClick, isAdmin = false }) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now - date);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffMinutes = Math.floor(diffTime / (1000 * 60));
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 1) {
+    // If it's less than 1 minute, show "Just now"
+    if (diffMinutes < 1) {
+      return "Just now";
+    }
+    // If it's less than 1 hour, show minutes ago
+    else if (diffMinutes < 60) {
+      return `${diffMinutes} min ago`;
+    }
+    // If it's less than 1 day, show hours ago
+    else if (diffHours < 24) {
+      return `${diffHours} hr ago`;
+    }
+    // If it's 1 day, show "1 day ago"
+    else if (diffDays === 1) {
       return "1 day ago";
-    } else if (diffDays < 7) {
+    }
+    // If it's multiple days, show days ago
+    else {
       return `${diffDays} days ago`;
-    } else {
-      return date.toLocaleDateString();
+    }
+  };
+
+  // Check if ticket is closed and should not be clickable
+  const isClosed = ticket.status === "Closed" || ticket.status === "Rejected";
+  const isClickable = !isClosed;
+
+  const handleClick = () => {
+    if (isClickable && onClick) {
+      onClick(ticket);
     }
   };
 
   return (
     <div
-      onClick={() => onClick?.(ticket)}
-      className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+      onClick={handleClick}
+      className={`border border-slate-200 rounded-lg p-3 transition-all duration-200 ${
+        isClickable 
+          ? "bg-white hover:shadow-lg hover:border-slate-300 cursor-pointer group bg-gradient-to-br from-white to-slate-50" 
+          : "bg-slate-100 cursor-not-allowed opacity-75"
+      }`}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
+      {/* Header - Compact */}
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-2 mb-1">
-            <span className="text-sm font-mono text-gray-500">
+            <span className={`text-xs font-mono px-2 py-0.5 rounded ${
+              isClickable ? "text-slate-500 bg-slate-100" : "text-slate-400 bg-slate-200"
+            }`}>
               {ticket.ticket_id}
             </span>
             <span
-              className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
+              className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(
                 ticket.priority
               )}`}
             >
               {ticket.priority}
             </span>
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
+          <h3 className={`text-sm font-semibold line-clamp-2 leading-tight ${
+            isClickable 
+              ? "text-slate-900 group-hover:text-blue-600 transition-colors" 
+              : "text-slate-600"
+          }`}>
             {ticket.title}
           </h3>
         </div>
-        <div className="flex items-center space-x-2 ml-4">
+        <div className="flex items-center space-x-1 ml-2">
           {getStatusIcon(ticket.status)}
           <span
-            className={`px-2 py-1 rounded-md text-xs font-medium border ${getStatusColor(
+            className={`px-1.5 py-0.5 rounded text-xs font-medium border ${getStatusColor(
               ticket.status
             )}`}
           >
@@ -111,58 +146,117 @@ const TicketCard = ({ ticket, onClick, isAdmin = false }) => {
         </div>
       </div>
 
-      {/* Description */}
-      <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+      {/* Description - Smaller */}
+      <p className={`text-xs mb-2 line-clamp-2 leading-tight ${
+        isClickable ? "text-slate-600" : "text-slate-500"
+      }`}>
         {ticket.description}
       </p>
 
-      {/* Asset Info */}
-      <div className="flex items-center space-x-2 mb-3 p-2 bg-gray-50 rounded-md">
-        <Monitor className="h-4 w-4 text-gray-500" />
+      {/* Asset Info - Compact */}
+      <div className={`flex items-center space-x-2 mb-2 p-1.5 rounded border text-xs ${
+        isClickable 
+          ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100" 
+          : "bg-slate-200 border-slate-300"
+      }`}>
+        <Monitor className={`h-3 w-3 flex-shrink-0 ${
+          isClickable ? "text-blue-500" : "text-slate-400"
+        }`} />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 truncate">
+          <p className={`text-xs font-medium truncate ${
+            isClickable ? "text-slate-900" : "text-slate-600"
+          }`}>
             {ticket.asset_hostname}
           </p>
-          <p className="text-xs text-gray-500 truncate">
+          <p className={`text-xs truncate ${
+            isClickable ? "text-slate-500" : "text-slate-400"
+          }`}>
             {ticket.asset_model} • {ticket.asset_id}
           </p>
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <div className="flex items-center space-x-4">
+      {/* Footer - Compact */}
+      <div className="flex items-center justify-between text-xs text-slate-500">
+        <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-1">
-            <User className="h-3 w-3" />
-            <span>{isAdmin ? ticket.created_by_name : "You"}</span>
+            <User className={`h-3 w-3 ${
+              isClickable ? "text-blue-500" : "text-slate-400"
+            }`} />
+            <span className={`text-xs ${
+              isClickable ? "text-slate-600" : "text-slate-500"
+            }`}>{isAdmin ? ticket.created_by_name : "You"}</span>
           </div>
           <div className="flex items-center space-x-1">
-            <Clock className="h-3 w-3" />
-            <span>{formatDate(ticket.created_at)}</span>
+            <Clock className={`h-3 w-3 ${
+              isClickable ? "text-amber-500" : "text-slate-400"
+            }`} />
+            <span className={`text-xs ${
+              isClickable ? "text-slate-600" : "text-slate-500"
+            }`}>{formatDate(ticket.created_at)}</span>
           </div>
         </div>
         <div className="flex items-center space-x-1">
-          <span className="font-medium">{ticket.category}</span>
+          <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+            isClickable 
+              ? "text-slate-700 bg-slate-100" 
+              : "text-slate-500 bg-slate-200"
+          }`}>
+            {ticket.category}
+          </span>
         </div>
       </div>
 
-      {/* Assignment Info (Admin View) */}
+      {/* Assignment Info (Admin View) - Compact */}
       {isAdmin && ticket.assigned_to_name && (
-        <div className="mt-2 pt-2 border-t border-gray-100">
-          <div className="flex items-center space-x-1 text-xs text-blue-600">
+        <div className="mt-1.5 pt-1.5 border-t border-slate-100">
+          <div className={`flex items-center space-x-1 text-xs px-2 py-0.5 rounded ${
+            isClickable 
+              ? "text-blue-600 bg-blue-50" 
+              : "text-slate-500 bg-slate-200"
+          }`}>
             <User className="h-3 w-3" />
-            <span>Assigned to: {ticket.assigned_to_name}</span>
+            <span className="text-xs">Assigned to: {ticket.assigned_to_name}</span>
           </div>
         </div>
       )}
 
-      {/* Comments Count */}
+      {/* Comments Count - Compact */}
       {ticket.comments && ticket.comments.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-gray-100">
-          <span className="text-xs text-gray-500">
+        <div className="mt-1.5 pt-1.5 border-t border-slate-100">
+          <span className={`text-xs px-2 py-0.5 rounded ${
+            isClickable 
+              ? "text-slate-500 bg-slate-50" 
+              : "text-slate-400 bg-slate-200"
+          }`}>
             {ticket.comments.length} comment
             {ticket.comments.length !== 1 ? "s" : ""}
           </span>
+        </div>
+      )}
+
+      {/* Closed Ticket Indicator */}
+      {isClosed && (
+        <div className="mt-2 pt-2 border-t border-slate-200">
+          <div className="flex items-center justify-center">
+            <div className="relative group">
+              <span className="text-xs text-slate-500 bg-slate-200 px-2 py-1 rounded-full cursor-help">
+                {ticket.status === "Closed" ? "Ticket Closed" : "Ticket Rejected"}
+              </span>
+              
+              {/* Resolution Tooltip */}
+              {ticket.resolution && (
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-800 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 max-w-xs">
+                  <div className="text-center">
+                    <div className="font-medium mb-1">Resolution:</div>
+                    <div className="text-slate-200 leading-relaxed">{ticket.resolution}</div>
+                  </div>
+                  {/* Arrow */}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-800"></div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

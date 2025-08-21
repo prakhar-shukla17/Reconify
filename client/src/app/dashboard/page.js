@@ -845,7 +845,12 @@ export default function DashboardPage() {
                       <TicketCard
                         key={ticket._id}
                         ticket={ticket}
-                        onClick={setSelectedTicket}
+                        onClick={(ticket) => {
+                          // Only allow opening tickets that are not closed or rejected
+                          if (ticket.status !== "Closed" && ticket.status !== "Rejected") {
+                            setSelectedTicket(ticket);
+                          }
+                        }}
                         isAdmin={false}
                       />
                     ))}
