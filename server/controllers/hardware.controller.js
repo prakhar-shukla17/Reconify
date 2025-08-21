@@ -2,27 +2,72 @@ import Hardware from "../models/hardware.models.js";
 
 export const getAll = async (req, res) => {
   try {
-    let hardwareList;
+    // Get pagination parameters from query
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12; // Default 12 items per page
+    const skip = (page - 1) * limit;
+
+    let query = {};
+    let totalCount = 0;
 
     // If user is admin, get all hardware
     if (req.user && req.user.role === "admin") {
-      hardwareList = await Hardware.find({});
+      totalCount = await Hardware.countDocuments(query);
+      const hardwareList = await Hardware.find(query)
+        .sort({ createdAt: -1 }) // Sort by newest first
+        .skip(skip)
+        .limit(limit);
+
+      return res.status(200).json({
+        message: "Data fetched successfully",
+        data: hardwareList,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount / limit),
+          totalItems: totalCount,
+          itemsPerPage: limit,
+          hasNextPage: page < Math.ceil(totalCount / limit),
+          hasPrevPage: page > 1,
+        },
+      });
     }
     // If user is regular user, get only assigned assets
     else if (req.user && req.user.assignedAssets) {
-      hardwareList = await Hardware.find({
-        _id: { $in: req.user.assignedAssets },
+      query = { _id: { $in: req.user.assignedAssets } };
+      totalCount = await Hardware.countDocuments(query);
+      const hardwareList = await Hardware.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      return res.status(200).json({
+        message: "Data fetched successfully",
+        data: hardwareList,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount / limit),
+          totalItems: totalCount,
+          itemsPerPage: limit,
+          hasNextPage: page < Math.ceil(totalCount / limit),
+          hasPrevPage: page > 1,
+        },
       });
     }
     // If no user context, return empty (shouldn't happen with auth middleware)
     else {
-      hardwareList = [];
+      return res.status(200).json({
+        message: "Data fetched successfully",
+        data: [],
+        pagination: {
+          currentPage: 1,
+          totalPages: 0,
+          totalItems: 0,
+          itemsPerPage: limit,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
+      });
     }
-
-    return res.status(200).json({
-      message: "Data fetched successfully",
-      data: hardwareList,
-    });
   } catch (error) {
     console.error("Error fetching hardware data:", error);
     return res.status(500).json({
@@ -639,5 +684,346 @@ export const getUnassignedAssets = async (req, res) => {
   } catch (error) {
     console.error("Get unassigned assets error:", error);
     res.status(500).json({ error: "Failed to get unassigned assets" });
+  }
+};
+
+// Get dashboard statistics
+export const getDashboardStats = async (req, res) => {
+  try {
+    const { user } = req;
+
+    // Get total assets count
+    const totalAssets = await Hardware.countDocuments();
+
+    // Get assigned assets count
+    const assignedAssets = await Hardware.countDocuments({
+      "system.mac_address": { $in: user.assignedAssets || [] },
+    });
+
+    // Get active assets count
+    const activeAssets = await Hardware.countDocuments({
+      "asset_info.status": "Active",
+    });
+
+    // Get assets with expiring warranties (within 30 days)
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+    const expiringWarranties = await Hardware.countDocuments({
+      "asset_info.warranty_expiry": {
+        $gte: new Date(),
+        $lte: thirtyDaysFromNow,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalAssets,
+        assignedAssets,
+        activeAssets,
+        expiringWarranties,
+      },
+    });
+  } catch (error) {
+    console.error("Get dashboard stats error:", error);
+    res.status(500).json({
+      error: "Failed to fetch dashboard statistics",
+      details: error.message,
+    });
+  }
+};
+
+// Import assets from CSV file
+export const importCsvAssets = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        error: "No CSV file uploaded",
+      });
+    }
+
+    const csvContent = req.file.buffer.toString("utf-8");
+
+    // Normalize line endings and split
+    const normalizedContent = csvContent
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n");
+    const lines = normalizedContent.split("\n").filter((line) => line.trim());
+
+    console.log("Total lines in CSV:", lines.length);
+
+    // Skip header rows (first 4 lines are headers)
+    const dataLines = lines.slice(4);
+    console.log("Data lines to process:", dataLines.length);
+
+    const results = {
+      totalProcessed: 0,
+      successCount: 0,
+      errorCount: 0,
+      errors: [],
+      importedAssets: [],
+    };
+
+    const generateRandomMacAddress = () => {
+      const hexDigits = "0123456789ABCDEF";
+      let mac = "";
+      for (let i = 0; i < 6; i++) {
+        if (i > 0) mac += ":";
+        for (let j = 0; j < 2; j++) {
+          mac += hexDigits[Math.floor(Math.random() * 16)];
+        }
+      }
+      return mac;
+    };
+
+    // Simple CSV parser that handles quoted fields
+    const parseCSVLine = (line) => {
+      const columns = [];
+      let current = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === "," && !inQuotes) {
+          columns.push(current.trim());
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+
+      // Add the last column
+      columns.push(current.trim());
+
+      // Clean up quotes
+      return columns.map((col) =>
+        col.replace(/^"/, "").replace(/"$/, "").trim()
+      );
+    };
+
+    let rowNumber = 5; // Start from row 5 (after headers)
+
+    for (let i = 0; i < dataLines.length; i++) {
+      const line = dataLines[i];
+      results.totalProcessed++;
+
+      try {
+        // Skip empty lines
+        if (!line.trim()) {
+          rowNumber++;
+          continue;
+        }
+
+        const columns = parseCSVLine(line);
+
+        console.log(
+          `Row ${rowNumber} has ${columns.length} columns:`,
+          columns.slice(0, 5),
+          "..."
+        );
+
+        // Extract data from columns
+        const [
+          srNo,
+          branch,
+          assetId,
+          assetName,
+          assetCategory,
+          make,
+          model,
+          ip,
+          serialNumber,
+          criticality,
+          sensitivity,
+          software,
+          vendor,
+          allocationDate,
+          branch2,
+          warrantyExpiry,
+          purchaseValue,
+          status,
+          handledBy,
+          approvedBy,
+          empty1,
+          colorDefinition,
+        ] = columns;
+
+        // Skip rows with insufficient data
+        if (
+          !assetName ||
+          assetName === "Asset Name" ||
+          !branch ||
+          columns.length < 10
+        ) {
+          console.log(
+            `Skipping row ${rowNumber}: assetName="${assetName}", branch="${branch}", columns=${columns.length}`
+          );
+          rowNumber++;
+          continue;
+        }
+
+        console.log(
+          `Processing row ${rowNumber}: assetName="${assetName}", branch="${branch}", assetId="${assetId}"`
+        );
+
+        // Generate MAC address
+        let macAddress;
+        if (ip && ip !== "-" && ip !== "") {
+          // Check if IP looks like a valid MAC address (contains colons or dashes)
+          if (ip.includes(":") || ip.includes("-")) {
+            macAddress = ip;
+          } else {
+            // If it's an IP address, generate a random MAC
+            macAddress = generateRandomMacAddress();
+          }
+        } else {
+          macAddress = generateRandomMacAddress();
+        }
+
+        // Create asset name from Asset Name + Model
+        const fullAssetName = `${assetName} ${model || ""}`.trim();
+
+        // Create hardware data object
+        const hardwareData = {
+          _id: macAddress,
+          system: {
+            platform: "Unknown",
+            platform_release: "Unknown",
+            platform_version: "Unknown",
+            architecture: "Unknown",
+            hostname: assetId || `Asset-${srNo}`,
+            processor: "Unknown",
+            mac_address: macAddress,
+          },
+          asset_info: {
+            purchase_date: null,
+            warranty_expiry:
+              warrantyExpiry && warrantyExpiry !== "-"
+                ? new Date(warrantyExpiry)
+                : null,
+            vendor: vendor || make || "Unknown",
+            model: model || "Unknown",
+            serial_number:
+              serialNumber && serialNumber !== "-" ? serialNumber : "Unknown",
+            asset_tag: assetId || `Asset-${srNo}`,
+            location: branch,
+            department: branch,
+            cost: purchaseValue ? parseFloat(purchaseValue) : 0,
+            currency: "INR",
+            entry_type: "csv_import",
+            category: assetCategory || "Unknown",
+            status: status || "Active",
+            created_manually_at: new Date(),
+            created_manually_by: req.user?.username || "admin",
+          },
+          cpu: {
+            name: "Unknown",
+            physical_cores: 0,
+            logical_cores: 0,
+            max_frequency: "Unknown",
+            min_frequency: "Unknown",
+            current_frequency: "Unknown",
+            architecture: "Unknown",
+            cache_info: {},
+            features: [],
+            manufacturer: "Unknown",
+          },
+          memory: {
+            total: "0 GB",
+            available: "0 GB",
+            used: "0 GB",
+            percentage: "0%",
+            slots: [],
+            type: "Unknown",
+            speed: "Unknown",
+            total_physical: "0 GB",
+            slot_count: 0,
+          },
+          storage: {
+            drives: [],
+            total_capacity: "0 GB",
+            partitions: [],
+          },
+          network: {
+            interfaces: [],
+          },
+          graphics: {
+            gpus: [],
+          },
+          motherboard: {
+            manufacturer: "Unknown",
+            model: "Unknown",
+            version: "Unknown",
+            serial_number: "Unknown",
+            bios: {
+              manufacturer: "Unknown",
+              version: "Unknown",
+              release_date: "Unknown",
+            },
+          },
+          power_thermal: {
+            battery: null,
+            temperatures: {},
+          },
+        };
+
+        // Check if asset already exists
+        const existingAsset = await Hardware.findById(macAddress);
+        if (existingAsset) {
+          results.errors.push({
+            row: rowNumber,
+            message: `Asset with MAC address ${macAddress} already exists`,
+          });
+          results.errorCount++;
+          rowNumber++;
+          continue;
+        }
+
+        // Save the asset
+        const newAsset = new Hardware(hardwareData);
+        await newAsset.save();
+
+        results.successCount++;
+        results.importedAssets.push({
+          assetId,
+          assetName: fullAssetName,
+          macAddress,
+          branch,
+        });
+
+        console.log(
+          `Successfully imported asset: ${fullAssetName} (${macAddress})`
+        );
+      } catch (error) {
+        console.error(`Error processing row ${rowNumber}:`, error);
+        results.errors.push({
+          row: rowNumber,
+          message: `Error processing row: ${error.message}`,
+        });
+        results.errorCount++;
+      }
+
+      rowNumber++;
+    }
+
+    console.log(
+      `Import completed: ${results.successCount} successful, ${results.errorCount} errors`
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "CSV import completed",
+      data: results,
+    });
+  } catch (error) {
+    console.error("CSV import error:", error);
+    res.status(500).json({
+      error: "Failed to import CSV data",
+      details: error.message,
+    });
   }
 };
