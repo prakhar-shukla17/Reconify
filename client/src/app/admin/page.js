@@ -10,6 +10,7 @@ import AlertsWidget from "../../components/AlertsWidget";
 import AlertsPanel from "../../components/AlertsPanel";
 import EnhancedAssignmentModal from "../../components/EnhancedAssignmentModal";
 import ManualAssetModal from "../../components/ManualAssetModal";
+import CsvImportModal from "../../components/CsvImportModal";
 import TicketCard from "../../components/TicketCard";
 import TicketManagementModal from "../../components/TicketManagementModal";
 import HealthDashboard from "../../components/HealthDashboard";
@@ -35,6 +36,7 @@ import {
   Ticket,
   Activity,
   Brain,
+  FileText,
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -58,6 +60,7 @@ export default function AdminPage() {
   const [showHealthDashboard, setShowHealthDashboard] = useState(false);
   const [showMLDashboard, setShowMLDashboard] = useState(false);
   const [showMLControlPanel, setShowMLControlPanel] = useState(false);
+  const [showCsvImportModal, setShowCsvImportModal] = useState(false);
 
   useEffect(() => {
     if (activeTab === "assets") {
@@ -462,13 +465,22 @@ export default function AdminPage() {
                       </button>
 
                       {activeTab === "assets" && (
-                        <button
-                          onClick={() => setShowManualAssetModal(true)}
-                          className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500"
-                        >
-                          <Package className="h-4 w-4 mr-2" />
-                          Add Manual Asset
-                        </button>
+                        <>
+                          <button
+                            onClick={() => setShowCsvImportModal(true)}
+                            className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:ring-2 focus:ring-purple-500"
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Import CSV
+                          </button>
+                          <button
+                            onClick={() => setShowManualAssetModal(true)}
+                            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500"
+                          >
+                            <Package className="h-4 w-4 mr-2" />
+                            Add Manual Asset
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -869,6 +881,19 @@ export default function AdminPage() {
         <MLServiceControlPanel
           isOpen={showMLControlPanel}
           onClose={() => setShowMLControlPanel(false)}
+        />
+
+        {/* CSV Import Modal */}
+        <CsvImportModal
+          isOpen={showCsvImportModal}
+          onClose={() => setShowCsvImportModal(false)}
+          onImportComplete={(results) => {
+            toast.success(
+              `Successfully imported ${results.data.successCount} assets`
+            );
+            fetchHardware();
+            setShowCsvImportModal(false);
+          }}
         />
       </div>
     </ProtectedRoute>
