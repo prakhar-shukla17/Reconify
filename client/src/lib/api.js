@@ -62,7 +62,7 @@ export const authAPI = {
 
 // Hardware API calls
 export const hardwareAPI = {
-  getAll: () => api.get("/hardware"),
+  getAll: (params = {}) => api.get("/hardware", { params }),
   getById: (id) => api.get(`/hardware/${id}`),
   create: (hardwareData) => api.post("/hardware", hardwareData),
   updateAssetInfo: (id, assetInfo) =>

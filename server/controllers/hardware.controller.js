@@ -2,27 +2,72 @@ import Hardware from "../models/hardware.models.js";
 
 export const getAll = async (req, res) => {
   try {
-    let hardwareList;
+    // Get pagination parameters from query
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12; // Default 12 items per page
+    const skip = (page - 1) * limit;
+
+    let query = {};
+    let totalCount = 0;
 
     // If user is admin, get all hardware
     if (req.user && req.user.role === "admin") {
-      hardwareList = await Hardware.find({});
+      totalCount = await Hardware.countDocuments(query);
+      const hardwareList = await Hardware.find(query)
+        .sort({ createdAt: -1 }) // Sort by newest first
+        .skip(skip)
+        .limit(limit);
+
+      return res.status(200).json({
+        message: "Data fetched successfully",
+        data: hardwareList,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount / limit),
+          totalItems: totalCount,
+          itemsPerPage: limit,
+          hasNextPage: page < Math.ceil(totalCount / limit),
+          hasPrevPage: page > 1,
+        },
+      });
     }
     // If user is regular user, get only assigned assets
     else if (req.user && req.user.assignedAssets) {
-      hardwareList = await Hardware.find({
-        _id: { $in: req.user.assignedAssets },
+      query = { _id: { $in: req.user.assignedAssets } };
+      totalCount = await Hardware.countDocuments(query);
+      const hardwareList = await Hardware.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      return res.status(200).json({
+        message: "Data fetched successfully",
+        data: hardwareList,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount / limit),
+          totalItems: totalCount,
+          itemsPerPage: limit,
+          hasNextPage: page < Math.ceil(totalCount / limit),
+          hasPrevPage: page > 1,
+        },
       });
     }
     // If no user context, return empty (shouldn't happen with auth middleware)
     else {
-      hardwareList = [];
+      return res.status(200).json({
+        message: "Data fetched successfully",
+        data: [],
+        pagination: {
+          currentPage: 1,
+          totalPages: 0,
+          totalItems: 0,
+          itemsPerPage: limit,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
+      });
     }
-
-    return res.status(200).json({
-      message: "Data fetched successfully",
-      data: hardwareList,
-    });
   } catch (error) {
     console.error("Error fetching hardware data:", error);
     return res.status(500).json({
