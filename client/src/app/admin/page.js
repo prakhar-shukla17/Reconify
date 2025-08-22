@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import Navbar from "../../components/Navbar";
@@ -17,7 +17,7 @@ import HealthDashboard from "../../components/HealthDashboard";
 import MLAnalyticsDashboard from "../../components/MLAnalyticsDashboard";
 import MLServiceControlPanel from "../../components/MLServiceControlPanel";
 import Pagination from "../../components/Pagination";
-import { hardwareAPI, authAPI, ticketsAPI } from "../../lib/api";
+import { hardwareAPI, authAPI, ticketsAPI, softwareAPI } from "../../lib/api";
 import toast from "react-hot-toast";
 import {
   Users,
@@ -39,14 +39,18 @@ import {
   Brain,
   FileText,
   AlertCircle,
+  Play,
 } from "lucide-react";
 
 export default function AdminPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("assets");
   const [hardware, setHardware] = useState([]);
+  const [software, setSoftware] = useState([]);
+  const [assetType, setAssetType] = useState("hardware"); // "hardware" or "software"
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [selectedHardware, setSelectedHardware] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
@@ -69,39 +73,222 @@ export default function AdminPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(12);
+  
+  // Cache for asset data to prevent unnecessary API calls
+  const [assetCache, setAssetCache] = useState({});
+  const [lastFetchTime, setLastFetchTime] = useState({});
+  
+  // Ref for the assets section to scroll to
+  const assetsSectionRef = useRef(null);
 
   useEffect(() => {
     if (activeTab === "assets") {
       setCurrentPage(1); // Reset to first page when switching to assets tab
-      fetchHardware(1);
-      fetchUsers(); // Always fetch users for assignment functionality
+      if (assetType === "hardware") {
+        fetchHardware(1);
+      } else {
+        fetchSoftware(1);
+      }
+      // Only fetch users once when needed, not every time
+      if (users.length === 0) {
+        fetchUsers();
+      }
     } else if (activeTab === "users") {
       fetchUsers();
     } else if (activeTab === "tickets") {
       fetchTickets();
     }
-  }, [activeTab]);
+  }, [activeTab, assetType]);
+
+  // Refetch data when search or filter changes
+  useEffect(() => {
+    if (activeTab === "assets") {
+      // Add debounce for search to reduce API calls
+      const timeoutId = setTimeout(() => {
+        setCurrentPage(1); // Reset to first page when search/filter changes
+        if (assetType === "hardware") {
+          fetchHardware(1);
+        } else {
+          fetchSoftware(1);
+        }
+      }, 300); // 300ms delay
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchTerm, filterType]);
+
+  const handleAssetTypeChange = (type) => {
+    setAssetType(type);
+    setCurrentPage(1);
+    
+    // Scroll to the top of the assets section when switching asset types
+    if (assetsSectionRef.current) {
+      assetsSectionRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }
+    
+    if (type === "hardware") {
+      fetchHardware(1);
+    } else {
+      fetchSoftware(1);
+    }
+  };
 
   const fetchHardware = async (page = currentPage, limit = itemsPerPage) => {
     try {
-      setLoading(true);
-      const response = await hardwareAPI.getAll({
+      // Check cache first
+      const cacheKey = `hardware_${page}_${limit}_${searchTerm}_${filterType}`;
+      const now = Date.now();
+      const cacheAge = now - (lastFetchTime[cacheKey] || 0);
+      
+      // Use cache if it's less than 30 seconds old and we have the data
+      if (assetCache[cacheKey] && cacheAge < 30000) {
+        setHardware(assetCache[cacheKey].data);
+        setCurrentPage(assetCache[cacheKey].pagination.currentPage);
+        setTotalPages(assetCache[cacheKey].pagination.totalPages);
+        setTotalItems(assetCache[cacheKey].pagination.totalItems);
+        return;
+      }
+      
+      // Use searchLoading for search operations, main loading for initial fetch
+      if (page === 1 && !searchTerm && filterType === "all") {
+        setLoading(true);
+      } else {
+        setSearchLoading(true);
+      }
+      
+      // Build query parameters
+      const params = {
         page: page,
         limit: limit,
-      });
-      setHardware(response.data.data || []);
+      };
+      
+      // Add search and filter parameters if we're on the assets tab
+      if (activeTab === "assets") {
+        if (searchTerm) {
+          params.search = searchTerm;
+        }
+        if (filterType && filterType !== "all") {
+          params.filter = filterType;
+        }
+      }
+      
+      const response = await hardwareAPI.getAll(params);
+      const hardwareData = response.data.data || [];
+      
+      setHardware(hardwareData);
 
       // Update pagination info
       if (response.data.pagination) {
         setCurrentPage(response.data.pagination.currentPage);
         setTotalPages(response.data.pagination.totalPages);
         setTotalItems(response.data.pagination.totalItems);
+        
+        // Cache the response
+        setAssetCache(prev => ({
+          ...prev,
+          [cacheKey]: {
+            data: hardwareData,
+            pagination: response.data.pagination
+          }
+        }));
+        setLastFetchTime(prev => ({
+          ...prev,
+          [cacheKey]: now
+        }));
+      } else {
+        // Fallback pagination if API doesn't provide it
+        const totalItems = hardwareData.length;
+        setTotalItems(totalItems);
+        setTotalPages(Math.ceil(totalItems / limit));
+        setCurrentPage(page);
       }
     } catch (error) {
       console.error("Error fetching hardware:", error);
       toast.error("Failed to load hardware data");
     } finally {
       setLoading(false);
+      setSearchLoading(false);
+    }
+  };
+
+  const fetchSoftware = async (page = currentPage, limit = itemsPerPage) => {
+    try {
+      // Check cache first
+      const cacheKey = `software_${page}_${limit}_${searchTerm}_${filterType}`;
+      const now = Date.now();
+      const cacheAge = now - (lastFetchTime[cacheKey] || 0);
+      
+      // Use cache if it's less than 30 seconds old and we have the data
+      if (assetCache[cacheKey] && cacheAge < 30000) {
+        setSoftware(assetCache[cacheKey].data);
+        setCurrentPage(assetCache[cacheKey].pagination.currentPage);
+        setTotalPages(assetCache[cacheKey].pagination.totalPages);
+        setTotalItems(assetCache[cacheKey].pagination.totalItems);
+        return;
+      }
+      
+      // Use searchLoading for search operations, main loading for initial fetch
+      if (page === 1 && !searchTerm && filterType === "all") {
+        setLoading(true);
+      } else {
+        setSearchLoading(true);
+      }
+      
+      // Build query parameters
+      const params = {
+        page: page,
+        limit: limit,
+      };
+      
+      // Add search and filter parameters if we're on the assets tab
+      if (activeTab === "assets") {
+        if (searchTerm) {
+          params.search = searchTerm;
+        }
+        if (filterType && filterType !== "all") {
+          params.filter = filterType;
+        }
+      }
+      
+      const response = await softwareAPI.getAll(params);
+      const softwareData = response.data.data || [];
+      
+      setSoftware(softwareData);
+
+      // Update pagination info
+      if (response.data.pagination) {
+        setCurrentPage(response.data.pagination.currentPage);
+        setTotalPages(response.data.pagination.totalPages);
+        setTotalItems(response.data.pagination.totalItems);
+        
+        // Cache the response
+        setAssetCache(prev => ({
+          ...prev,
+          [cacheKey]: {
+            data: softwareData,
+            pagination: response.data.pagination
+          }
+        }));
+        setLastFetchTime(prev => ({
+          ...prev,
+          [cacheKey]: now
+        }));
+      } else {
+        // Fallback pagination if API doesn't provide it
+        const totalItems = softwareData.length;
+        setTotalItems(totalItems);
+        setTotalPages(Math.ceil(totalItems / limit));
+        setCurrentPage(page);
+      }
+    } catch (error) {
+      console.error("Error fetching software:", error);
+      toast.error("Failed to load software data");
+    } finally {
+      setLoading(false);
+      setSearchLoading(false);
     }
   };
 
@@ -109,7 +296,6 @@ export default function AdminPage() {
     try {
       setLoading(true);
       const response = await authAPI.getAllUsers();
-      console.log("Users API response:", response.data);
       setUsers(response.data.users || []);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -121,7 +307,20 @@ export default function AdminPage() {
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
-    fetchHardware(page);
+    
+    // Scroll to the top of the assets section when changing pages
+    if (assetsSectionRef.current) {
+      assetsSectionRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }
+    
+    if (assetType === "hardware") {
+      fetchHardware(page);
+    } else {
+      fetchSoftware(page);
+    }
   };
 
   const fetchTickets = async () => {
@@ -151,12 +350,14 @@ export default function AdminPage() {
 
   const handleAssignAsset = async (userId, macAddress) => {
     try {
-      console.log("Assigning asset:", { userId, macAddress });
       const response = await authAPI.assignAsset(userId, macAddress);
-      console.log("Assignment response:", response.data);
       toast.success("Asset assigned successfully");
       fetchUsers();
-      fetchHardware(); // Also refresh hardware to update assignment status
+      if (assetType === "hardware") {
+        fetchHardware(); // Also refresh hardware to update assignment status
+      } else {
+        fetchSoftware(); // Refresh software if that's what we're viewing
+      }
       setShowAssignModal(false);
     } catch (error) {
       console.error("Assignment error:", error);
@@ -175,7 +376,7 @@ export default function AdminPage() {
   };
 
   const handleSelectAllAssets = () => {
-    const allAssetIds = filteredHardware.map((item) => item._id);
+    const allAssetIds = currentAssets.map((item) => item._id);
     setSelectedAssets(allAssetIds);
   };
 
@@ -194,7 +395,11 @@ export default function AdminPage() {
   const handleAssignmentComplete = () => {
     setSelectedAssets([]);
     fetchUsers();
-    fetchHardware();
+    if (assetType === "hardware") {
+      fetchHardware();
+    } else {
+      fetchSoftware();
+    }
   };
 
   const handleRemoveAsset = async (userId, macAddress) => {
@@ -215,24 +420,8 @@ export default function AdminPage() {
     return users.find((user) => user.assignedAssets?.includes(macAddress));
   };
 
-  const filteredHardware = hardware.filter((item) => {
-    const matchesSearch =
-      item.system?.hostname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.system?.mac_address
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      item.cpu?.name?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesFilter =
-      filterType === "all" ||
-      (filterType === "assigned" &&
-        isAssetAssigned(item.system?.mac_address)) ||
-      (filterType === "unassigned" &&
-        !isAssetAssigned(item.system?.mac_address));
-
-    return matchesSearch && matchesFilter;
-  });
-
+  const currentAssets = assetType === "hardware" ? hardware : software;
+  
   const filteredUsers = users.filter(
     (user) =>
       user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -257,19 +446,52 @@ export default function AdminPage() {
         closedTickets,
         inProgressTickets,
       };
+    } else if (activeTab === "assets") {
+      if (assetType === "hardware") {
+        // Hardware statistics
+        const totalAssets = hardware.length;
+        const assignedAssets = hardware.filter((h) =>
+          isAssetAssigned(h.system?.mac_address)
+        ).length;
+        const totalUsers = users.length;
+        const activeUsers = users.filter((u) => u.isActive).length;
+
+        return {
+          totalAssets,
+          assignedAssets,
+          unassignedAssets: totalAssets - assignedAssets,
+          totalUsers,
+          activeUsers,
+        };
+      } else {
+        // Software statistics
+        const totalSystems = software.length;
+        const totalPackages = software.reduce(
+          (sum, s) => sum + (s.scan_metadata?.total_software_count || 0),
+          0
+        );
+        const totalServices = software.reduce(
+          (sum, s) => sum + (s.services?.length || 0),
+          0
+        );
+        const totalStartupPrograms = software.reduce(
+          (sum, s) => sum + (s.startup_programs?.length || 0),
+          0
+        );
+
+        return {
+          totalSystems,
+          totalPackages,
+          totalServices,
+          totalStartupPrograms,
+        };
+      }
     } else {
-      // Asset and user statistics (default)
-      const totalAssets = hardware.length;
-      const assignedAssets = hardware.filter((h) =>
-        isAssetAssigned(h.system?.mac_address)
-      ).length;
+      // User statistics (default)
       const totalUsers = users.length;
       const activeUsers = users.filter((u) => u.isActive).length;
 
       return {
-        totalAssets,
-        assignedAssets,
-        unassignedAssets: totalAssets - assignedAssets,
         totalUsers,
         activeUsers,
       };
@@ -425,10 +647,10 @@ export default function AdminPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-xs font-medium text-blue-700 mb-1">
-                          Total Assets
+                          {assetType === "hardware" ? "Total Assets" : "Total Systems"}
                         </p>
                         <p className="text-xl font-bold text-blue-900">
-                          {stats.totalAssets}
+                          {assetType === "hardware" ? stats.totalAssets : stats.totalSystems}
                         </p>
                       </div>
                       <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center shadow-sm">
@@ -436,64 +658,112 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div className="mt-2 pt-2 border-t border-blue-200">
-                      <p className="text-xs text-blue-600">All registered devices</p>
+                      <p className="text-xs text-blue-600">
+                        {assetType === "hardware" ? "All registered devices" : "All scanned systems"}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-green-700 mb-1">
-                          Assigned
-                        </p>
-                        <p className="text-xl font-bold text-green-900">
-                          {stats.assignedAssets}
-                        </p>
+                  {assetType === "hardware" ? (
+                    <>
+                      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-green-700 mb-1">
+                              Assigned
+                            </p>
+                            <p className="text-xl font-bold text-green-900">
+                              {stats.assignedAssets}
+                            </p>
+                          </div>
+                          <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
+                            <Check className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-green-200">
+                          <p className="text-xs text-green-600">User assigned</p>
+                        </div>
                       </div>
-                      <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
-                        <Check className="h-4 w-4 text-white" />
-                      </div>
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-green-200">
-                      <p className="text-xs text-green-600">User assigned</p>
-                    </div>
-                  </div>
 
-                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-md shadow-sm border border-red-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-red-700 mb-1">
-                          Unassigned
-                        </p>
-                        <p className="text-xl font-bold text-red-900">
-                          {stats.unassignedAssets}
-                        </p>
+                      <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-md shadow-sm border border-red-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-red-700 mb-1">
+                              Unassigned
+                            </p>
+                            <p className="text-xl font-bold text-red-900">
+                              {stats.unassignedAssets}
+                            </p>
+                          </div>
+                          <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center shadow-sm">
+                            <X className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-red-200">
+                          <p className="text-xs text-red-600">Available for assignment</p>
+                        </div>
                       </div>
-                      <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center shadow-sm">
-                        <X className="h-4 w-4 text-white" />
+                    </>
+                  ) : (
+                    <>
+                      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-green-700 mb-1">
+                              Software Packages
+                            </p>
+                            <p className="text-xl font-bold text-green-900">
+                              {stats.totalPackages}
+                            </p>
+                          </div>
+                          <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
+                            <Package className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-green-200">
+                          <p className="text-xs text-green-600">Installed software</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-red-200">
-                      <p className="text-xs text-red-600">Available for assignment</p>
-                    </div>
-                  </div>
+
+                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-md shadow-sm border border-purple-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-purple-700 mb-1">
+                              Services
+                            </p>
+                            <p className="text-xl font-bold text-purple-900">
+                              {stats.totalServices}
+                            </p>
+                          </div>
+                          <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-md flex items-center justify-center shadow-sm">
+                            <Settings className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-purple-200">
+                          <p className="text-xs text-purple-600">System services</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-md shadow-sm border border-purple-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-xs font-medium text-purple-700 mb-1">
-                          Total Users
+                          {assetType === "hardware" ? "Total Users" : "Startup Programs"}
                         </p>
                         <p className="text-xl font-bold text-purple-900">
-                          {stats.totalUsers}
+                          {assetType === "hardware" ? stats.totalUsers : stats.totalStartupPrograms}
                         </p>
                       </div>
                       <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-md flex items-center justify-center shadow-sm">
-                        <Users className="h-4 w-4 text-white" />
+                        {assetType === "hardware" ? <Users className="h-4 w-4 text-white" /> : <Play className="h-4 w-4 text-white" />}
                       </div>
                     </div>
                     <div className="mt-2 pt-2 border-t border-purple-200">
-                      <p className="text-xs text-purple-600">Registered accounts</p>
+                      <p className="text-xs text-purple-600">
+                        {assetType === "hardware" ? "Registered accounts" : "Auto-start programs"}
+                      </p>
                     </div>
                   </div>
 
@@ -501,18 +771,20 @@ export default function AdminPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-xs font-medium text-emerald-700 mb-1">
-                          Active Users
+                          {assetType === "hardware" ? "Active Users" : "Active Services"}
                         </p>
                         <p className="text-xl font-bold text-emerald-900">
-                          {stats.activeUsers}
+                          {assetType === "hardware" ? stats.activeUsers : stats.totalServices}
                         </p>
                       </div>
                       <div className="h-8 w-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-md flex items-center justify-center shadow-sm">
-                        <UserPlus className="h-4 w-4 text-white" />
+                        {assetType === "hardware" ? <UserPlus className="h-4 w-4 text-white" /> : <Settings className="h-4 w-4 text-white" />}
                       </div>
                     </div>
                     <div className="mt-2 pt-2 border-t border-emerald-200">
-                      <p className="text-xs text-emerald-600">Currently active</p>
+                      <p className="text-xs text-emerald-600">
+                        {assetType === "hardware" ? "Currently active" : "Running services"}
+                      </p>
                     </div>
                   </div>
                 </>
@@ -520,63 +792,63 @@ export default function AdminPage() {
             </div>
 
             {/* Tab Navigation */}
-            <div className="bg-white rounded-lg shadow mb-8">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
               <div className="border-b border-gray-200">
-                <nav className="flex space-x-8 px-6" aria-label="Tabs">
+                <nav className="flex space-x-1 px-4" aria-label="Tabs">
                   <button
                     onClick={() => setActiveTab("assets")}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    className={`py-3 px-3 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
                       activeTab === "assets"
-                        ? "border-blue-500 text-blue-600"
-                        : "border-transparent text-gray-500 hover:text-gray-700"
+                        ? "border-blue-500 text-blue-600 bg-blue-50"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     <Monitor className="h-4 w-4 inline mr-2" />
-                    Assets Management
+                    Assets
                   </button>
                   <button
                     onClick={() => setActiveTab("users")}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    className={`py-3 px-3 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
                       activeTab === "users"
-                        ? "border-blue-500 text-blue-600"
-                        : "border-transparent text-gray-500 hover:text-gray-700"
+                        ? "border-blue-500 text-blue-600 bg-blue-50"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     <Users className="h-4 w-4 inline mr-2" />
-                    User Management
+                    Users
                   </button>
                   <button
                     onClick={() => setActiveTab("alerts")}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    className={`py-3 px-3 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
                       activeTab === "alerts"
-                        ? "border-blue-500 text-blue-600"
-                        : "border-transparent text-gray-500 hover:text-gray-700"
+                        ? "border-blue-500 text-blue-600 bg-blue-50"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     <Bell className="h-4 w-4 inline mr-2" />
-                    Warranty Alerts
+                    Alerts
                   </button>
                   <button
                     onClick={() => setActiveTab("tickets")}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    className={`py-3 px-3 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
                       activeTab === "tickets"
-                        ? "border-blue-500 text-blue-600"
-                        : "border-transparent text-gray-500 hover:text-gray-700"
+                        ? "border-blue-500 text-blue-600 bg-blue-50"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     <Ticket className="h-4 w-4 inline mr-2" />
-                    Support Tickets
+                    Tickets
                   </button>
                   <button
                     onClick={() => setShowHealthDashboard(true)}
-                    className="py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    className="py-3 px-3 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 rounded-t-lg"
                   >
                     <Activity className="h-4 w-4 inline mr-2" />
-                    System Health
+                    Health
                   </button>
                   <button
                     onClick={() => setShowMLDashboard(true)}
-                    className="py-4 px-1 border-b-2 border-transparent font-medium text-sm text-indigo-600 hover:text-indigo-700 hover:border-indigo-300"
+                    className="py-3 px-3 border-b-2 border-transparent font-medium text-sm text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 transition-all duration-200 rounded-t-lg"
                   >
                     <Brain className="h-4 w-4 inline mr-2" />
                     ML Analytics
@@ -586,36 +858,88 @@ export default function AdminPage() {
 
               {/* Search and Filter Bar */}
               {activeTab !== "alerts" && activeTab !== "tickets" && (
-                <div className="p-6">
-                  <div className="flex flex-col sm:flex-row gap-4">
+                <div className="bg-white rounded border border-gray-200 p-3 mb-4">
+                  {/* Asset Type Toggle */}
+                  {activeTab === "assets" && (
+                    <div className="mb-3">
+                      <div className="flex space-x-1 bg-gray-100 p-1 rounded">
+                        <button
+                          onClick={() => handleAssetTypeChange("hardware")}
+                          className={`px-3 py-1.5 text-sm font-medium rounded transition-all duration-200 ${
+                            assetType === "hardware"
+                              ? "bg-white text-blue-600 shadow-sm"
+                              : "text-gray-600 hover:text-gray-900"
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <Monitor className="h-4 w-4" />
+                            <span>Hardware</span>
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => handleAssetTypeChange("software")}
+                          className={`px-3 py-1.5 text-sm font-medium rounded transition-all duration-200 ${
+                            assetType === "software"
+                              ? "bg-white text-blue-600 shadow-sm"
+                              : "text-gray-600 hover:text-gray-900"
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <Package className="h-4 w-4" />
+                            <span>Software</span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <div className="flex-1 relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      {searchLoading && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        </div>
+                      )}
                       <input
                         type="text"
                         placeholder={
                           activeTab === "assets"
-                            ? "Search assets..."
+                            ? assetType === "hardware"
+                              ? "Search hardware assets..."
+                              : "Search software systems..."
                             : "Search users..."
                         }
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                        className="w-full pl-7 pr-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
                       />
                     </div>
 
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
                       {activeTab === "assets" && (
                         <>
                           <div className="relative">
-                            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <Filter className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <select
                               value={filterType}
                               onChange={(e) => setFilterType(e.target.value)}
-                              className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                              className="pl-7 pr-5 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
                             >
-                              <option value="all">All Assets</option>
-                              <option value="assigned">Assigned</option>
-                              <option value="unassigned">Unassigned</option>
+                              {assetType === "hardware" ? (
+                                <>
+                                  <option value="all">All Hardware</option>
+                                  <option value="assigned">Assigned</option>
+                                  <option value="unassigned">Unassigned</option>
+                                </>
+                              ) : (
+                                <>
+                                  <option value="all">All Software</option>
+                                  <option value="windows">Windows</option>
+                                  <option value="linux">Linux</option>
+                                  <option value="macos">macOS</option>
+                                </>
+                              )}
                             </select>
                           </div>
 
@@ -626,13 +950,17 @@ export default function AdminPage() {
                                 const newLimit = parseInt(e.target.value);
                                 setItemsPerPage(newLimit);
                                 setCurrentPage(1);
-                                fetchHardware(1, newLimit);
+                                if (assetType === "hardware") {
+                                  fetchHardware(1, newLimit);
+                                } else {
+                                  fetchSoftware(1, newLimit);
+                                }
                               }}
-                              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                              className="px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
                             >
-                              <option value={6}>6 per page</option>
                               <option value={12}>12 per page</option>
                               <option value={24}>24 per page</option>
+                              <option value={36}>36 per page</option>
                               <option value={48}>48 per page</option>
                             </select>
                           </div>
@@ -644,15 +972,19 @@ export default function AdminPage() {
                           activeTab === "assets"
                             ? () => {
                                 setCurrentPage(1);
-                                fetchHardware(1);
+                                if (assetType === "hardware") {
+                                  fetchHardware(1);
+                                } else {
+                                  fetchSoftware(1);
+                                }
                               }
                             : fetchUsers
                         }
                         disabled={loading}
-                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                        className="flex items-center px-2 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 focus:ring-1 focus:ring-gray-400 disabled:opacity-50 text-sm"
                       >
                         <RefreshCw
-                          className={`h-4 w-4 mr-2 ${
+                          className={`h-3.5 w-3.5 mr-1 ${
                             loading ? "animate-spin" : ""
                           }`}
                         />
@@ -663,17 +995,17 @@ export default function AdminPage() {
                         <>
                           <button
                             onClick={() => setShowCsvImportModal(true)}
-                            className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:ring-2 focus:ring-purple-500"
+                            className="flex items-center px-2 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 focus:ring-1 focus:ring-gray-400 text-sm"
                           >
-                            <FileText className="h-4 w-4 mr-2" />
+                            <FileText className="h-3.5 w-3.5 mr-1" />
                             Import CSV
                           </button>
                           <button
                             onClick={() => setShowManualAssetModal(true)}
-                            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500"
+                            className="flex items-center px-2 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 focus:ring-1 focus:ring-gray-400 text-sm"
                           >
-                            <Package className="h-4 w-4 mr-2" />
-                            Add Manual Asset
+                            <Package className="h-3.5 w-3.5 mr-1" />
+                            Add Asset
                           </button>
                         </>
                       )}
@@ -692,28 +1024,28 @@ export default function AdminPage() {
               <AlertsPanel />
             ) : activeTab === "tickets" ? (
               // Tickets Tab
-                             <div className="p-4">
-                 <div className="mb-4">
-                   <h2 className="text-lg font-semibold text-slate-800 mb-1 bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-                     Support Tickets Management
-                   </h2>
-                   <p className="text-sm text-slate-600">
-                     View and manage all support tickets from users
-                   </p>
-                 </div>
+              <div className="p-4">
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold text-slate-800 mb-1 bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                    Support Tickets Management
+                  </h2>
+                  <p className="text-sm text-slate-600">
+                    View and manage all support tickets from users
+                  </p>
+                </div>
 
-                                 {tickets.length === 0 ? (
-                   <div className="text-center py-8">
-                     <div className="h-16 w-16 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center mx-auto mb-3">
-                       <Ticket className="h-8 w-8 text-slate-500" />
-                     </div>
-                     <h3 className="text-base font-medium text-slate-800 mb-1">
-                       No support tickets found
-                     </h3>
-                     <p className="text-sm text-slate-500">
-                       No users have created support tickets yet.
-                     </p>
-                   </div>
+                {tickets.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="h-16 w-16 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Ticket className="h-8 w-8 text-slate-500" />
+                    </div>
+                    <h3 className="text-base font-medium text-slate-800 mb-1">
+                      No support tickets found
+                    </h3>
+                    <p className="text-sm text-slate-500">
+                      No users have created support tickets yet.
+                    </p>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {tickets.map((ticket) => (
@@ -735,138 +1067,271 @@ export default function AdminPage() {
               </div>
             ) : activeTab === "assets" ? (
               // Assets Tab
-              <div>
+              <div ref={assetsSectionRef}>
                 {/* Page Info */}
                 {totalItems > 0 && (
                   <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
                     <div className="flex items-center justify-between text-sm text-gray-600">
                       <span>
-                        Page {currentPage} of {totalPages} • {totalItems} total
-                        assets
+                        Page {currentPage} of {totalPages} • {totalItems} total{" "}
+                        {assetType === "hardware" ? "hardware assets" : "software systems"}
                       </span>
                     </div>
                   </div>
                 )}
 
-                {filteredHardware.length === 0 ? (
+                {currentAssets.length === 0 ? (
                   <div className="text-center py-12">
                     <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No assets found
+                      No {assetType === "hardware" ? "hardware assets" : "software systems"} found
                     </h3>
                     <p className="text-gray-500">
                       {searchTerm || filterType !== "all"
                         ? "Try adjusting your search or filter criteria."
-                        : "No assets have been registered yet."}
+                        : `No ${assetType === "hardware" ? "hardware assets" : "software systems"} have been registered yet.`}
                     </p>
                   </div>
                 ) : (
                   <div>
-                    {/* Bulk Actions Bar */}
-                    <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={
-                                selectedAssets.length ===
-                                  filteredHardware.length &&
-                                filteredHardware.length > 0
-                              }
-                              onChange={(e) =>
-                                e.target.checked
-                                  ? handleSelectAllAssets()
-                                  : handleDeselectAllAssets()
-                              }
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                            <span className="text-sm font-medium text-gray-700">
-                              Select All ({selectedAssets.length}/
-                              {filteredHardware.length})
-                            </span>
-                          </div>
-                          {selectedAssets.length > 0 && (
-                            <div className="text-sm text-gray-600">
-                              {selectedAssets.length} asset
-                              {selectedAssets.length !== 1 ? "s" : ""} selected
-                            </div>
-                          )}
-                        </div>
-                        {selectedAssets.length > 0 && (
-                          <button
-                            onClick={handleEnhancedAssignment}
-                            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                          >
-                            <UserPlus className="h-4 w-4" />
-                            <span>Bulk Assign ({selectedAssets.length})</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {filteredHardware.map((item) => {
-                        const isSelected = selectedAssets.includes(item._id);
-                        return (
-                          <div
-                            key={item._id}
-                            className={`relative ${
-                              isSelected
-                                ? "ring-2 ring-blue-500 ring-opacity-50"
-                                : ""
-                            }`}
-                          >
-                            {/* Selection Checkbox */}
-                            <div className="absolute top-2 left-2 z-10">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={(e) =>
-                                  handleAssetSelection(
-                                    item._id,
-                                    e.target.checked
-                                  )
-                                }
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            </div>
-
-                            <HardwareCard
-                              hardware={item}
-                              onClick={setSelectedHardware}
-                            />
-
-                            <div className="absolute top-2 right-2 flex space-x-2">
-                              {isAssetAssigned(item.system?.mac_address) ? (
-                                <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                                  Assigned to{" "}
-                                  {
-                                    getAssignedUser(item.system?.mac_address)
-                                      ?.username
-                                  }
+                    {/* Loading Skeleton */}
+                    {loading && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {[...Array(6)].map((_, index) => (
+                          <div key={index} className="bg-white rounded-lg shadow-md p-6 animate-pulse">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center space-x-3">
+                                <div className="h-10 w-10 bg-gray-200 rounded-lg"></div>
+                                <div className="space-y-2">
+                                  <div className="h-4 bg-gray-200 rounded w-32"></div>
+                                  <div className="h-3 bg-gray-200 rounded w-24"></div>
                                 </div>
-                              ) : (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedAsset(item);
-                                    setShowAssignModal(true);
-                                  }}
-                                  className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full hover:bg-blue-200"
-                                >
-                                  Assign
-                                </button>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="h-3 bg-gray-200 rounded w-20"></div>
+                                <div className="h-3 bg-gray-200 rounded w-16"></div>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                              {[...Array(4)].map((_, i) => (
+                                <div key={i} className="space-y-2">
+                                  <div className="h-3 bg-gray-200 rounded w-16"></div>
+                                  <div className="h-4 bg-gray-200 rounded w-12"></div>
+                                  <div className="h-3 bg-gray-200 rounded w-20"></div>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="pt-4 border-t">
+                              <div className="flex justify-between items-center">
+                                <div className="h-3 bg-gray-200 rounded w-24"></div>
+                                <div className="h-3 bg-gray-200 rounded w-16"></div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Actual Assets Grid */}
+                    {!loading && (
+                      <>
+                        {/* Bulk Actions Bar */}
+                        <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div className="flex items-center space-x-2">
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    selectedAssets.length ===
+                                      currentAssets.length &&
+                                    currentAssets.length > 0
+                                  }
+                                  onChange={(e) =>
+                                    e.target.checked
+                                      ? handleSelectAllAssets()
+                                      : handleDeselectAllAssets()
+                                  }
+                                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                />
+                                <span className="text-sm font-medium text-gray-700">
+                                  Select All ({selectedAssets.length}/
+                                  {currentAssets.length})
+                                </span>
+                              </div>
+                              {selectedAssets.length > 0 && (
+                                <div className="text-sm text-gray-600">
+                                  {selectedAssets.length} asset
+                                  {selectedAssets.length !== 1 ? "s" : ""} selected
+                                </div>
                               )}
                             </div>
+                            {selectedAssets.length > 0 && (
+                              <button
+                                onClick={handleEnhancedAssignment}
+                                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                              >
+                                <UserPlus className="h-4 w-4" />
+                                <span>Bulk Assign ({selectedAssets.length})</span>
+                              </button>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {currentAssets.map((item) => {
+                            const isSelected = selectedAssets.includes(item._id);
+                            return (
+                              <div
+                                key={item._id}
+                                className={`relative ${
+                                  isSelected
+                                    ? "ring-2 ring-blue-500 ring-opacity-50"
+                                    : ""
+                                }`}
+                              >
+                                {/* Selection Checkbox */}
+                                <div className="absolute top-2 left-2 z-10">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) =>
+                                      handleAssetSelection(
+                                        item._id,
+                                        e.target.checked
+                                      )
+                                    }
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </div>
+
+                                {assetType === "hardware" ? (
+                                  <HardwareCard
+                                    hardware={item}
+                                    onClick={setSelectedHardware}
+                                  />
+                                ) : (
+                                  // Software Card
+                                  <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer border h-80 flex flex-col">
+                                    <div className="flex items-center justify-between mb-4">
+                                      <div className="flex items-center space-x-3">
+                                        <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                          <Package className="h-6 w-6 text-green-600" />
+                                        </div>
+                                        <div>
+                                          <h3 className="text-base font-semibold text-gray-900">
+                                            {item.system?.hostname || "Unknown System"}
+                                          </h3>
+                                          <p className="text-sm text-gray-500">
+                                            {item.system?.platform} Software
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-xs text-gray-500">MAC Address</p>
+                                        <p className="text-sm font-mono text-gray-700">
+                                          {item.system?.mac_address || "Unknown"}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4 mb-4 flex-1">
+                                      <div className="flex items-center space-x-2">
+                                        <Package className="h-4 w-4 text-gray-600" />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-xs text-gray-500">Installed</p>
+                                          <p className="text-sm font-medium text-gray-900">
+                                            {item.installed_software?.length || 0}
+                                          </p>
+                                          <p className="text-xs text-gray-500">packages</p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center space-x-2">
+                                        <Settings className="h-4 w-4 text-gray-600" />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-xs text-gray-500">Services</p>
+                                          <p className="text-sm font-medium text-gray-900">
+                                            {item.services?.length || 0}
+                                          </p>
+                                          <p className="text-xs text-gray-500">running</p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center space-x-2">
+                                        <Play className="h-4 w-4 text-gray-600" />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-xs text-gray-500">Startup</p>
+                                          <p className="text-sm font-medium text-gray-900">
+                                            {item.startup_programs?.length || 0}
+                                          </p>
+                                          <p className="text-xs text-gray-500">programs</p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center space-x-2">
+                                        <Monitor className="h-4 w-4 text-gray-600" />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-xs text-gray-500">Total</p>
+                                          <p className="text-sm font-medium text-gray-900">
+                                            {item.scan_metadata?.total_software_count || 0}
+                                          </p>
+                                          <p className="text-xs text-gray-500">items</p>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex justify-between items-center pt-4 border-t">
+                                      <div className="text-xs text-gray-500">
+                                        Last scan:{" "}
+                                        {new Date(
+                                          item.scan_metadata?.last_updated || item.updatedAt
+                                        ).toLocaleDateString()}
+                                      </div>
+                                      <div className="flex items-center space-x-1">
+                                        <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                                        <span className="text-xs text-gray-600">Scanned</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className="absolute top-2 right-2 flex space-x-2">
+                                  {assetType === "hardware" && (
+                                    <>
+                                      {isAssetAssigned(item.system?.mac_address) ? (
+                                        <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                                          Assigned to{" "}
+                                          {
+                                            getAssignedUser(item.system?.mac_address)
+                                              ?.username
+                                          }
+                                        </div>
+                                      ) : (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedAsset(item);
+                                            setShowAssignModal(true);
+                                          }}
+                                          className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full hover:bg-blue-200"
+                                        >
+                                          Assign
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
 
                     {/* Pagination */}
-                    {totalPages > 1 && (
+                    {currentAssets.length > 0 && (
                       <Pagination
                         currentPage={currentPage}
                         totalPages={totalPages}
@@ -913,7 +1378,7 @@ export default function AdminPage() {
                               </span>
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
+                              <div className="text-xs font-medium text-gray-900">
                                 {user.firstName} {user.lastName}
                               </div>
                               <div className="text-sm text-gray-500">
@@ -1044,7 +1509,11 @@ export default function AdminPage() {
           onClose={() => setShowManualAssetModal(false)}
           onSuccess={() => {
             setCurrentPage(1);
-            fetchHardware(1);
+            if (assetType === "hardware") {
+              fetchHardware(1);
+            } else {
+              fetchSoftware(1);
+            }
             setShowManualAssetModal(false);
           }}
         />
@@ -1054,7 +1523,6 @@ export default function AdminPage() {
           <TicketManagementModal
             ticket={selectedTicket}
             onClose={() => {
-              console.log("Closing ticket management modal");
               setShowTicketManagementModal(false);
               setSelectedTicket(null);
             }}
@@ -1121,7 +1589,11 @@ export default function AdminPage() {
               `Successfully imported ${results.data.successCount} assets`
             );
             setCurrentPage(1);
-            fetchHardware(1);
+            if (assetType === "hardware") {
+              fetchHardware(1);
+            } else {
+              fetchSoftware(1);
+            }
             setShowCsvImportModal(false);
           }}
         />

@@ -499,63 +499,63 @@ export default function DashboardPage() {
             </div>
 
             {/* Tab Navigation */}
-            <div className="mb-8">
-              <nav className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+            <div className="mb-6">
+              <nav className="flex space-x-1 bg-white p-1 rounded-lg shadow-sm border border-gray-200">
                 <button
                   onClick={() => setActiveTab("hardware")}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                  className={`px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${
                     activeTab === "hardware"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                   }`}
                 >
                   <div className="flex items-center space-x-2">
                     <Monitor className="h-4 w-4" />
-                    <span>Hardware Assets</span>
+                    <span>Hardware</span>
                   </div>
                 </button>
                 <button
                   onClick={() => setActiveTab("software")}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                  className={`px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${
                     activeTab === "software"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                   }`}
                 >
                   <div className="flex items-center space-x-2">
                     <Package className="h-4 w-4" />
-                    <span>Software Inventory</span>
+                    <span>Software</span>
                   </div>
                 </button>
                 <button
                   onClick={() => setActiveTab("alerts")}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                  className={`px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${
                     activeTab === "alerts"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                   }`}
                 >
                   <div className="flex items-center space-x-2">
                     <Bell className="h-4 w-4" />
-                    <span>Warranty Alerts</span>
+                    <span>Alerts</span>
                   </div>
                 </button>
                 <button
                   onClick={() => setActiveTab("tickets")}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                  className={`px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${
                     activeTab === "tickets"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                   }`}
                 >
                   <div className="flex items-center space-x-2">
                     <Ticket className="h-4 w-4" />
-                    <span>Support Tickets</span>
+                    <span>Tickets</span>
                   </div>
                 </button>
                 <button
                   onClick={() => setShowMLControlPanel(true)}
-                  className="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                  className="px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
                 >
                   <div className="flex items-center space-x-2">
                     <Brain className="h-4 w-4" />
@@ -812,26 +812,26 @@ export default function DashboardPage() {
             )}
 
             {/* Search and Filter Bar */}
-            <div className="bg-white rounded-lg shadow p-6 mb-8">
-              <div className="flex flex-col sm:flex-row gap-4">
+            <div className="bg-white rounded border border-gray-200 p-3 mb-4">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Search by hostname, MAC address, or CPU..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                    className="w-full pl-7 pr-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
                   />
                 </div>
 
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
                   <div className="relative">
-                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Filter className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <select
                       value={filterType}
                       onChange={(e) => setFilterType(e.target.value)}
-                      className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                      className="pl-7 pr-5 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
                     >
                       <option value="all">All Types</option>
                       <option value="desktop">Desktops</option>
@@ -843,10 +843,10 @@ export default function DashboardPage() {
                   <button
                     onClick={fetchHardware}
                     disabled={loading}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    className="flex items-center px-2 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 focus:ring-1 focus:ring-gray-400 disabled:opacity-50 text-sm"
                   >
                     <RefreshCw
-                      className={`h-4 w-4 mr-2 ${
+                      className={`h-3.5 w-3.5 mr-1 ${
                         loading ? "animate-spin" : ""
                       }`}
                     />

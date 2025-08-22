@@ -3,26 +3,91 @@ import Software from "../models/software.models.js";
 // Get all software data with role-based access control
 export const getAll = async (req, res) => {
   try {
+    // Get pagination parameters from query
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12; // Default 12 items per page
+    const skip = (page - 1) * limit;
+    
+    // Get search and filter parameters
+    const search = req.query.search;
+    const filter = req.query.filter;
+
+    let query = {};
+    let totalCount = 0;
     let softwareList;
+
+    // Build search query - optimize for performance
+    if (search) {
+      // Use text search if available, otherwise regex
+      if (search.length >= 3) {
+        query.$or = [
+          { "system.hostname": { $regex: search, $options: "i" } },
+          { "system.mac_address": { $regex: search, $options: "i" } },
+        ];
+      } else {
+        // For short searches, only search hostname to improve performance
+        query["system.hostname"] = { $regex: search, $options: "i" };
+      }
+    }
+
+    // Build filter query
+    if (filter === "windows") {
+      query["system.platform"] = { $regex: "windows", $options: "i" };
+    } else if (filter === "linux") {
+      query["system.platform"] = { $regex: "linux", $options: "i" };
+    } else if (filter === "macos") {
+      query["system.platform"] = { $regex: "macos", $options: "i" };
+    }
 
     // If user is admin, get all software
     if (req.user && req.user.role === "admin") {
-      softwareList = await Software.find({});
+      // Use Promise.all to run count and find operations in parallel
+      const [countResult, softwareListResult] = await Promise.all([
+        Software.countDocuments(query),
+        Software.find(query)
+          .sort({ createdAt: -1 }) // Sort by newest first
+          .skip(skip)
+          .limit(limit)
+          .lean() // Use lean() for better performance
+      ]);
+      
+      totalCount = countResult;
+      softwareList = softwareListResult;
     }
     // If user is regular user, get only software for their assigned assets
     else if (req.user && req.user.assignedAssets) {
-      softwareList = await Software.find({
-        _id: { $in: req.user.assignedAssets }, // MAC addresses
-      });
+      query._id = { $in: req.user.assignedAssets }; // MAC addresses
+      
+      // Use Promise.all to run count and find operations in parallel
+      const [countResult, softwareListResult] = await Promise.all([
+        Software.countDocuments(query),
+        Software.find(query)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean() // Use lean() for better performance
+      ]);
+      
+      totalCount = countResult;
+      softwareList = softwareListResult;
     }
     // If no user context, return empty (shouldn't happen with auth middleware)
     else {
       softwareList = [];
+      totalCount = 0;
     }
 
     return res.status(200).json({
       message: "Software data fetched successfully",
       data: softwareList,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalCount / limit),
+        totalItems: totalCount,
+        itemsPerPage: limit,
+        hasNextPage: page < Math.ceil(totalCount / limit),
+        hasPrevPage: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching software data:", error);
