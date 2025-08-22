@@ -562,6 +562,13 @@ export const updateComponentWarranty = async (req, res) => {
 // Create a manual asset entry
 export const createManualAsset = async (req, res) => {
   try {
+    console.log("=== createManualAsset called ===");
+    console.log("Request body:", req.body);
+    console.log("Request user:", req.user);
+    console.log("Request headers:", req.headers);
+    console.log("Request method:", req.method);
+    console.log("Request URL:", req.url);
+    
     const { macAddress, modelName, category, hostname } = req.body;
 
     // Validate required fields
@@ -596,7 +603,7 @@ export const createManualAsset = async (req, res) => {
       system: {
         mac_address: normalizedMacAddress,
         hostname: hostname || `Manual-${normalizedMacAddress.slice(-6)}`,
-        platform: "Unknown",
+        platform: category, // Use category as platform since it's required
         platform_release: "Unknown",
         platform_version: "Unknown",
         architecture: "Unknown",
@@ -608,7 +615,7 @@ export const createManualAsset = async (req, res) => {
         category: category,
         entry_type: "manual",
         created_manually_at: new Date(),
-        created_manually_by: req.user.id,
+        created_manually_by: req.user._id,
         vendor: "Unknown",
         serial_number: "Unknown",
         status: "Manual Entry - Awaiting Scan",
@@ -621,6 +628,7 @@ export const createManualAsset = async (req, res) => {
       },
       // Initialize empty sections that will be filled by scanner
       cpu: {
+        name: `Manual Entry - ${category}`, // Required field
         brand: "Unknown",
         architecture: "Unknown",
         cores: 0,
@@ -628,16 +636,12 @@ export const createManualAsset = async (req, res) => {
         frequency: "Unknown",
       },
       memory: {
-        total_memory: "Unknown",
-        available_memory: "Unknown",
-        memory_slots: [],
+        total: "0 GB", // Match the schema field name
+        available: "0 GB",
+        slots: [],
       },
       storage: {
-        total_storage: "Unknown",
         drives: [],
-      },
-      graphics: {
-        gpus: [],
       },
       network: {
         interfaces: [],
@@ -656,6 +660,22 @@ export const createManualAsset = async (req, res) => {
     });
   } catch (error) {
     console.error("Create manual asset error:", error);
+    
+    // Handle validation errors specifically
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        error: "Validation error",
+        details: Object.values(error.errors).map(err => err.message)
+      });
+    }
+    
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      return res.status(409).json({
+        error: "Asset with this MAC address already exists"
+      });
+    }
+    
     res.status(500).json({
       error: "Failed to create manual asset entry",
       details: error.message,

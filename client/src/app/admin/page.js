@@ -845,7 +845,7 @@ export default function AdminPage() {
             </div>
 
             {/* Tab Navigation */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="border-b border-gray-200">
                 <nav className="flex space-x-1 px-4" aria-label="Tabs">
                   <button
@@ -911,7 +911,7 @@ export default function AdminPage() {
 
               {/* Search and Filter Bar */}
               {activeTab !== "alerts" && activeTab !== "tickets" && (
-                <div className="bg-white rounded border border-gray-200 p-3 mb-4">
+                <div className="bg-white rounded border border-gray-200 p-3">
                   {/* Asset Type Toggle */}
                   {activeTab === "assets" && (
                     <div className="mb-3">

@@ -22,9 +22,8 @@ router.post("/", createOrUpdateSoftware);
 
 // Protected routes - require authentication
 router.get("/", verifyToken, getAll);
-router.get("/:id", verifyToken, canAccessAsset, getById);
 
-// Admin-only routes
+// Admin-only routes must come before the :id route to avoid conflicts
 router.get(
   "/admin/statistics",
   verifyToken,
@@ -39,6 +38,9 @@ router.get(
   getSoftwareByVendor
 );
 router.get("/admin/outdated", verifyToken, requireAdmin, getOutdatedSoftware);
+
+// Routes with :id parameter must come last
+router.get("/:id", verifyToken, canAccessAsset, getById);
 router.delete("/:id", verifyToken, requireAdmin, deleteSoftware);
 
 export default router;

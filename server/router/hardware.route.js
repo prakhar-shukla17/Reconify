@@ -43,31 +43,12 @@ router.get("/", verifyToken, getAll);
 // GET route to fetch dashboard statistics (protected)
 router.get("/stats", verifyToken, getDashboardStats);
 
-// GET route to fetch specific hardware by ID (protected)
-router.get("/:id", verifyToken, canAccessAsset, getById);
-
-// PUT route to update asset information (admin only)
-router.put("/:id/asset-info", verifyToken, requireAdmin, updateAssetInfo);
-
-// PUT route to update component warranty information (admin only)
-router.put(
-  "/:id/component-warranty",
-  verifyToken,
-  requireAdmin,
-  updateComponentWarranty
-);
-
+// Admin routes must come before the :id route to avoid conflicts
 // GET route to fetch assets with expiring warranties (protected)
 router.get("/admin/expiring-warranties", verifyToken, getExpiringWarranties);
 
 // GET route to fetch warranty statistics (protected)
 router.get("/admin/warranty-stats", verifyToken, getWarrantyStats);
-
-// POST route to save hardware data (public - for scanners)
-router.post("/", createHardware);
-
-// POST route to create manual asset entry (admin only)
-router.post("/manual", verifyToken, requireAdmin, createManualAsset);
 
 // GET route to fetch manual entries (admin only)
 router.get(
@@ -80,6 +61,12 @@ router.get(
 // GET route to fetch unassigned assets (admin only)
 router.get("/admin/unassigned", verifyToken, requireAdmin, getUnassignedAssets);
 
+// POST route to save hardware data (public - for scanners)
+router.post("/", createHardware);
+
+// POST route to create manual asset entry (admin only)
+router.post("/manual", verifyToken, requireAdmin, createManualAsset);
+
 // POST route to import CSV assets (admin only)
 router.post(
   "/import/csv",
@@ -87,6 +74,20 @@ router.post(
   requireAdmin,
   upload.single("csvFile"),
   importCsvAssets
+);
+
+// GET route to fetch specific hardware by ID (protected) - must come last
+router.get("/:id", verifyToken, canAccessAsset, getById);
+
+// PUT route to update asset information (admin only)
+router.put("/:id/asset-info", verifyToken, requireAdmin, updateAssetInfo);
+
+// PUT route to update component warranty information (admin only)
+router.put(
+  "/:id/component-warranty",
+  verifyToken,
+  requireAdmin,
+  updateComponentWarranty
 );
 
 export default router;

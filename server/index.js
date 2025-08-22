@@ -21,6 +21,12 @@ app.use(
 );
 app.use(express.json());
 
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // Routes
 app.use("/api/hardware", hardwarerouter);
 app.use("/api/auth", authrouter);
@@ -28,6 +34,18 @@ app.use("/api/software", softwarerouter);
 app.use("/api/alerts", alertsrouter);
 app.use("/api/tickets", ticketrouter);
 app.use("/api/telemetry", telemetryrouter);
+
+// 404 handler for undefined routes
+app.use("*", (req, res) => {
+  console.log(`404 - Route not found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ error: "Route not found" });
+});
+
+// Global error handler
+app.use((error, req, res, next) => {
+  console.error("Global error handler:", error);
+  res.status(500).json({ error: "Internal server error" });
+});
 // MongoDB connection URI
 const mongoUri =
   process.env.MONGODB_URI ||
