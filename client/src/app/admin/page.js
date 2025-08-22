@@ -6,6 +6,7 @@ import ProtectedRoute from "../../components/ProtectedRoute";
 import Navbar from "../../components/Navbar";
 import HardwareCard from "../../components/HardwareCard";
 import HardwareDetails from "../../components/HardwareDetails";
+import SoftwareDetails from "../../components/SoftwareDetails";
 import AlertsWidget from "../../components/AlertsWidget";
 import AlertsPanel from "../../components/AlertsPanel";
 import EnhancedAssignmentModal from "../../components/EnhancedAssignmentModal";
@@ -54,6 +55,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedHardware, setSelectedHardware] = useState(null);
+  const [selectedSoftware, setSelectedSoftware] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -554,6 +556,20 @@ export default function AdminPage() {
               <HardwareDetails hardware={selectedHardware} />
             </div>
           </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  if (selectedSoftware) {
+    return (
+      <ProtectedRoute requireAdmin>
+        <div className="min-h-screen bg-gray-50">
+          <Navbar />
+          <SoftwareDetails 
+            software={selectedSoftware} 
+            onBack={() => setSelectedSoftware(null)} 
+          />
         </div>
       </ProtectedRoute>
     );
@@ -1308,17 +1324,20 @@ export default function AdminPage() {
                                     onClick={setSelectedHardware}
                                   />
                                 ) : (
-                                  // Software Card
-                                  <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer border h-80 flex flex-col">
+                                  // Software Card - Same as Dashboard
+                                  <div
+                                    key={item._id}
+                                    className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border cursor-pointer"
+                                    onClick={() => setSelectedSoftware(item)}
+                                  >
                                     <div className="flex items-center justify-between mb-4">
                                       <div className="flex items-center space-x-3">
                                         <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
                                           <Package className="h-6 w-6 text-green-600" />
                                         </div>
                                         <div>
-                                          <h3 className="text-base font-semibold text-gray-900">
-                                            {item.system?.hostname ||
-                                              "Unknown System"}
+                                          <h3 className="text-lg font-semibold text-gray-900">
+                                            {item.system?.hostname || "Unknown System"}
                                           </h3>
                                           <p className="text-sm text-gray-500">
                                             {item.system?.platform} Software
@@ -1326,76 +1345,55 @@ export default function AdminPage() {
                                         </div>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-xs text-gray-500">
-                                          MAC Address
-                                        </p>
+                                        <p className="text-xs text-gray-500">MAC Address</p>
                                         <p className="text-sm font-mono text-gray-700">
-                                          {item.system?.mac_address ||
-                                            "Unknown"}
+                                          {item.system?.mac_address || "Unknown"}
                                         </p>
                                       </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4 mb-4 flex-1">
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
                                       <div className="flex items-center space-x-2">
                                         <Package className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">
-                                            Installed
-                                          </p>
+                                          <p className="text-xs text-gray-500">Installed</p>
                                           <p className="text-sm font-medium text-gray-900">
-                                            {item.installed_software?.length ||
-                                              0}
+                                            {item.installed_software?.length || 0}
                                           </p>
-                                          <p className="text-xs text-gray-500">
-                                            packages
-                                          </p>
+                                          <p className="text-xs text-gray-500">packages</p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center space-x-2">
                                         <Settings className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">
-                                            Services
-                                          </p>
+                                          <p className="text-xs text-gray-500">Services</p>
                                           <p className="text-sm font-medium text-gray-900">
                                             {item.services?.length || 0}
                                           </p>
-                                          <p className="text-xs text-gray-500">
-                                            running
-                                          </p>
+                                          <p className="text-xs text-gray-500">running</p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center space-x-2">
                                         <Play className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">
-                                            Startup
-                                          </p>
+                                          <p className="text-xs text-gray-500">Startup</p>
                                           <p className="text-sm font-medium text-gray-900">
                                             {item.startup_programs?.length || 0}
                                           </p>
-                                          <p className="text-xs text-gray-500">
-                                            programs
-                                          </p>
+                                          <p className="text-xs text-gray-500">programs</p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center space-x-2">
                                         <Monitor className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">
-                                            Total
-                                          </p>
+                                          <p className="text-xs text-gray-500">Total</p>
                                           <p className="text-sm font-medium text-gray-900">
-                                            {item.scan_metadata
-                                              ?.total_software_count || 0}
+                                            {item.scan_metadata?.total_software_count || 0}
                                           </p>
-                                          <p className="text-xs text-gray-500">
-                                            items
-                                          </p>
+                                          <p className="text-xs text-gray-500">items</p>
                                         </div>
                                       </div>
                                     </div>
@@ -1404,15 +1402,12 @@ export default function AdminPage() {
                                       <div className="text-xs text-gray-500">
                                         Last scan:{" "}
                                         {new Date(
-                                          item.scan_metadata?.last_updated ||
-                                            item.updatedAt
+                                          item.scan_metadata?.last_updated || item.updatedAt
                                         ).toLocaleDateString()}
                                       </div>
                                       <div className="flex items-center space-x-1">
                                         <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                                        <span className="text-xs text-gray-600">
-                                          Scanned
-                                        </span>
+                                        <span className="text-xs text-gray-600">Scanned</span>
                                       </div>
                                     </div>
                                   </div>
