@@ -96,11 +96,11 @@ const ManualAssetModal = ({ isOpen, onClose, onSuccess }) => {
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-xl shadow-2xl w-full max-w-md"
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-blue-50">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-blue-50 rounded-t-3xl">
           <div className="flex justify-between items-center">
             <div>
               <h3 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -118,7 +118,7 @@ const ManualAssetModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
             <button
               onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-xl transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
@@ -126,7 +126,7 @@ const ManualAssetModal = ({ isOpen, onClose, onSuccess }) => {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-6 rounded-b-3xl">
           {/* MAC Address */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-900 mb-2">
@@ -142,7 +142,7 @@ const ManualAssetModal = ({ isOpen, onClose, onSuccess }) => {
                   message: "Invalid MAC address format",
                 },
               })}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white ${
+              className={`w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white ${
                 errors.macAddress ? "border-red-500" : "border-gray-300"
               }`}
             />
@@ -169,7 +169,7 @@ const ManualAssetModal = ({ isOpen, onClose, onSuccess }) => {
                   message: "Model name must be at least 2 characters",
                 },
               })}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white ${
+              className={`w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white ${
                 errors.modelName ? "border-red-500" : "border-gray-300"
               }`}
             />
@@ -190,7 +190,7 @@ const ManualAssetModal = ({ isOpen, onClose, onSuccess }) => {
               {...register("category", {
                 required: "Category is required",
               })}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white ${
+              className={`w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white ${
                 errors.category ? "border-red-500" : "border-gray-300"
               }`}
             >
@@ -218,7 +218,7 @@ const ManualAssetModal = ({ isOpen, onClose, onSuccess }) => {
               type="text"
               placeholder="e.g., DESKTOP-ABC123"
               {...register("hostname")}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
             />
             <p className="text-xs text-gray-500 mt-1">
               Leave empty to auto-generate based on model name
@@ -226,7 +226,7 @@ const ManualAssetModal = ({ isOpen, onClose, onSuccess }) => {
           </div>
 
           {/* Info Box */}
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
             <div className="flex items-start">
               <Monitor className="h-5 w-5 text-blue-600 mr-2 mt-0.5" />
               <div>
@@ -248,14 +248,14 @@ const ManualAssetModal = ({ isOpen, onClose, onSuccess }) => {
              <button
                type="button"
                onClick={handleClose}
-               className="flex-1 px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+               className="flex-1 px-4 py-2 text-gray-600 border border-gray-300 rounded-2xl hover:bg-gray-50 transition-colors"
              >
                Cancel
              </button>
              <button
                type="submit"
                disabled={loading || userRole !== "admin"}
-               className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-colors"
+               className="flex-1 px-4 py-2 bg-green-600 text-white rounded-2xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-colors"
              >
                {loading ? (
                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
