@@ -6,7 +6,7 @@ export const getAll = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12; // Default 12 items per page
     const skip = (page - 1) * limit;
-    
+
     // Get search and filter parameters
     const search = req.query.search;
     const filter = req.query.filter;
@@ -45,9 +45,9 @@ export const getAll = async (req, res) => {
           .sort({ createdAt: -1 }) // Sort by newest first
           .skip(skip)
           .limit(limit)
-          .lean() // Use lean() for better performance
+          .lean(), // Use lean() for better performance
       ]);
-      
+
       totalCount = countResult;
 
       return res.status(200).json({
@@ -66,7 +66,7 @@ export const getAll = async (req, res) => {
     // If user is regular user, get only assigned assets
     else if (req.user && req.user.assignedAssets) {
       query._id = { $in: req.user.assignedAssets };
-      
+
       // Use Promise.all to run count and find operations in parallel
       const [countResult, hardwareList] = await Promise.all([
         Hardware.countDocuments(query),
@@ -74,9 +74,9 @@ export const getAll = async (req, res) => {
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(limit)
-          .lean() // Use lean() for better performance
+          .lean(), // Use lean() for better performance
       ]);
-      
+
       totalCount = countResult;
 
       return res.status(200).json({

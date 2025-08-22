@@ -40,6 +40,9 @@ const router = express.Router();
 // GET route to fetch all hardware data (protected)
 router.get("/", verifyToken, getAll);
 
+// GET route to fetch dashboard statistics (protected)
+router.get("/stats", verifyToken, getDashboardStats);
+
 // GET route to fetch specific hardware by ID (protected)
 router.get("/:id", verifyToken, canAccessAsset, getById);
 
@@ -59,9 +62,6 @@ router.get("/admin/expiring-warranties", verifyToken, getExpiringWarranties);
 
 // GET route to fetch warranty statistics (protected)
 router.get("/admin/warranty-stats", verifyToken, getWarrantyStats);
-
-// GET route to fetch dashboard statistics (protected)
-router.get("/stats", verifyToken, getDashboardStats);
 
 // POST route to save hardware data (public - for scanners)
 router.post("/", createHardware);

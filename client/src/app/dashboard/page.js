@@ -13,6 +13,7 @@ import TicketCard from "../../components/TicketCard";
 import MLServiceControlPanel from "../../components/MLServiceControlPanel";
 import { hardwareAPI, softwareAPI, ticketsAPI } from "../../lib/api";
 import toast from "react-hot-toast";
+import Pagination from "../../components/Pagination";
 import {
   Monitor,
   HardDrive,
@@ -49,22 +50,49 @@ export default function DashboardPage() {
   const [showCreateTicketModal, setShowCreateTicketModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showMLControlPanel, setShowMLControlPanel] = useState(false);
+  const [dashboardStats, setDashboardStats] = useState(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalItems, setTotalItems] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
 
   useEffect(() => {
     if (activeTab === "hardware") {
-      fetchHardware();
+      setCurrentPage(1); // Reset to first page when switching to hardware tab
+      fetchHardware(1);
+      fetchDashboardStats();
     } else if (activeTab === "software") {
-      fetchSoftware();
+      setCurrentPage(1); // Reset to first page when switching to software tab
+      fetchSoftware(1);
     } else if (activeTab === "tickets") {
       fetchTickets();
     }
   }, [activeTab]);
 
-  const fetchHardware = async () => {
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    if (activeTab === "hardware") {
+      fetchHardware(page);
+    } else if (activeTab === "software") {
+      fetchSoftware(page);
+    }
+  };
+
+  const fetchHardware = async (page = currentPage, limit = itemsPerPage) => {
     try {
       setLoading(true);
-      const response = await hardwareAPI.getAll();
+      // Get hardware with pagination for dashboard display
+      const response = await hardwareAPI.getAll({ page, limit });
       setHardware(response.data.data || []);
+
+      // Update pagination info
+      if (response.data.pagination) {
+        setCurrentPage(response.data.pagination.currentPage);
+        setTotalPages(response.data.pagination.totalPages);
+        setTotalItems(response.data.pagination.totalItems);
+      }
     } catch (error) {
       console.error("Error fetching hardware:", error);
       toast.error("Failed to load hardware data");
@@ -73,11 +101,27 @@ export default function DashboardPage() {
     }
   };
 
-  const fetchSoftware = async () => {
+  const fetchDashboardStats = async () => {
+    try {
+      const response = await hardwareAPI.getStats();
+      setDashboardStats(response.data.data);
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+    }
+  };
+
+  const fetchSoftware = async (page = currentPage, limit = itemsPerPage) => {
     try {
       setLoading(true);
-      const response = await softwareAPI.getAll();
+      const response = await softwareAPI.getAll({ page, limit });
       setSoftware(response.data.data || []);
+
+      // Update pagination info
+      if (response.data.pagination) {
+        setCurrentPage(response.data.pagination.currentPage);
+        setTotalPages(response.data.pagination.totalPages);
+        setTotalItems(response.data.pagination.totalItems);
+      }
     } catch (error) {
       console.error("Error fetching software:", error);
       toast.error("Failed to load software data");
@@ -91,17 +135,17 @@ export default function DashboardPage() {
       setLoading(true);
       const response = await ticketsAPI.getAll();
       const ticketsData = response.data.data || [];
-      
+
       // Sort tickets: active tickets first, closed tickets last
       const sortedTickets = ticketsData.sort((a, b) => {
         const aIsClosed = a.status === "Closed" || a.status === "Rejected";
         const bIsClosed = b.status === "Closed" || b.status === "Rejected";
-        
-        if (aIsClosed && !bIsClosed) return 1;  // a goes after b
+
+        if (aIsClosed && !bIsClosed) return 1; // a goes after b
         if (!aIsClosed && bIsClosed) return -1; // a goes before b
         return 0; // keep original order for same status type
       });
-      
+
       setTickets(sortedTickets);
     } catch (error) {
       console.error("Error fetching tickets:", error);
@@ -142,15 +186,29 @@ export default function DashboardPage() {
 
   const getSystemStats = () => {
     if (activeTab === "hardware") {
+      // Calculate device type counts from current hardware data
+      const desktop = hardware.filter(
+        (item) =>
+          item.system?.platform?.toLowerCase().includes("windows") &&
+          !item.power_thermal?.battery
+      ).length;
+
+      const laptop = hardware.filter(
+        (item) => item.power_thermal?.battery
+      ).length;
+
+      const server = hardware.filter((item) =>
+        item.system?.platform?.toLowerCase().includes("linux")
+      ).length;
+
       const stats = {
-        total: hardware.length,
-        desktop: hardware.filter((h) =>
-          h.system?.platform?.toLowerCase().includes("windows")
-        ).length,
-        laptop: hardware.filter((h) => h.power_thermal?.battery).length,
-        server: hardware.filter((h) =>
-          h.system?.platform?.toLowerCase().includes("linux")
-        ).length,
+        total: dashboardStats?.totalAssets || hardware.length,
+        assigned: dashboardStats?.assignedAssets || 0,
+        active: dashboardStats?.activeAssets || 0,
+        expiring: dashboardStats?.expiringWarranties || 0,
+        desktop: desktop,
+        laptop: laptop,
+        server: server,
       };
       return stats;
     } else if (activeTab === "tickets") {
@@ -584,7 +642,9 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="mt-2 pt-2 border-t border-blue-200">
-                      <p className="text-xs text-blue-600">All support requests</p>
+                      <p className="text-xs text-blue-600">
+                        All support requests
+                      </p>
                     </div>
                   </div>
 
@@ -622,7 +682,9 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="mt-2 pt-2 border-t border-green-200">
-                      <p className="text-xs text-green-600">Successfully completed</p>
+                      <p className="text-xs text-green-600">
+                        Successfully completed
+                      </p>
                     </div>
                   </div>
 
@@ -662,7 +724,9 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="mt-2 pt-2 border-t border-blue-200">
-                      <p className="text-xs text-blue-600">All registered devices</p>
+                      <p className="text-xs text-blue-600">
+                        All registered devices
+                      </p>
                     </div>
                   </div>
 
@@ -681,7 +745,9 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="mt-2 pt-2 border-t border-green-200">
-                      <p className="text-xs text-green-600">Windows workstations</p>
+                      <p className="text-xs text-green-600">
+                        Windows workstations
+                      </p>
                     </div>
                   </div>
 
@@ -700,7 +766,9 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="mt-2 pt-2 border-t border-purple-200">
-                      <p className="text-xs text-purple-600">Portable devices</p>
+                      <p className="text-xs text-purple-600">
+                        Portable devices
+                      </p>
                     </div>
                   </div>
 
@@ -759,7 +827,9 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="mt-2 pt-2 border-t border-green-200">
-                      <p className="text-xs text-green-600">Installed software</p>
+                      <p className="text-xs text-green-600">
+                        Installed software
+                      </p>
                     </div>
                   </div>
 
@@ -797,7 +867,9 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="mt-2 pt-2 border-t border-red-200">
-                      <p className="text-xs text-red-600">Auto-start programs</p>
+                      <p className="text-xs text-red-600">
+                        Auto-start programs
+                      </p>
                     </div>
                   </div>
                 </>
@@ -905,7 +977,10 @@ export default function DashboardPage() {
                         ticket={ticket}
                         onClick={(ticket) => {
                           // Only allow opening tickets that are not closed or rejected
-                          if (ticket.status !== "Closed" && ticket.status !== "Rejected") {
+                          if (
+                            ticket.status !== "Closed" &&
+                            ticket.status !== "Rejected"
+                          ) {
                             setSelectedTicket(ticket);
                           }
                         }}
@@ -1051,11 +1126,27 @@ export default function DashboardPage() {
               <div className="mt-8 text-center text-sm text-gray-500">
                 {activeTab === "hardware"
                   ? filteredHardware.length > 0 &&
-                    `Showing ${filteredHardware.length} of ${hardware.length} hardware assets`
+                    `Showing ${filteredHardware.length} of ${
+                      dashboardStats?.totalAssets || totalItems
+                    } hardware assets`
                   : filteredSoftware.length > 0 &&
                     `Showing ${filteredSoftware.length} of ${software.length} software inventories`}
               </div>
             )}
+
+            {/* Pagination */}
+            {!loading &&
+              activeTab !== "alerts" &&
+              activeTab !== "tickets" &&
+              totalPages > 1 && (
+                <div className="mt-6 flex justify-center">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                  />
+                </div>
+              )}
           </div>
         </div>
 
@@ -1067,14 +1158,16 @@ export default function DashboardPage() {
             // Add new ticket and maintain sorting (active tickets first, closed last)
             const updatedTickets = [newTicket, ...tickets];
             const sortedTickets = updatedTickets.sort((a, b) => {
-              const aIsClosed = a.status === "Closed" || a.status === "Rejected";
-              const bIsClosed = b.status === "Closed" || b.status === "Rejected";
-              
-              if (aIsClosed && !bIsClosed) return 1;  // a goes after b
+              const aIsClosed =
+                a.status === "Closed" || a.status === "Rejected";
+              const bIsClosed =
+                b.status === "Closed" || b.status === "Rejected";
+
+              if (aIsClosed && !bIsClosed) return 1; // a goes after b
               if (!aIsClosed && bIsClosed) return -1; // a goes before b
               return 0; // keep original order for same status type
             });
-            
+
             setTickets(sortedTickets);
             setShowCreateTicketModal(false);
             toast.success("Ticket created successfully!");

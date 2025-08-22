@@ -76,6 +76,7 @@ export const hardwareAPI = {
   getExpiringWarranties: (days = 30) =>
     api.get(`/hardware/admin/expiring-warranties?days=${days}`),
   getWarrantyStats: () => api.get("/hardware/admin/warranty-stats"),
+  getStats: () => api.get("/hardware/stats"),
   // Manual asset entry functions
   createManualAsset: (assetData) => api.post("/hardware/manual", assetData),
   getManualEntries: () => api.get("/hardware/admin/manual-entries"),

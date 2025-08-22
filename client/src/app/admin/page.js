@@ -67,17 +67,18 @@ export default function AdminPage() {
   const [showMLDashboard, setShowMLDashboard] = useState(false);
   const [showMLControlPanel, setShowMLControlPanel] = useState(false);
   const [showCsvImportModal, setShowCsvImportModal] = useState(false);
+  const [dashboardStats, setDashboardStats] = useState(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(12);
-  
+
   // Cache for asset data to prevent unnecessary API calls
   const [assetCache, setAssetCache] = useState({});
   const [lastFetchTime, setLastFetchTime] = useState({});
-  
+
   // Ref for the assets section to scroll to
   const assetsSectionRef = useRef(null);
 
@@ -86,6 +87,7 @@ export default function AdminPage() {
       setCurrentPage(1); // Reset to first page when switching to assets tab
       if (assetType === "hardware") {
         fetchHardware(1);
+        fetchDashboardStats();
       } else {
         fetchSoftware(1);
       }
@@ -120,15 +122,15 @@ export default function AdminPage() {
   const handleAssetTypeChange = (type) => {
     setAssetType(type);
     setCurrentPage(1);
-    
+
     // Scroll to the top of the assets section when switching asset types
     if (assetsSectionRef.current) {
-      assetsSectionRef.current.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
+      assetsSectionRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
       });
     }
-    
+
     if (type === "hardware") {
       fetchHardware(1);
     } else {
@@ -142,7 +144,7 @@ export default function AdminPage() {
       const cacheKey = `hardware_${page}_${limit}_${searchTerm}_${filterType}`;
       const now = Date.now();
       const cacheAge = now - (lastFetchTime[cacheKey] || 0);
-      
+
       // Use cache if it's less than 30 seconds old and we have the data
       if (assetCache[cacheKey] && cacheAge < 30000) {
         setHardware(assetCache[cacheKey].data);
@@ -151,20 +153,20 @@ export default function AdminPage() {
         setTotalItems(assetCache[cacheKey].pagination.totalItems);
         return;
       }
-      
+
       // Use searchLoading for search operations, main loading for initial fetch
       if (page === 1 && !searchTerm && filterType === "all") {
         setLoading(true);
       } else {
         setSearchLoading(true);
       }
-      
+
       // Build query parameters
       const params = {
         page: page,
         limit: limit,
       };
-      
+
       // Add search and filter parameters if we're on the assets tab
       if (activeTab === "assets") {
         if (searchTerm) {
@@ -174,10 +176,10 @@ export default function AdminPage() {
           params.filter = filterType;
         }
       }
-      
+
       const response = await hardwareAPI.getAll(params);
       const hardwareData = response.data.data || [];
-      
+
       setHardware(hardwareData);
 
       // Update pagination info
@@ -185,18 +187,18 @@ export default function AdminPage() {
         setCurrentPage(response.data.pagination.currentPage);
         setTotalPages(response.data.pagination.totalPages);
         setTotalItems(response.data.pagination.totalItems);
-        
+
         // Cache the response
-        setAssetCache(prev => ({
+        setAssetCache((prev) => ({
           ...prev,
           [cacheKey]: {
             data: hardwareData,
-            pagination: response.data.pagination
-          }
+            pagination: response.data.pagination,
+          },
         }));
-        setLastFetchTime(prev => ({
+        setLastFetchTime((prev) => ({
           ...prev,
-          [cacheKey]: now
+          [cacheKey]: now,
         }));
       } else {
         // Fallback pagination if API doesn't provide it
@@ -214,13 +216,22 @@ export default function AdminPage() {
     }
   };
 
+  const fetchDashboardStats = async () => {
+    try {
+      const response = await hardwareAPI.getStats();
+      setDashboardStats(response.data.data);
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+    }
+  };
+
   const fetchSoftware = async (page = currentPage, limit = itemsPerPage) => {
     try {
       // Check cache first
       const cacheKey = `software_${page}_${limit}_${searchTerm}_${filterType}`;
       const now = Date.now();
       const cacheAge = now - (lastFetchTime[cacheKey] || 0);
-      
+
       // Use cache if it's less than 30 seconds old and we have the data
       if (assetCache[cacheKey] && cacheAge < 30000) {
         setSoftware(assetCache[cacheKey].data);
@@ -229,20 +240,20 @@ export default function AdminPage() {
         setTotalItems(assetCache[cacheKey].pagination.totalItems);
         return;
       }
-      
+
       // Use searchLoading for search operations, main loading for initial fetch
       if (page === 1 && !searchTerm && filterType === "all") {
         setLoading(true);
       } else {
         setSearchLoading(true);
       }
-      
+
       // Build query parameters
       const params = {
         page: page,
         limit: limit,
       };
-      
+
       // Add search and filter parameters if we're on the assets tab
       if (activeTab === "assets") {
         if (searchTerm) {
@@ -252,10 +263,10 @@ export default function AdminPage() {
           params.filter = filterType;
         }
       }
-      
+
       const response = await softwareAPI.getAll(params);
       const softwareData = response.data.data || [];
-      
+
       setSoftware(softwareData);
 
       // Update pagination info
@@ -263,18 +274,18 @@ export default function AdminPage() {
         setCurrentPage(response.data.pagination.currentPage);
         setTotalPages(response.data.pagination.totalPages);
         setTotalItems(response.data.pagination.totalItems);
-        
+
         // Cache the response
-        setAssetCache(prev => ({
+        setAssetCache((prev) => ({
           ...prev,
           [cacheKey]: {
             data: softwareData,
-            pagination: response.data.pagination
-          }
+            pagination: response.data.pagination,
+          },
         }));
-        setLastFetchTime(prev => ({
+        setLastFetchTime((prev) => ({
           ...prev,
-          [cacheKey]: now
+          [cacheKey]: now,
         }));
       } else {
         // Fallback pagination if API doesn't provide it
@@ -307,15 +318,15 @@ export default function AdminPage() {
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
-    
+
     // Scroll to the top of the assets section when changing pages
     if (assetsSectionRef.current) {
-      assetsSectionRef.current.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
+      assetsSectionRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
       });
     }
-    
+
     if (assetType === "hardware") {
       fetchHardware(page);
     } else {
@@ -328,17 +339,17 @@ export default function AdminPage() {
       setLoading(true);
       const response = await ticketsAPI.getAll();
       const ticketsData = response.data.data || [];
-      
+
       // Sort tickets: active tickets first, closed tickets last
       const sortedTickets = ticketsData.sort((a, b) => {
         const aIsClosed = a.status === "Closed" || a.status === "Rejected";
         const bIsClosed = b.status === "Closed" || b.status === "Rejected";
-        
-        if (aIsClosed && !bIsClosed) return 1;  // a goes after b
+
+        if (aIsClosed && !bIsClosed) return 1; // a goes after b
         if (!aIsClosed && bIsClosed) return -1; // a goes before b
         return 0; // keep original order for same status type
       });
-      
+
       setTickets(sortedTickets);
     } catch (error) {
       console.error("Error fetching tickets:", error);
@@ -421,7 +432,7 @@ export default function AdminPage() {
   };
 
   const currentAssets = assetType === "hardware" ? hardware : software;
-  
+
   const filteredUsers = users.filter(
     (user) =>
       user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -435,9 +446,13 @@ export default function AdminPage() {
       // Ticket statistics
       const totalTickets = tickets.length;
       const openTickets = tickets.filter((t) => t.status === "Open").length;
-      const resolvedTickets = tickets.filter((t) => t.status === "Resolved").length;
+      const resolvedTickets = tickets.filter(
+        (t) => t.status === "Resolved"
+      ).length;
       const closedTickets = tickets.filter((t) => t.status === "Closed").length;
-      const inProgressTickets = tickets.filter((t) => t.status === "In Progress").length;
+      const inProgressTickets = tickets.filter(
+        (t) => t.status === "In Progress"
+      ).length;
 
       return {
         totalTickets,
@@ -448,11 +463,11 @@ export default function AdminPage() {
       };
     } else if (activeTab === "assets") {
       if (assetType === "hardware") {
-        // Hardware statistics
-        const totalAssets = hardware.length;
-        const assignedAssets = hardware.filter((h) =>
-          isAssetAssigned(h.system?.mac_address)
-        ).length;
+        // Hardware statistics - use dashboard stats for total count if available
+        const totalAssets = dashboardStats?.totalAssets || hardware.length;
+        const assignedAssets =
+          dashboardStats?.assignedAssets ||
+          hardware.filter((h) => isAssetAssigned(h.system?.mac_address)).length;
         const totalUsers = users.length;
         const activeUsers = users.filter((u) => u.isActive).length;
 
@@ -561,7 +576,9 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div className="mt-2 pt-2 border-t border-blue-200">
-                      <p className="text-xs text-blue-600">All support requests</p>
+                      <p className="text-xs text-blue-600">
+                        All support requests
+                      </p>
                     </div>
                   </div>
 
@@ -618,7 +635,9 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div className="mt-2 pt-2 border-t border-green-200">
-                      <p className="text-xs text-green-600">Successfully completed</p>
+                      <p className="text-xs text-green-600">
+                        Successfully completed
+                      </p>
                     </div>
                   </div>
 
@@ -647,10 +666,14 @@ export default function AdminPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-xs font-medium text-blue-700 mb-1">
-                          {assetType === "hardware" ? "Total Assets" : "Total Systems"}
+                          {assetType === "hardware"
+                            ? "Total Assets"
+                            : "Total Systems"}
                         </p>
                         <p className="text-xl font-bold text-blue-900">
-                          {assetType === "hardware" ? stats.totalAssets : stats.totalSystems}
+                          {assetType === "hardware"
+                            ? stats.totalAssets
+                            : stats.totalSystems}
                         </p>
                       </div>
                       <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center shadow-sm">
@@ -659,7 +682,9 @@ export default function AdminPage() {
                     </div>
                     <div className="mt-2 pt-2 border-t border-blue-200">
                       <p className="text-xs text-blue-600">
-                        {assetType === "hardware" ? "All registered devices" : "All scanned systems"}
+                        {assetType === "hardware"
+                          ? "All registered devices"
+                          : "All scanned systems"}
                       </p>
                     </div>
                   </div>
@@ -681,7 +706,9 @@ export default function AdminPage() {
                           </div>
                         </div>
                         <div className="mt-2 pt-2 border-t border-green-200">
-                          <p className="text-xs text-green-600">User assigned</p>
+                          <p className="text-xs text-green-600">
+                            User assigned
+                          </p>
                         </div>
                       </div>
 
@@ -700,7 +727,9 @@ export default function AdminPage() {
                           </div>
                         </div>
                         <div className="mt-2 pt-2 border-t border-red-200">
-                          <p className="text-xs text-red-600">Available for assignment</p>
+                          <p className="text-xs text-red-600">
+                            Available for assignment
+                          </p>
                         </div>
                       </div>
                     </>
@@ -721,7 +750,9 @@ export default function AdminPage() {
                           </div>
                         </div>
                         <div className="mt-2 pt-2 border-t border-green-200">
-                          <p className="text-xs text-green-600">Installed software</p>
+                          <p className="text-xs text-green-600">
+                            Installed software
+                          </p>
                         </div>
                       </div>
 
@@ -740,7 +771,9 @@ export default function AdminPage() {
                           </div>
                         </div>
                         <div className="mt-2 pt-2 border-t border-purple-200">
-                          <p className="text-xs text-purple-600">System services</p>
+                          <p className="text-xs text-purple-600">
+                            System services
+                          </p>
                         </div>
                       </div>
                     </>
@@ -750,19 +783,29 @@ export default function AdminPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-xs font-medium text-purple-700 mb-1">
-                          {assetType === "hardware" ? "Total Users" : "Startup Programs"}
+                          {assetType === "hardware"
+                            ? "Total Users"
+                            : "Startup Programs"}
                         </p>
                         <p className="text-xl font-bold text-purple-900">
-                          {assetType === "hardware" ? stats.totalUsers : stats.totalStartupPrograms}
+                          {assetType === "hardware"
+                            ? stats.totalUsers
+                            : stats.totalStartupPrograms}
                         </p>
                       </div>
                       <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-md flex items-center justify-center shadow-sm">
-                        {assetType === "hardware" ? <Users className="h-4 w-4 text-white" /> : <Play className="h-4 w-4 text-white" />}
+                        {assetType === "hardware" ? (
+                          <Users className="h-4 w-4 text-white" />
+                        ) : (
+                          <Play className="h-4 w-4 text-white" />
+                        )}
                       </div>
                     </div>
                     <div className="mt-2 pt-2 border-t border-purple-200">
                       <p className="text-xs text-purple-600">
-                        {assetType === "hardware" ? "Registered accounts" : "Auto-start programs"}
+                        {assetType === "hardware"
+                          ? "Registered accounts"
+                          : "Auto-start programs"}
                       </p>
                     </div>
                   </div>
@@ -771,19 +814,29 @@ export default function AdminPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-xs font-medium text-emerald-700 mb-1">
-                          {assetType === "hardware" ? "Active Users" : "Active Services"}
+                          {assetType === "hardware"
+                            ? "Active Users"
+                            : "Active Services"}
                         </p>
                         <p className="text-xl font-bold text-emerald-900">
-                          {assetType === "hardware" ? stats.activeUsers : stats.totalServices}
+                          {assetType === "hardware"
+                            ? stats.activeUsers
+                            : stats.totalServices}
                         </p>
                       </div>
                       <div className="h-8 w-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-md flex items-center justify-center shadow-sm">
-                        {assetType === "hardware" ? <UserPlus className="h-4 w-4 text-white" /> : <Settings className="h-4 w-4 text-white" />}
+                        {assetType === "hardware" ? (
+                          <UserPlus className="h-4 w-4 text-white" />
+                        ) : (
+                          <Settings className="h-4 w-4 text-white" />
+                        )}
                       </div>
                     </div>
                     <div className="mt-2 pt-2 border-t border-emerald-200">
                       <p className="text-xs text-emerald-600">
-                        {assetType === "hardware" ? "Currently active" : "Running services"}
+                        {assetType === "hardware"
+                          ? "Currently active"
+                          : "Running services"}
                       </p>
                     </div>
                   </div>
@@ -892,7 +945,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                   )}
-                  
+
                   <div className="flex flex-col sm:flex-row gap-2">
                     <div className="flex-1 relative">
                       <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -1054,7 +1107,10 @@ export default function AdminPage() {
                         ticket={ticket}
                         onClick={(ticket) => {
                           // Only allow opening tickets that are not closed or rejected
-                          if (ticket.status !== "Closed" && ticket.status !== "Rejected") {
+                          if (
+                            ticket.status !== "Closed" &&
+                            ticket.status !== "Rejected"
+                          ) {
                             setSelectedTicket(ticket);
                             setShowTicketManagementModal(true);
                           }
@@ -1074,7 +1130,9 @@ export default function AdminPage() {
                     <div className="flex items-center justify-between text-sm text-gray-600">
                       <span>
                         Page {currentPage} of {totalPages} • {totalItems} total{" "}
-                        {assetType === "hardware" ? "hardware assets" : "software systems"}
+                        {assetType === "hardware"
+                          ? "hardware assets"
+                          : "software systems"}
                       </span>
                     </div>
                   </div>
@@ -1084,12 +1142,20 @@ export default function AdminPage() {
                   <div className="text-center py-12">
                     <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No {assetType === "hardware" ? "hardware assets" : "software systems"} found
+                      No{" "}
+                      {assetType === "hardware"
+                        ? "hardware assets"
+                        : "software systems"}{" "}
+                      found
                     </h3>
                     <p className="text-gray-500">
                       {searchTerm || filterType !== "all"
                         ? "Try adjusting your search or filter criteria."
-                        : `No ${assetType === "hardware" ? "hardware assets" : "software systems"} have been registered yet.`}
+                        : `No ${
+                            assetType === "hardware"
+                              ? "hardware assets"
+                              : "software systems"
+                          } have been registered yet.`}
                     </p>
                   </div>
                 ) : (
@@ -1098,7 +1164,10 @@ export default function AdminPage() {
                     {loading && (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {[...Array(6)].map((_, index) => (
-                          <div key={index} className="bg-white rounded-lg shadow-md p-6 animate-pulse">
+                          <div
+                            key={index}
+                            className="bg-white rounded-lg shadow-md p-6 animate-pulse"
+                          >
                             <div className="flex items-center justify-between mb-4">
                               <div className="flex items-center space-x-3">
                                 <div className="h-10 w-10 bg-gray-200 rounded-lg"></div>
@@ -1162,7 +1231,8 @@ export default function AdminPage() {
                               {selectedAssets.length > 0 && (
                                 <div className="text-sm text-gray-600">
                                   {selectedAssets.length} asset
-                                  {selectedAssets.length !== 1 ? "s" : ""} selected
+                                  {selectedAssets.length !== 1 ? "s" : ""}{" "}
+                                  selected
                                 </div>
                               )}
                             </div>
@@ -1172,7 +1242,9 @@ export default function AdminPage() {
                                 className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                               >
                                 <UserPlus className="h-4 w-4" />
-                                <span>Bulk Assign ({selectedAssets.length})</span>
+                                <span>
+                                  Bulk Assign ({selectedAssets.length})
+                                </span>
                               </button>
                             )}
                           </div>
@@ -1180,7 +1252,9 @@ export default function AdminPage() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           {currentAssets.map((item) => {
-                            const isSelected = selectedAssets.includes(item._id);
+                            const isSelected = selectedAssets.includes(
+                              item._id
+                            );
                             return (
                               <div
                                 key={item._id}
@@ -1221,7 +1295,8 @@ export default function AdminPage() {
                                         </div>
                                         <div>
                                           <h3 className="text-base font-semibold text-gray-900">
-                                            {item.system?.hostname || "Unknown System"}
+                                            {item.system?.hostname ||
+                                              "Unknown System"}
                                           </h3>
                                           <p className="text-sm text-gray-500">
                                             {item.system?.platform} Software
@@ -1229,9 +1304,12 @@ export default function AdminPage() {
                                         </div>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-xs text-gray-500">MAC Address</p>
+                                        <p className="text-xs text-gray-500">
+                                          MAC Address
+                                        </p>
                                         <p className="text-sm font-mono text-gray-700">
-                                          {item.system?.mac_address || "Unknown"}
+                                          {item.system?.mac_address ||
+                                            "Unknown"}
                                         </p>
                                       </div>
                                     </div>
@@ -1240,44 +1318,62 @@ export default function AdminPage() {
                                       <div className="flex items-center space-x-2">
                                         <Package className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">Installed</p>
-                                          <p className="text-sm font-medium text-gray-900">
-                                            {item.installed_software?.length || 0}
+                                          <p className="text-xs text-gray-500">
+                                            Installed
                                           </p>
-                                          <p className="text-xs text-gray-500">packages</p>
+                                          <p className="text-sm font-medium text-gray-900">
+                                            {item.installed_software?.length ||
+                                              0}
+                                          </p>
+                                          <p className="text-xs text-gray-500">
+                                            packages
+                                          </p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center space-x-2">
                                         <Settings className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">Services</p>
+                                          <p className="text-xs text-gray-500">
+                                            Services
+                                          </p>
                                           <p className="text-sm font-medium text-gray-900">
                                             {item.services?.length || 0}
                                           </p>
-                                          <p className="text-xs text-gray-500">running</p>
+                                          <p className="text-xs text-gray-500">
+                                            running
+                                          </p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center space-x-2">
                                         <Play className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">Startup</p>
+                                          <p className="text-xs text-gray-500">
+                                            Startup
+                                          </p>
                                           <p className="text-sm font-medium text-gray-900">
                                             {item.startup_programs?.length || 0}
                                           </p>
-                                          <p className="text-xs text-gray-500">programs</p>
+                                          <p className="text-xs text-gray-500">
+                                            programs
+                                          </p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center space-x-2">
                                         <Monitor className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">Total</p>
-                                          <p className="text-sm font-medium text-gray-900">
-                                            {item.scan_metadata?.total_software_count || 0}
+                                          <p className="text-xs text-gray-500">
+                                            Total
                                           </p>
-                                          <p className="text-xs text-gray-500">items</p>
+                                          <p className="text-sm font-medium text-gray-900">
+                                            {item.scan_metadata
+                                              ?.total_software_count || 0}
+                                          </p>
+                                          <p className="text-xs text-gray-500">
+                                            items
+                                          </p>
                                         </div>
                                       </div>
                                     </div>
@@ -1286,12 +1382,15 @@ export default function AdminPage() {
                                       <div className="text-xs text-gray-500">
                                         Last scan:{" "}
                                         {new Date(
-                                          item.scan_metadata?.last_updated || item.updatedAt
+                                          item.scan_metadata?.last_updated ||
+                                            item.updatedAt
                                         ).toLocaleDateString()}
                                       </div>
                                       <div className="flex items-center space-x-1">
                                         <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                                        <span className="text-xs text-gray-600">Scanned</span>
+                                        <span className="text-xs text-gray-600">
+                                          Scanned
+                                        </span>
                                       </div>
                                     </div>
                                   </div>
@@ -1300,12 +1399,15 @@ export default function AdminPage() {
                                 <div className="absolute top-2 right-2 flex space-x-2">
                                   {assetType === "hardware" && (
                                     <>
-                                      {isAssetAssigned(item.system?.mac_address) ? (
+                                      {isAssetAssigned(
+                                        item.system?.mac_address
+                                      ) ? (
                                         <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
                                           Assigned to{" "}
                                           {
-                                            getAssignedUser(item.system?.mac_address)
-                                              ?.username
+                                            getAssignedUser(
+                                              item.system?.mac_address
+                                            )?.username
                                           }
                                         </div>
                                       ) : (
