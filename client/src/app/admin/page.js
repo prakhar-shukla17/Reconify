@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import Navbar from "../../components/Navbar";
@@ -9,16 +9,18 @@ import HardwareDetails from "../../components/HardwareDetails";
 import AlertsWidget from "../../components/AlertsWidget";
 import AlertsPanel from "../../components/AlertsPanel";
 import EnhancedAssignmentModal from "../../components/EnhancedAssignmentModal";
-import ManualAssetModal from "../../components/ManualAssetModal";
-import CsvImportModal from "../../components/CsvImportModal";
+import ManualAssetModal from "../../components/lazy/ManualAssetModal.lazy";
+import CsvImportModal from "../../components/lazy/CsvImportModal.lazy";
 import TicketCard from "../../components/TicketCard";
-import TicketManagementModal from "../../components/TicketManagementModal";
-import HealthDashboard from "../../components/HealthDashboard";
-import MLAnalyticsDashboard from "../../components/MLAnalyticsDashboard";
-import MLServiceControlPanel from "../../components/MLServiceControlPanel";
+import TicketManagementModal from "../../components/lazy/TicketManagementModal.lazy";
+import HealthDashboard from "../../components/lazy/HealthDashboard.lazy";
+import MLAnalyticsDashboard from "../../components/lazy/MLAnalyticsDashboard.lazy";
+import MLServiceControlPanel from "../../components/lazy/MLServiceControlPanel.lazy";
 import Pagination from "../../components/Pagination";
+import LazyLoader from "../../components/LazyLoader";
 import { hardwareAPI, authAPI, ticketsAPI, softwareAPI } from "../../lib/api";
 import toast from "react-hot-toast";
+import { debounce, throttle } from "../../utils/performance";
 import {
   Users,
   Monitor,
@@ -81,6 +83,8 @@ export default function AdminPage() {
 
   // Ref for the assets section to scroll to
   const assetsSectionRef = useRef(null);
+
+
 
   useEffect(() => {
     if (activeTab === "assets") {
@@ -514,6 +518,24 @@ export default function AdminPage() {
   };
 
   const stats = getSystemStats();
+
+  // Debounced search function to reduce API calls
+  const debouncedSearch = useCallback(
+    debounce((term) => {
+      setSearchTerm(term);
+      setCurrentPage(1);
+      if (activeTab === "assets") {
+        if (assetType === "hardware") {
+          fetchHardware(1);
+        } else {
+          fetchSoftware(1);
+        }
+      } else if (activeTab === "users") {
+        fetchUsers();
+      }
+    }, 500),
+    [activeTab, assetType, fetchHardware, fetchSoftware, fetchUsers]
+  );
 
   if (selectedHardware) {
     return (
@@ -964,7 +986,7 @@ export default function AdminPage() {
                             : "Search users..."
                         }
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => debouncedSearch(e.target.value)}
                         className="w-full pl-7 pr-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
                       />
                     </div>
@@ -1606,39 +1628,45 @@ export default function AdminPage() {
         />
 
         {/* Manual Asset Modal */}
-        <ManualAssetModal
-          isOpen={showManualAssetModal}
-          onClose={() => setShowManualAssetModal(false)}
-          onSuccess={() => {
-            setCurrentPage(1);
-            if (assetType === "hardware") {
-              fetchHardware(1);
-            } else {
-              fetchSoftware(1);
-            }
-            setShowManualAssetModal(false);
-          }}
-        />
+        <LazyLoader>
+          <ManualAssetModal
+            isOpen={showManualAssetModal}
+            onClose={() => setShowManualAssetModal(false)}
+            onSuccess={() => {
+              setCurrentPage(1);
+              if (assetType === "hardware") {
+                fetchHardware(1);
+              } else {
+                fetchSoftware(1);
+              }
+              setShowManualAssetModal(false);
+            }}
+          />
+        </LazyLoader>
 
         {/* Ticket Management Modal */}
         {showTicketManagementModal && selectedTicket && (
-          <TicketManagementModal
-            ticket={selectedTicket}
-            onClose={() => {
-              setShowTicketManagementModal(false);
-              setSelectedTicket(null);
-            }}
-            onUpdate={() => {
-              fetchTickets();
-            }}
-          />
+          <LazyLoader>
+            <TicketManagementModal
+              ticket={selectedTicket}
+              onClose={() => {
+                setShowTicketManagementModal(false);
+                setSelectedTicket(null);
+              }}
+              onUpdate={() => {
+                fetchTickets();
+              }}
+            />
+          </LazyLoader>
         )}
 
         {/* Health Dashboard */}
-        <HealthDashboard
-          isOpen={showHealthDashboard}
-          onClose={() => setShowHealthDashboard(false)}
-        />
+        <LazyLoader>
+          <HealthDashboard
+            isOpen={showHealthDashboard}
+            onClose={() => setShowHealthDashboard(false)}
+          />
+        </LazyLoader>
 
         {/* ML Analytics Dashboard */}
         {showMLDashboard && (
@@ -1670,35 +1698,41 @@ export default function AdminPage() {
                 </div>
               </div>
               <div className="overflow-y-auto max-h-[calc(95vh-100px)]">
-                <MLAnalyticsDashboard />
+                <LazyLoader>
+                  <MLAnalyticsDashboard />
+                </LazyLoader>
               </div>
             </div>
           </div>
         )}
 
         {/* ML Service Control Panel */}
-        <MLServiceControlPanel
-          isOpen={showMLControlPanel}
-          onClose={() => setShowMLControlPanel(false)}
-        />
+        <LazyLoader>
+          <MLServiceControlPanel
+            isOpen={showMLControlPanel}
+            onClose={() => setShowMLControlPanel(false)}
+          />
+        </LazyLoader>
 
         {/* CSV Import Modal */}
-        <CsvImportModal
-          isOpen={showCsvImportModal}
-          onClose={() => setShowCsvImportModal(false)}
-          onImportComplete={(results) => {
-            toast.success(
-              `Successfully imported ${results.data.successCount} assets`
-            );
-            setCurrentPage(1);
-            if (assetType === "hardware") {
-              fetchHardware(1);
-            } else {
-              fetchSoftware(1);
+        <LazyLoader>
+          <CsvImportModal
+            isOpen={showCsvImportModal}
+            onClose={() => setShowCsvImportModal(false)}
+            onImportComplete={(results) => {
+              toast.success(
+                `Successfully imported ${results.data.successCount} assets`
+              );
+              setCurrentPage(1);
+              if (assetType === "hardware") {
+                fetchHardware(1);
+              } else {
+                fetchSoftware(1);
             }
             setShowCsvImportModal(false);
           }}
         />
+        </LazyLoader>
       </div>
     </ProtectedRoute>
   );
