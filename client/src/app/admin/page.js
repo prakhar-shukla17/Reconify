@@ -38,6 +38,7 @@ import {
   Activity,
   Brain,
   FileText,
+  AlertCircle,
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -241,20 +242,38 @@ export default function AdminPage() {
   );
 
   const getSystemStats = () => {
-    const totalAssets = hardware.length;
-    const assignedAssets = hardware.filter((h) =>
-      isAssetAssigned(h.system?.mac_address)
-    ).length;
-    const totalUsers = users.length;
-    const activeUsers = users.filter((u) => u.isActive).length;
+    if (activeTab === "tickets") {
+      // Ticket statistics
+      const totalTickets = tickets.length;
+      const openTickets = tickets.filter((t) => t.status === "Open").length;
+      const resolvedTickets = tickets.filter((t) => t.status === "Resolved").length;
+      const closedTickets = tickets.filter((t) => t.status === "Closed").length;
+      const inProgressTickets = tickets.filter((t) => t.status === "In Progress").length;
 
-    return {
-      totalAssets,
-      assignedAssets,
-      unassignedAssets: totalAssets - assignedAssets,
-      totalUsers,
-      activeUsers,
-    };
+      return {
+        totalTickets,
+        openTickets,
+        resolvedTickets,
+        closedTickets,
+        inProgressTickets,
+      };
+    } else {
+      // Asset and user statistics (default)
+      const totalAssets = hardware.length;
+      const assignedAssets = hardware.filter((h) =>
+        isAssetAssigned(h.system?.mac_address)
+      ).length;
+      const totalUsers = users.length;
+      const activeUsers = users.filter((u) => u.isActive).length;
+
+      return {
+        totalAssets,
+        assignedAssets,
+        unassignedAssets: totalAssets - assignedAssets,
+        totalUsers,
+        activeUsers,
+      };
+    }
   };
 
   const stats = getSystemStats();
@@ -302,86 +321,202 @@ export default function AdminPage() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Package className="h-8 w-8 text-blue-600" />
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+              {activeTab === "tickets" ? (
+                <>
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-md shadow-sm border border-blue-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-blue-700 mb-1">
+                          Total Tickets
+                        </p>
+                        <p className="text-xl font-bold text-blue-900">
+                          {stats.totalTickets}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Ticket className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <p className="text-xs text-blue-600">All support requests</p>
+                    </div>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">
-                      Total Assets
-                    </p>
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {stats.totalAssets}
-                    </p>
-                  </div>
-                </div>
-              </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Check className="h-8 w-8 text-green-600" />
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-md shadow-sm border border-red-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-red-700 mb-1">
+                          Open
+                        </p>
+                        <p className="text-xl font-bold text-red-900">
+                          {stats.openTickets}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center shadow-sm">
+                        <AlertCircle className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-red-200">
+                      <p className="text-xs text-red-600">Awaiting response</p>
+                    </div>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">
-                      Assigned
-                    </p>
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {stats.assignedAssets}
-                    </p>
-                  </div>
-                </div>
-              </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <X className="h-8 w-8 text-red-600" />
+                  <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-md shadow-sm border border-amber-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-amber-700 mb-1">
+                          In Progress
+                        </p>
+                        <p className="text-xl font-bold text-amber-900">
+                          {stats.inProgressTickets}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-amber-500 to-amber-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Settings className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-amber-200">
+                      <p className="text-xs text-amber-600">Being worked on</p>
+                    </div>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">
-                      Unassigned
-                    </p>
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {stats.unassignedAssets}
-                    </p>
-                  </div>
-                </div>
-              </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Users className="h-8 w-8 text-purple-600" />
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-green-700 mb-1">
+                          Resolved
+                        </p>
+                        <p className="text-xl font-bold text-green-900">
+                          {stats.resolvedTickets}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Check className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-green-200">
+                      <p className="text-xs text-green-600">Successfully completed</p>
+                    </div>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">
-                      Total Users
-                    </p>
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {stats.totalUsers}
-                    </p>
-                  </div>
-                </div>
-              </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <UserPlus className="h-8 w-8 text-green-600" />
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-md shadow-sm border border-gray-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-gray-700 mb-1">
+                          Closed
+                        </p>
+                        <p className="text-xl font-bold text-gray-900">
+                          {stats.closedTickets}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-gray-500 to-gray-600 rounded-md flex items-center justify-center shadow-sm">
+                        <X className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-gray-200">
+                      <p className="text-xs text-gray-600">Archived tickets</p>
+                    </div>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">
-                      Active Users
-                    </p>
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {stats.activeUsers}
-                    </p>
+                </>
+              ) : (
+                <>
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-md shadow-sm border border-blue-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-blue-700 mb-1">
+                          Total Assets
+                        </p>
+                        <p className="text-xl font-bold text-blue-900">
+                          {stats.totalAssets}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Package className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <p className="text-xs text-blue-600">All registered devices</p>
+                    </div>
                   </div>
-                </div>
-              </div>
+
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-green-700 mb-1">
+                          Assigned
+                        </p>
+                        <p className="text-xl font-bold text-green-900">
+                          {stats.assignedAssets}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Check className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-green-200">
+                      <p className="text-xs text-green-600">User assigned</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-md shadow-sm border border-red-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-red-700 mb-1">
+                          Unassigned
+                        </p>
+                        <p className="text-xl font-bold text-red-900">
+                          {stats.unassignedAssets}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center shadow-sm">
+                        <X className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-red-200">
+                      <p className="text-xs text-red-600">Available for assignment</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-md shadow-sm border border-purple-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-purple-700 mb-1">
+                          Total Users
+                        </p>
+                        <p className="text-xl font-bold text-purple-900">
+                          {stats.totalUsers}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Users className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-purple-200">
+                      <p className="text-xs text-purple-600">Registered accounts</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-md shadow-sm border border-emerald-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-emerald-700 mb-1">
+                          Active Users
+                        </p>
+                        <p className="text-xl font-bold text-emerald-900">
+                          {stats.activeUsers}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-md flex items-center justify-center shadow-sm">
+                        <UserPlus className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-emerald-200">
+                      <p className="text-xs text-emerald-600">Currently active</p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Tab Navigation */}

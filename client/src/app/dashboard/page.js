@@ -30,6 +30,8 @@ import {
   Plus,
   AlertCircle,
   Brain,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -155,9 +157,8 @@ export default function DashboardPage() {
       const stats = {
         total: tickets.length,
         open: tickets.filter((t) => t.status === "Open").length,
-        inProgress: tickets.filter((t) => t.status === "In Progress").length,
         resolved: tickets.filter((t) => t.status === "Resolved").length,
-        critical: tickets.filter((t) => t.priority === "Critical").length,
+        closed: tickets.filter((t) => t.status === "Closed").length,
       };
       return stats;
     } else {
@@ -565,193 +566,238 @@ export default function DashboardPage() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
               {activeTab === "tickets" ? (
                 <>
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Ticket className="h-8 w-8 text-blue-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-md shadow-sm border border-blue-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-blue-700 mb-1">
                           Total Tickets
                         </p>
-                        <p className="text-2xl font-semibold text-gray-900">
+                        <p className="text-xl font-bold text-blue-900">
                           {stats.total}
                         </p>
                       </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Ticket className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <p className="text-xs text-blue-600">All support requests</p>
                     </div>
                   </div>
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <AlertCircle className="h-8 w-8 text-red-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">
+
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-md shadow-sm border border-red-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-red-700 mb-1">
                           Open
                         </p>
-                        <p className="text-2xl font-semibold text-gray-900">
+                        <p className="text-xl font-bold text-red-900">
                           {stats.open}
                         </p>
                       </div>
-                    </div>
-                  </div>
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Settings className="h-8 w-8 text-yellow-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">
-                          In Progress
-                        </p>
-                        <p className="text-2xl font-semibold text-gray-900">
-                          {stats.inProgress}
-                        </p>
+                      <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center shadow-sm">
+                        <AlertCircle className="h-4 w-4 text-white" />
                       </div>
                     </div>
+                    <div className="mt-2 pt-2 border-t border-red-200">
+                      <p className="text-xs text-red-600">Awaiting response</p>
+                    </div>
                   </div>
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Bell className="h-8 w-8 text-red-500" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">
-                          Critical
+
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-green-700 mb-1">
+                          Resolved
                         </p>
-                        <p className="text-2xl font-semibold text-gray-900">
-                          {stats.critical}
+                        <p className="text-xl font-bold text-green-900">
+                          {stats.resolved}
                         </p>
                       </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
+                        <CheckCircle className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-green-200">
+                      <p className="text-xs text-green-600">Successfully completed</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-md shadow-sm border border-gray-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-gray-700 mb-1">
+                          Closed
+                        </p>
+                        <p className="text-xl font-bold text-gray-900">
+                          {stats.closed}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-gray-500 to-gray-600 rounded-md flex items-center justify-center shadow-sm">
+                        <XCircle className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-gray-200">
+                      <p className="text-xs text-gray-600">Archived tickets</p>
                     </div>
                   </div>
                 </>
               ) : activeTab === "hardware" ? (
                 <>
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Package className="h-8 w-8 text-blue-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-md shadow-sm border border-blue-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-blue-700 mb-1">
                           Total Assets
                         </p>
-                        <p className="text-2xl font-semibold text-gray-900">
+                        <p className="text-xl font-bold text-blue-900">
                           {stats.total}
                         </p>
                       </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Package className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <p className="text-xs text-blue-600">All registered devices</p>
                     </div>
                   </div>
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Monitor className="h-8 w-8 text-green-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">
+
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-green-700 mb-1">
                           Desktops
                         </p>
-                        <p className="text-2xl font-semibold text-gray-900">
+                        <p className="text-xl font-bold text-green-900">
                           {stats.desktop}
                         </p>
                       </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Monitor className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-green-200">
+                      <p className="text-xs text-green-600">Windows workstations</p>
                     </div>
                   </div>
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Cpu className="h-8 w-8 text-purple-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">
+
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-md shadow-sm border border-purple-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-purple-700 mb-1">
                           Laptops
                         </p>
-                        <p className="text-2xl font-semibold text-gray-900">
+                        <p className="text-xl font-bold text-purple-900">
                           {stats.laptop}
                         </p>
                       </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Cpu className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-purple-200">
+                      <p className="text-xs text-purple-600">Portable devices</p>
                     </div>
                   </div>
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <HardDrive className="h-8 w-8 text-red-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">
+
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-md shadow-sm border border-red-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-red-700 mb-1">
                           Servers
                         </p>
-                        <p className="text-2xl font-semibold text-gray-900">
+                        <p className="text-xl font-bold text-red-900">
                           {stats.server}
                         </p>
                       </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center shadow-sm">
+                        <HardDrive className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-red-200">
+                      <p className="text-xs text-red-600">Linux servers</p>
                     </div>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Package className="h-8 w-8 text-blue-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-md shadow-sm border border-blue-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-blue-700 mb-1">
                           Total Systems
                         </p>
-                        <p className="text-2xl font-semibold text-gray-900">
+                        <p className="text-xl font-bold text-blue-900">
                           {stats.total}
                         </p>
                       </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Package className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <p className="text-xs text-blue-600">Scanned systems</p>
                     </div>
                   </div>
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Package className="h-8 w-8 text-green-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">
+
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-green-700 mb-1">
                           Software Packages
                         </p>
-                        <p className="text-2xl font-semibold text-gray-900">
+                        <p className="text-xl font-bold text-green-900">
                           {stats.totalPackages}
                         </p>
                       </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Package className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-green-200">
+                      <p className="text-xs text-green-600">Installed software</p>
                     </div>
                   </div>
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Settings className="h-8 w-8 text-purple-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">
+
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-md shadow-sm border border-purple-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-purple-700 mb-1">
                           Services
                         </p>
-                        <p className="text-2xl font-semibold text-gray-900">
+                        <p className="text-xl font-bold text-purple-900">
                           {stats.services}
                         </p>
                       </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Settings className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-purple-200">
+                      <p className="text-xs text-purple-600">System services</p>
                     </div>
                   </div>
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Play className="h-8 w-8 text-red-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">
+
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-md shadow-sm border border-red-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-red-700 mb-1">
                           Startup Programs
                         </p>
-                        <p className="text-2xl font-semibold text-gray-900">
+                        <p className="text-xl font-bold text-red-900">
                           {stats.startupPrograms}
                         </p>
                       </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Play className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-red-200">
+                      <p className="text-xs text-red-600">Auto-start programs</p>
                     </div>
                   </div>
                 </>

@@ -89,7 +89,24 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
     }
   };
 
-  const getPriorityColor = (priority) => {
+  const getPriorityColor = (priority, status) => {
+    // If ticket is closed, use black and white colors
+    if (status === "Closed" || status === "Rejected") {
+      switch (priority) {
+        case "Critical":
+          return "bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-sm";
+        case "High":
+          return "bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-sm";
+        case "Medium":
+          return "bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-sm";
+        case "Low":
+          return "bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-sm";
+        default:
+          return "bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-sm";
+      }
+    }
+    
+    // Normal colors for active tickets
     switch (priority) {
       case "Critical":
         return "bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm";
@@ -111,6 +128,11 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
       toast.success(`Ticket status updated to ${newStatus}`);
       onUpdate();
       setFormData((prev) => ({ ...prev, status: newStatus }));
+      
+      // Automatically close the modal when status is set to "Closed"
+      if (newStatus === "Closed") {
+        onClose();
+      }
     } catch (error) {
       console.error("Error updating status:", error);
       toast.error("Failed to update status");
@@ -155,6 +177,8 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
       onUpdate();
       setShowCloseForm(false);
       setCloseResolution("");
+      // Automatically close the modal when ticket is closed
+      onClose();
     } catch (error) {
       console.error("Error closing ticket:", error);
       toast.error("Failed to close ticket");
@@ -227,7 +251,7 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
               </span>
               <span
                   className={`px-3 py-1.5 rounded-full text-xs font-medium ${getPriorityColor(
-                  ticket.priority
+                  ticket.priority, formData.status
                 )}`}
               >
                 {ticket.priority}
