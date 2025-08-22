@@ -50,6 +50,15 @@ router.get("/admin/expiring-warranties", verifyToken, getExpiringWarranties);
 // GET route to fetch warranty statistics (protected)
 router.get("/admin/warranty-stats", verifyToken, getWarrantyStats);
 
+// POST route to save hardware data (public - for scanners)
+router.post("/", createHardware);
+
+// PUT route to update hardware data (public - for scanners)
+router.put("/:id", createHardware);
+
+// POST route to create manual asset entry (admin only)
+router.post("/manual", verifyToken, requireAdmin, createManualAsset);
+
 // GET route to fetch manual entries (admin only)
 router.get(
   "/admin/manual-entries",

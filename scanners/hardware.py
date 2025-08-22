@@ -5,6 +5,8 @@ from datetime import datetime
 import re
 import os
 import socket
+import uuid
+import requests
 
 
 # Optional imports for enhanced features
@@ -737,23 +739,29 @@ class HardwareDetector:
         return power_thermal
     
     def _get_mac_address(self):
-        # Try to use psutil/net_if_addrs for best results
+        """Get MAC address of the primary network interface."""
         mac = None
         if PSUTIL_AVAILABLE:
             for iface, addrs in psutil.net_if_addrs().items():
                 for addr in addrs:
-                    # Only use real MACs
-                    if hasattr(addr, 'address') and len(addr.address.split(':')) == 6 and addr.address != "00:00:00:00:00:00":
-                        mac = addr.address
-                        break
+                    if hasattr(addr, 'address'):
+                        addr_str = addr.address
+                        # Look specifically for IPv6 link-local addresses (fe80::)
+                        if addr_str.startswith('fe80::'):
+                            mac = addr_str.upper()
+                            break
                 if mac:
                     break
+        
         if not mac:
             # Fallback: use uuid.getnode
-            mac_int = uuid.getnode()
-            mac = ':'.join(['{:02x}'.format((mac_int >> i) & 0xff)
-                            for i in range(40, -1, -8)])
-            if mac == "00:00:00:00:00:00":
+            try:
+                mac_int = uuid.getnode()
+                mac = ':'.join(['{:02x}'.format((mac_int >> i) & 0xff)
+                                for i in range(40, -1, -8)])
+                if mac == "00:00:00:00:00:00":
+                    mac = "Unknown"
+            except:
                 mac = "Unknown"
         
         # Ensure consistent uppercase format
@@ -773,18 +781,187 @@ class HardwareDetector:
     #         return None
 
 
-def main():
-    """Main function - detect hardware and export to JSON."""
-    import requests
+def check_existing_asset(mac_address, api_base_url="http://localhost:3000/api"):
+    """Check if an asset already exists in the database."""
+    try:
+        response = requests.get(f"{api_base_url}/hardware/{mac_address}")
+        if response.status_code == 200:
+            return response.json()
+        return None
+    except Exception as e:
+        print(f"Error checking existing asset: {e}")
+        return None
 
+def compare_hardware_data(old_data, new_data):
+    """Compare old and new hardware data to detect changes."""
+    changes = []
+    
+    # Compare system information
+    if old_data.get('system', {}).get('hostname') != new_data.get('system', {}).get('hostname'):
+        changes.append({
+            'type': 'hostname_change',
+            'old_value': old_data.get('system', {}).get('hostname'),
+            'new_value': new_data.get('system', {}).get('hostname'),
+            'description': 'System hostname has changed'
+        })
+    
+    # Compare CPU information
+    old_cpu = old_data.get('cpu', {})
+    new_cpu = new_data.get('cpu', {})
+    if old_cpu.get('name') != new_cpu.get('name'):
+        changes.append({
+            'type': 'cpu_change',
+            'old_value': old_cpu.get('name'),
+            'new_value': new_cpu.get('name'),
+            'description': 'CPU has changed'
+        })
+    
+    # Compare memory information
+    old_memory = old_data.get('memory', {})
+    new_memory = new_data.get('memory', {})
+    if old_memory.get('total') != new_memory.get('total'):
+        changes.append({
+            'type': 'memory_change',
+            'old_value': f"{old_memory.get('total', 0)} MB",
+            'new_value': f"{new_memory.get('total', 0)} MB",
+            'description': 'Memory capacity has changed'
+        })
+    
+    # Compare storage information
+    old_storage = old_data.get('storage', {})
+    new_storage = new_data.get('storage', {})
+    
+    # Compare number of storage devices
+    old_devices = len(old_storage.get('devices', []))
+    new_devices = len(new_storage.get('devices', []))
+    if old_devices != new_devices:
+        changes.append({
+            'type': 'storage_change',
+            'old_value': f"{old_devices} devices",
+            'new_value': f"{new_devices} devices",
+            'description': 'Number of storage devices has changed'
+        })
+    
+    # Compare network interfaces
+    old_network = old_data.get('network', {})
+    new_network = new_data.get('network', {})
+    
+    old_interfaces = len(old_network.get('interfaces', []))
+    new_interfaces = len(new_network.get('interfaces', []))
+    if old_interfaces != new_interfaces:
+        changes.append({
+            'type': 'network_change',
+            'old_value': f"{old_interfaces} interfaces",
+            'new_value': f"{new_interfaces} interfaces",
+            'description': 'Number of network interfaces has changed'
+        })
+    
+    return changes
+
+def create_hardware_alert(mac_address, changes, api_base_url="http://localhost:3000/api"):
+    """Create an alert for hardware changes."""
+    try:
+        alert_data = {
+            'mac_address': mac_address,
+            'type': 'hardware_change',
+            'severity': 'medium',
+            'title': 'Hardware Configuration Changes Detected',
+            'description': f"Hardware changes detected for asset {mac_address}",
+            'details': {
+                'changes': changes,
+                'timestamp': datetime.now().isoformat()
+            },
+            'status': 'active'
+        }
+        
+        response = requests.post(f"{api_base_url}/alerts", json=alert_data)
+        if response.status_code in [200, 201]:  # 200 OK or 201 Created
+            print(f"Alert created for hardware changes: {len(changes)} changes detected")
+            return True
+        else:
+            print(f"Failed to create alert: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Error creating alert: {e}")
+        return False
+
+def update_hardware_asset(mac_address, hardware_data, api_base_url="http://localhost:3000/api"):
+    """Update existing hardware asset."""
+    try:
+        response = requests.put(f"{api_base_url}/hardware/{mac_address}", json=hardware_data)
+        if response.status_code in [200, 201]:  # 200 OK or 201 Created
+            print(f"Hardware asset updated successfully: {mac_address}")
+            return True
+        else:
+            print(f"Failed to update hardware asset: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Error updating hardware asset: {e}")
+        return False
+
+def create_hardware_asset(hardware_data, api_base_url="http://localhost:3000/api"):
+    """Create new hardware asset."""
+    try:
+        response = requests.post(f"{api_base_url}/hardware", json=hardware_data)
+        if response.status_code in [200, 201]:  # 200 OK or 201 Created
+            print(f"Hardware asset created successfully: {hardware_data.get('system', {}).get('mac_address')}")
+            return True
+        elif response.status_code == 409:  # Conflict - asset already exists
+            print(f"Hardware asset already exists, attempting to update: {hardware_data.get('system', {}).get('mac_address')}")
+            # Try to update the existing asset
+            mac_address = hardware_data.get('system', {}).get('mac_address')
+            return update_hardware_asset(mac_address, hardware_data, api_base_url)
+        else:
+            print(f"Failed to create hardware asset: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Error creating hardware asset: {e}")
+        return False
+
+def send_hardware_data(hardware_data, api_base_url="http://localhost:3000/api"):
+    """Send hardware data with change detection and alerting."""
+    mac_address = hardware_data.get('system', {}).get('mac_address')
+    
+    if not mac_address or mac_address == "Unknown":
+        print("Error: Could not determine MAC address")
+        return False
+    
+    # Check if asset already exists
+    existing_asset = check_existing_asset(mac_address, api_base_url)
+    
+    if existing_asset:
+        # Asset exists, compare for changes
+        changes = compare_hardware_data(existing_asset, hardware_data)
+        
+        if changes:
+            # Changes detected, create alert
+            print(f"Hardware changes detected for {mac_address}:")
+            for change in changes:
+                print(f"  - {change['description']}: {change['old_value']} -> {change['new_value']}")
+            
+            # Create alert for changes
+            create_hardware_alert(mac_address, changes, api_base_url)
+        
+        # Update the asset
+        return update_hardware_asset(mac_address, hardware_data, api_base_url)
+    else:
+        # New asset, create it
+        print(f"New hardware asset detected: {mac_address}")
+        return create_hardware_asset(hardware_data, api_base_url)
+
+def main():
+    """Main function - detect hardware and send to API with change detection."""
     detector = HardwareDetector()
     hardware_data = detector.get_comprehensive_hardware_info()
-   
-
-    response = requests.post('http://localhost:3000/api/hardware/', json=hardware_data)
-    print(response.status_code, response.json())
-    # detector = HardwareDetector()
-    # detector.get_comprehensive_hardware_info()
+    
+    # Send hardware data with change detection and alerting
+    success = send_hardware_data(hardware_data)
+    
+    if success:
+        print("Hardware scan completed successfully")
+    else:
+        print("Hardware scan failed")
+    
     return detector
 
 
