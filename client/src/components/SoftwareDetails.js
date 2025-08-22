@@ -282,10 +282,14 @@ const SoftwareDetails = ({ software, onBack }) => {
                     label="MAC Address"
                     value={software.system?.mac_address}
                   />
-                  <DataRow
-                    label="Scan Timestamp"
-                    value={software.system?.scan_timestamp}
-                  />
+                                     <DataRow
+                     label="Scan Timestamp"
+                     value={
+                       software.system?.scan_timestamp
+                         ? new Date(software.system.scan_timestamp).toLocaleString()
+                         : "Unknown"
+                     }
+                   />
                   <DataRow
                     label="Python Version"
                     value={software.system?.python_version}
