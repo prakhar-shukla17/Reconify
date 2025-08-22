@@ -66,6 +66,9 @@ router.get("/stats", verifyToken, getDashboardStats);
 // POST route to save hardware data (public - for scanners)
 router.post("/", createHardware);
 
+// PUT route to update hardware data (public - for scanners)
+router.put("/:id", createHardware);
+
 // POST route to create manual asset entry (admin only)
 router.post("/manual", verifyToken, requireAdmin, createManualAsset);
 

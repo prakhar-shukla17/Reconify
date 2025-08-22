@@ -102,35 +102,46 @@ export const getById = async (req, res) => {
 export const createHardware = async (req, res) => {
   try {
     const hardwareData = req.body;
-    const macAddress = hardwareData.system?.mac_address;
+
+    // For PUT requests, use the ID from URL parameter
+    // For POST requests, use the MAC address from body
+    const macAddress = req.params.id || hardwareData.system?.mac_address;
     console.log("MAC Address received:", macAddress);
 
     // Check if MAC address exists
     if (!macAddress) {
       return res.status(400).json({
-        error: "MAC address is required in system.mac_address",
+        error: "MAC address is required in system.mac_address or URL parameter",
       });
     }
 
     // Convert MAC address to string and use as _id
     const macAddressString = String(macAddress);
 
-    // Check if this is an update to an existing manual entry
+    // Check if this is an update to an existing asset
     const existingHardware = await Hardware.findById(macAddressString);
 
-    if (
-      existingHardware &&
-      existingHardware.asset_info?.entry_type === "manual"
-    ) {
-      // Update existing manual entry with scanner data
+    if (existingHardware) {
+      // Update existing asset with scanner data
       console.log(
-        "Updating existing manual entry with scanner data:",
+        "Updating existing asset with scanner data:",
         macAddressString
       );
 
-      const updatedData = {
+      let updatedData = {
         ...hardwareData,
-        asset_info: {
+        scan_metadata: {
+          ...hardwareData.scan_metadata,
+          scan_status: "completed",
+          last_scan: new Date(),
+          scanner_version:
+            hardwareData.scan_metadata?.scanner_version || "v1.0",
+        },
+      };
+
+      // If it's a manual entry, preserve manual entry specific fields
+      if (existingHardware.asset_info?.entry_type === "manual") {
+        updatedData.asset_info = {
           ...hardwareData.asset_info,
           // Preserve manual entry specific fields
           entry_type: "manual",
@@ -150,15 +161,15 @@ export const createHardware = async (req, res) => {
             existingHardware.asset_info.warranty_expiry ||
             hardwareData.asset_info?.warranty_expiry,
           status: "Scanned - Data Updated",
-        },
-        scan_metadata: {
-          ...hardwareData.scan_metadata,
-          scan_status: "completed",
-          last_scan: new Date(),
-          scanner_version:
-            hardwareData.scan_metadata?.scanner_version || "v1.0",
-        },
-      };
+        };
+      } else {
+        // For scanner entries, just update the data
+        updatedData.asset_info = {
+          ...hardwareData.asset_info,
+          entry_type: "scanner",
+          status: "Scanned - Data Updated",
+        };
+      }
 
       const updatedHardware = await Hardware.findByIdAndUpdate(
         macAddressString,
@@ -166,12 +177,9 @@ export const createHardware = async (req, res) => {
         { new: true }
       );
 
-      console.log(
-        "Manual entry updated with scanner data:",
-        updatedHardware._id
-      );
+      console.log("Asset updated with scanner data:", updatedHardware._id);
       return res.status(200).json({
-        message: "Manual entry updated with scanner data successfully",
+        message: "Asset updated with scanner data successfully",
         data: updatedHardware,
         updated: true,
       });
