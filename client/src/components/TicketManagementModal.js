@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   X,
   User,
@@ -30,10 +30,21 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
   });
   const [showCloseForm, setShowCloseForm] = useState(false);
   const [closeResolution, setCloseResolution] = useState("");
+  const modalRef = useRef(null);
 
   useEffect(() => {
     fetchAdminUsers();
-  }, []);
+    
+    // Add click outside listener
+    const handleClickOutside = (event) => {
+      if (modalRef.current && !modalRef.current.contains(event.target)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
 
   const fetchAdminUsers = async () => {
     try {
@@ -47,49 +58,66 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
   const getStatusIcon = (status) => {
     switch (status) {
       case "Open":
-        return <AlertCircle className="h-5 w-5 text-red-500" />;
+        return <AlertCircle className="h-5 w-5 text-rose-500" />;
       case "In Progress":
-        return <Pause className="h-5 w-5 text-yellow-500" />;
+        return <Pause className="h-5 w-5 text-amber-500" />;
       case "Resolved":
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-emerald-500" />;
       case "Closed":
-        return <XCircle className="h-5 w-5 text-gray-500" />;
+        return <XCircle className="h-5 w-5 text-slate-500" />;
       case "Rejected":
-        return <XCircle className="h-5 w-5 text-red-500" />;
+        return <XCircle className="h-5 w-5 text-rose-500" />;
       default:
-        return <AlertCircle className="h-5 w-5 text-gray-500" />;
+        return <AlertCircle className="h-5 w-5 text-slate-500" />;
     }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
       case "Open":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "bg-rose-50 text-rose-700 border-rose-200";
       case "In Progress":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+        return "bg-amber-50 text-amber-700 border-amber-200";
       case "Resolved":
-        return "bg-green-100 text-green-800 border-green-200";
+        return "bg-emerald-50 text-emerald-700 border-emerald-200";
       case "Closed":
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-slate-50 text-slate-700 border-slate-200";
       case "Rejected":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "bg-rose-50 text-rose-700 border-rose-200";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-slate-50 text-slate-700 border-slate-200";
     }
   };
 
-  const getPriorityColor = (priority) => {
+  const getPriorityColor = (priority, status) => {
+    // If ticket is closed, use black and white colors
+    if (status === "Closed" || status === "Rejected") {
+      switch (priority) {
+        case "Critical":
+          return "bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-sm";
+        case "High":
+          return "bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-sm";
+        case "Medium":
+          return "bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-sm";
+        case "Low":
+          return "bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-sm";
+        default:
+          return "bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-sm";
+      }
+    }
+    
+    // Normal colors for active tickets
     switch (priority) {
       case "Critical":
-        return "bg-red-500 text-white";
+        return "bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm";
       case "High":
-        return "bg-orange-500 text-white";
+        return "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm";
       case "Medium":
-        return "bg-yellow-500 text-white";
+        return "bg-gradient-to-r from-amber-500 to-yellow-500 text-white shadow-sm";
       case "Low":
-        return "bg-green-500 text-white";
+        return "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm";
       default:
-        return "bg-gray-500 text-white";
+        return "bg-gradient-to-r from-slate-500 to-gray-500 text-white shadow-sm";
     }
   };
 
@@ -100,6 +128,11 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
       toast.success(`Ticket status updated to ${newStatus}`);
       onUpdate();
       setFormData((prev) => ({ ...prev, status: newStatus }));
+      
+      // Automatically close the modal when status is set to "Closed"
+      if (newStatus === "Closed") {
+        onClose();
+      }
     } catch (error) {
       console.error("Error updating status:", error);
       toast.error("Failed to update status");
@@ -144,6 +177,8 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
       onUpdate();
       setShowCloseForm(false);
       setCloseResolution("");
+      // Automatically close the modal when ticket is closed
+      onClose();
     } catch (error) {
       console.error("Error closing ticket:", error);
       toast.error("Failed to close ticket");
@@ -153,69 +188,115 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString();
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffMinutes = Math.floor(diffTime / (1000 * 60));
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    // If it's less than 1 minute, show "Just now"
+    if (diffMinutes < 1) {
+      return "Just now";
+    }
+    // If it's less than 1 hour, show minutes ago
+    else if (diffMinutes < 60) {
+      return `${diffMinutes} min ago`;
+    }
+    // If it's less than 1 day, show hours ago
+    else if (diffHours < 24) {
+      return `${diffHours} hr ago`;
+    }
+    // If it's 1 day, show "1 day ago"
+    else if (diffDays === 1) {
+      return "1 day ago";
+    }
+    // If it's multiple days, show days ago
+    else {
+      return `${diffDays} days ago`;
+    }
   };
 
   if (!ticket) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div 
+        ref={modalRef}
+        className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden border border-slate-200"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="bg-gradient-to-r from-slate-50 to-blue-50 p-6 border-b border-slate-200">
+          <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
+              <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-lg">T</span>
+              </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-2xl font-bold text-slate-800">
                 {ticket.ticket_id}
               </h2>
-              <p className="text-gray-600">{ticket.title}</p>
+                <p className="text-slate-600 text-lg">{ticket.title}</p>
+              </div>
             </div>
+            <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
               {getStatusIcon(formData.status)}
               <span
-                className={`px-3 py-1 rounded-md text-sm font-medium border ${getStatusColor(
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${getStatusColor(
                   formData.status
                 )}`}
               >
                 {formData.status}
               </span>
               <span
-                className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
-                  ticket.priority
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium ${getPriorityColor(
+                  ticket.priority, formData.status
                 )}`}
               >
                 {ticket.priority}
               </span>
-            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                className="p-2 hover:bg-slate-100 rounded-full transition-all duration-200 hover:scale-110"
           >
-            <X className="h-6 w-6 text-gray-500" />
+                <X className="h-6 w-6 text-slate-500" />
           </button>
+            </div>
+          </div>
         </div>
 
         {/* Content */}
         <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
           <div className="p-6 space-y-6">
+            {/* Description - Moved to top */}
+            <div className="bg-gradient-to-br from-slate-50 to-purple-50 p-6 rounded-xl border border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+                <MessageSquare className="h-5 w-5 mr-2 text-purple-600" />
+                Description
+              </h3>
+              <p className="text-slate-700 leading-relaxed">{ticket.description}</p>
+            </div>
+
             {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Status Management */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-sm font-medium text-gray-900 mb-3">
-                  Status
+              <div className="bg-gradient-to-br from-slate-50 to-blue-50 p-5 rounded-xl border border-slate-200">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+                  <Edit className="h-5 w-5 mr-2 text-blue-600" />
+                  Status Management
                 </h3>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {["Open", "In Progress", "Resolved"].map((status) => (
                     <button
                       key={status}
                       onClick={() => handleStatusUpdate(status)}
                       disabled={loading || formData.status === status}
-                      className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center ${
                         formData.status === status
-                          ? "bg-blue-100 text-blue-800 border border-blue-200"
-                          : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                          ? "bg-blue-100 text-blue-800 border-2 border-blue-200 shadow-md"
+                          : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:shadow-sm"
                       } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
                     >
                       {getStatusIcon(status)}
@@ -226,15 +307,16 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
               </div>
 
               {/* Assignment */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-sm font-medium text-gray-900 mb-3">
+              <div className="bg-gradient-to-br from-slate-50 to-emerald-50 p-5 rounded-xl border border-slate-200">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+                  <UserCheck className="h-5 w-5 mr-2 text-emerald-600" />
                   Assignment
                 </h3>
                 <select
                   value={formData.assigned_to}
                   onChange={(e) => handleAssignment(e.target.value)}
                   disabled={loading}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-slate-900 bg-white transition-all duration-200 hover:border-slate-400"
                 >
                   <option value="">Unassigned</option>
                   {adminUsers.map((admin) => (
@@ -243,197 +325,108 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
                     </option>
                   ))}
                 </select>
-                {ticket.assigned_to_name && (
-                  <div className="mt-2 flex items-center text-sm text-blue-600">
-                    <UserCheck className="h-4 w-4 mr-1" />
-                    Currently: {ticket.assigned_to_name}
-                  </div>
-                )}
+                <p className="text-xs text-slate-500 mt-2">
+                  Assign this ticket to an admin user
+                </p>
               </div>
 
-              {/* Close Ticket */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-sm font-medium text-gray-900 mb-3">
-                  Actions
+              {/* Quick Actions */}
+              <div className="bg-gradient-to-br from-slate-50 to-amber-50 p-5 rounded-xl border border-slate-200">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+                  <MessageSquare className="h-5 w-5 mr-2 text-amber-600" />
+                  Quick Actions
                 </h3>
-                {!showCloseForm ? (
+                <div className="space-y-3">
                   <button
-                    onClick={() => setShowCloseForm(true)}
-                    disabled={loading || formData.status === "Closed"}
-                    className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => setShowCloseForm(!showCloseForm)}
+                    className="w-full px-4 py-3 bg-amber-100 text-amber-800 border border-amber-200 rounded-lg hover:bg-amber-200 transition-all duration-200 font-medium"
                   >
-                    Close Ticket
+                    {showCloseForm ? "Cancel Close" : "Close Ticket"}
                   </button>
-                ) : (
-                  <div className="space-y-2">
+                  {showCloseForm && (
+                    <div className="space-y-3">
                     <textarea
-                      placeholder="Enter resolution details..."
                       value={closeResolution}
                       onChange={(e) => setCloseResolution(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white text-sm"
+                        placeholder="Enter resolution details..."
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-slate-900 bg-white resize-none"
                       rows="3"
                     />
-                    <div className="flex space-x-2">
                       <button
                         onClick={handleCloseTicket}
                         disabled={loading || !closeResolution.trim()}
-                        className="flex-1 px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 text-sm"
+                        className="w-full px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Close
+                        {loading ? "Closing..." : "Confirm Close"}
                       </button>
-                      <button
-                        onClick={() => {
-                          setShowCloseForm(false);
-                          setCloseResolution("");
-                        }}
-                        className="flex-1 px-3 py-1 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 text-sm"
-                      >
-                        Cancel
-                      </button>
-                    </div>
                   </div>
                 )}
+                </div>
               </div>
             </div>
 
             {/* Ticket Details */}
+            <div className="bg-gradient-to-br from-slate-50 to-indigo-50 p-6 rounded-xl border border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+                <Monitor className="h-5 w-5 mr-2 text-indigo-600" />
+                Ticket Details
+              </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Left Column */}
               <div className="space-y-4">
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    Description
-                  </h3>
-                  <p className="text-gray-700 whitespace-pre-wrap">
-                    {ticket.description}
-                  </p>
-                </div>
-
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    Asset Information
-                  </h3>
-                  <div className="flex items-start space-x-3">
-                    <Monitor className="h-5 w-5 text-gray-500 mt-1" />
+                  <div className="flex items-center space-x-3">
+                    <User className="h-5 w-5 text-slate-500" />
                     <div>
-                      <p className="font-medium text-gray-900">
-                        {ticket.asset_hostname}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {ticket.asset_model}
-                      </p>
-                      <p className="text-xs text-gray-500 font-mono">
-                        {ticket.asset_id}
-                      </p>
+                      <p className="text-sm font-medium text-slate-900">Created by</p>
+                      <p className="text-slate-600">{ticket.created_by_name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="h-5 w-5 text-slate-500" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">Created</p>
+                      <p className="text-slate-600">{formatDate(ticket.created_at)}</p>
+                    </div>
+                </div>
+                  <div className="flex items-center space-x-3">
+                    <Clock className="h-5 w-5 text-slate-500" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">Category</p>
+                      <p className="text-slate-600">{ticket.category}</p>
                     </div>
                   </div>
                 </div>
-
-                {ticket.resolution && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h3 className="text-lg font-semibold text-green-900 mb-3">
-                      Resolution
-                    </h3>
-                    <p className="text-green-800 whitespace-pre-wrap">
-                      {ticket.resolution}
-                    </p>
-                    {ticket.resolved_by_name && ticket.resolved_at && (
-                      <div className="mt-2 text-sm text-green-600">
-                        Resolved by {ticket.resolved_by_name} on{" "}
-                        {formatDate(ticket.resolved_at)}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <Monitor className="h-5 w-5 text-slate-500" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">Asset</p>
+                      <p className="text-slate-600">{ticket.asset_hostname}</p>
+                      <p className="text-xs text-slate-500">{ticket.asset_model}</p>
+                    </div>
+                  </div>
+                  {ticket.assigned_to_name && (
+                    <div className="flex items-center space-x-3">
+                      <UserCheck className="h-5 w-5 text-slate-500" />
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">Assigned to</p>
+                        <p className="text-slate-600">{ticket.assigned_to_name}</p>
                       </div>
-                    )}
                   </div>
                 )}
-              </div>
-
-              {/* Right Column */}
-              <div className="space-y-4">
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    Ticket Information
-                  </h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">Created by:</span>
-                      <span className="text-sm font-medium">
-                        {ticket.created_by_name}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">Created:</span>
-                      <span className="text-sm font-medium">
-                        {formatDate(ticket.created_at)}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">
-                        Last updated:
-                      </span>
-                      <span className="text-sm font-medium">
-                        {formatDate(ticket.updated_at)}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <MessageSquare className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">Category:</span>
-                      <span className="text-sm font-medium">
-                        {ticket.category}
-                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Comments Section */}
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    Comments
+            {/* Resolution */}
+            {ticket.resolution && (
+              <div className="bg-gradient-to-br from-slate-50 to-green-50 p-6 rounded-xl border border-slate-200">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+                  <CheckCircle className="h-5 w-5 mr-2 text-green-600" />
+                  Resolution
                   </h3>
-                  {ticket.comments && ticket.comments.length > 0 ? (
-                    <div className="space-y-3 max-h-60 overflow-y-auto">
-                      {ticket.comments.map((comment, index) => (
-                        <div
-                          key={index}
-                          className="border-l-2 border-blue-200 pl-3"
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-gray-900">
-                              {comment.commented_by_name}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {formatDate(comment.commented_at)}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-700">
-                            {comment.comment}
-                          </p>
-                        </div>
-                      ))}
+                <p className="text-slate-700 leading-relaxed">{ticket.resolution}</p>
                     </div>
-                  ) : (
-                    <p className="text-sm text-gray-500">No comments yet</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Ticket ID: <span className="font-mono">{ticket.ticket_id}</span>
-            </div>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
-            >
-              Close
-            </button>
+            )}
           </div>
         </div>
       </div>

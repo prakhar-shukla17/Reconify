@@ -68,7 +68,6 @@ const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
         asset_id: data.asset_id,
       });
 
-      toast.success("Ticket created successfully!");
       onSuccess?.(response.data.data);
       handleClose();
     } catch (error) {
@@ -159,7 +158,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
                 <div className="flex items-center">
                   <Monitor className="h-4 w-4 text-blue-600 mr-2" />
                   <div>
-                    <p className="text-sm font-medium text-blue-900">
+                    <p className="text-xs font-medium text-blue-900">
                       {getSelectedAssetInfo().hostname}
                     </p>
                     <p className="text-xs text-blue-700">

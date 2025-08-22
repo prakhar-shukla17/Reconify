@@ -84,7 +84,7 @@ export const hardwareAPI = {
 
 // Software API calls
 export const softwareAPI = {
-  getAll: () => api.get("/software"),
+  getAll: (params = {}) => api.get("/software", { params }),
   getById: (id) => api.get(`/software/${id}`),
   create: (softwareData) => api.post("/software", softwareData),
   getStatistics: () => api.get("/software/admin/statistics"),

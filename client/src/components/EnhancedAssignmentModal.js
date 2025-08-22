@@ -368,7 +368,7 @@ const EnhancedAssignmentModal = ({
                               <div className="flex items-center">
                                 <Monitor className="h-4 w-4 text-gray-600 mr-2" />
                                 <div>
-                                  <p className="text-sm font-medium text-gray-900">
+                                  <p className="text-xs font-medium text-gray-900">
                                     {asset.hostname}
                                   </p>
                                   <p className="text-xs text-gray-500">

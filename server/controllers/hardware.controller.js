@@ -6,17 +6,49 @@ export const getAll = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12; // Default 12 items per page
     const skip = (page - 1) * limit;
+    
+    // Get search and filter parameters
+    const search = req.query.search;
+    const filter = req.query.filter;
 
     let query = {};
     let totalCount = 0;
 
+    // Build search query - optimize for performance
+    if (search) {
+      // Use text search if available, otherwise regex
+      if (search.length >= 3) {
+        query.$or = [
+          { "system.hostname": { $regex: search, $options: "i" } },
+          { "system.mac_address": { $regex: search, $options: "i" } },
+          { "cpu.name": { $regex: search, $options: "i" } },
+        ];
+      } else {
+        // For short searches, only search hostname to improve performance
+        query["system.hostname"] = { $regex: search, $options: "i" };
+      }
+    }
+
+    // Build filter query
+    if (filter === "assigned") {
+      // This will be handled after we get the user's assigned assets
+    } else if (filter === "unassigned") {
+      // This will be handled after we get the user's assigned assets
+    }
+
     // If user is admin, get all hardware
     if (req.user && req.user.role === "admin") {
-      totalCount = await Hardware.countDocuments(query);
-      const hardwareList = await Hardware.find(query)
-        .sort({ createdAt: -1 }) // Sort by newest first
-        .skip(skip)
-        .limit(limit);
+      // Use Promise.all to run count and find operations in parallel
+      const [countResult, hardwareList] = await Promise.all([
+        Hardware.countDocuments(query),
+        Hardware.find(query)
+          .sort({ createdAt: -1 }) // Sort by newest first
+          .skip(skip)
+          .limit(limit)
+          .lean() // Use lean() for better performance
+      ]);
+      
+      totalCount = countResult;
 
       return res.status(200).json({
         message: "Data fetched successfully",
@@ -33,12 +65,19 @@ export const getAll = async (req, res) => {
     }
     // If user is regular user, get only assigned assets
     else if (req.user && req.user.assignedAssets) {
-      query = { _id: { $in: req.user.assignedAssets } };
-      totalCount = await Hardware.countDocuments(query);
-      const hardwareList = await Hardware.find(query)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit);
+      query._id = { $in: req.user.assignedAssets };
+      
+      // Use Promise.all to run count and find operations in parallel
+      const [countResult, hardwareList] = await Promise.all([
+        Hardware.countDocuments(query),
+        Hardware.find(query)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean() // Use lean() for better performance
+      ]);
+      
+      totalCount = countResult;
 
       return res.status(200).json({
         message: "Data fetched successfully",
