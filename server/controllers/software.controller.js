@@ -170,13 +170,6 @@ export const createOrUpdateSoftware = async (req, res) => {
       }
     );
 
-    console.log(
-      `Software data saved for ${softwareData.system.hostname} (${macAddress})`
-    );
-    console.log(
-      `Total software packages: ${scanMetadata.total_software_count}`
-    );
-
     return res.status(200).json({
       message: "Software data saved successfully",
       data: {

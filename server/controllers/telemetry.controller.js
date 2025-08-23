@@ -95,13 +95,9 @@ class HealthAnalyzer {
         const predictions = await response.json();
         return predictions;
       } else {
-        console.log("Python ML service not available, using basic predictions");
         return this.generateBasicPredictions(current, historical);
       }
     } catch (error) {
-      console.log(
-        "Failed to connect to Python ML service, using basic predictions"
-      );
       return this.generateBasicPredictions(current, historical);
     }
   }

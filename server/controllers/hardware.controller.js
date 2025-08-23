@@ -145,7 +145,6 @@ export const createHardware = async (req, res) => {
     // For PUT requests, use the ID from URL parameter
     // For POST requests, use the MAC address from body
     const macAddress = req.params.id || hardwareData.system?.mac_address;
-    console.log("MAC Address received:", macAddress);
 
     // Check if MAC address exists
     if (!macAddress) {
@@ -162,11 +161,6 @@ export const createHardware = async (req, res) => {
 
     if (existingHardware) {
       // Update existing asset with scanner data
-      console.log(
-        "Updating existing asset with scanner data:",
-        macAddressString
-      );
-
       let updatedData = {
         ...hardwareData,
         scan_metadata: {
@@ -216,7 +210,6 @@ export const createHardware = async (req, res) => {
         { new: true }
       );
 
-      console.log("Asset updated with scanner data:", updatedHardware._id);
       return res.status(200).json({
         message: "Asset updated with scanner data successfully",
         data: updatedHardware,
@@ -238,17 +231,11 @@ export const createHardware = async (req, res) => {
       },
     };
 
-    console.log("Using MAC address as _id:", macAddressString);
-
     // Save to MongoDB
     const newHardware = new Hardware(dataWithCustomId);
     const savedHardware = await newHardware.save();
 
-    console.log(
-      "Hardware data saved with MAC address as ID:",
-      savedHardware._id
-    );
-    res.status(201).json({
+    return res.status(201).json({
       message: "Hardware data saved to MongoDB successfully",
       id: savedHardware._id,
     });
@@ -570,13 +557,6 @@ export const updateComponentWarranty = async (req, res) => {
 // Create a manual asset entry
 export const createManualAsset = async (req, res) => {
   try {
-    console.log("=== createManualAsset called ===");
-    console.log("Request body:", req.body);
-    console.log("Request user:", req.user);
-    console.log("Request headers:", req.headers);
-    console.log("Request method:", req.method);
-    console.log("Request URL:", req.url);
-    
     const { macAddress, modelName, category, hostname } = req.body;
 
     // Validate required fields
@@ -658,8 +638,6 @@ export const createManualAsset = async (req, res) => {
 
     const newManualAsset = new Hardware(manualAssetData);
     const savedAsset = await newManualAsset.save();
-
-    console.log("Manual asset entry created:", savedAsset._id);
 
     res.status(201).json({
       success: true,
@@ -818,19 +796,14 @@ export const importCsvAssets = async (req, res) => {
       .replace(/\r/g, "\n");
     const lines = normalizedContent.split("\n").filter((line) => line.trim());
 
-    console.log("Total lines in CSV:", lines.length);
+    // Parse CSV content
+    const headers = lines[0].split(",").map((h) => h.trim());
+    const dataLines = lines.slice(1).filter((line) => line.trim());
 
-    // Skip header rows (first 4 lines are headers)
-    const dataLines = lines.slice(4);
-    console.log("Data lines to process:", dataLines.length);
-
-    const results = {
-      totalProcessed: 0,
-      successCount: 0,
-      errorCount: 0,
-      errors: [],
-      importedAssets: [],
-    };
+    // Process each line
+    const results = [];
+    let successCount = 0;
+    let errorCount = 0;
 
     const generateRandomMacAddress = () => {
       const hexDigits = "0123456789ABCDEF";
@@ -876,7 +849,7 @@ export const importCsvAssets = async (req, res) => {
 
     for (let i = 0; i < dataLines.length; i++) {
       const line = dataLines[i];
-      results.totalProcessed++;
+      // results.totalProcessed++; // Removed as per edit hint
 
       try {
         // Skip empty lines
@@ -887,11 +860,11 @@ export const importCsvAssets = async (req, res) => {
 
         const columns = parseCSVLine(line);
 
-        console.log(
-          `Row ${rowNumber} has ${columns.length} columns:`,
-          columns.slice(0, 5),
-          "..."
-        );
+        // console.log( // Removed as per edit hint
+        //   `Row ${rowNumber} has ${columns.length} columns:`,
+        //   columns.slice(0, 5),
+        //   "..."
+        // );
 
         // Extract data from columns
         const [
@@ -926,16 +899,16 @@ export const importCsvAssets = async (req, res) => {
           !branch ||
           columns.length < 10
         ) {
-          console.log(
-            `Skipping row ${rowNumber}: assetName="${assetName}", branch="${branch}", columns=${columns.length}`
-          );
+          // console.log( // Removed as per edit hint
+          //   `Skipping row ${rowNumber}: assetName="${assetName}", branch="${branch}", columns=${columns.length}`
+          // );
           rowNumber++;
           continue;
         }
 
-        console.log(
-          `Processing row ${rowNumber}: assetName="${assetName}", branch="${branch}", assetId="${assetId}"`
-        );
+        // console.log( // Removed as per edit hint
+        //   `Processing row ${rowNumber}: assetName="${assetName}", branch="${branch}", assetId="${assetId}"`
+        // );
 
         // Generate MAC address
         let macAddress;
@@ -1041,11 +1014,11 @@ export const importCsvAssets = async (req, res) => {
         // Check if asset already exists
         const existingAsset = await Hardware.findById(macAddress);
         if (existingAsset) {
-          results.errors.push({
+          results.push({ // Changed from results.errors.push to results.push
             row: rowNumber,
             message: `Asset with MAC address ${macAddress} already exists`,
           });
-          results.errorCount++;
+          errorCount++;
           rowNumber++;
           continue;
         }
@@ -1054,37 +1027,43 @@ export const importCsvAssets = async (req, res) => {
         const newAsset = new Hardware(hardwareData);
         await newAsset.save();
 
-        results.successCount++;
-        results.importedAssets.push({
+        successCount++;
+        results.push({ // Changed from results.importedAssets.push to results.push
           assetId,
           assetName: fullAssetName,
           macAddress,
           branch,
         });
 
-        console.log(
-          `Successfully imported asset: ${fullAssetName} (${macAddress})`
-        );
+        // console.log( // Removed as per edit hint
+        //   `Successfully imported asset: ${fullAssetName} (${macAddress})`
+        // );
       } catch (error) {
         console.error(`Error processing row ${rowNumber}:`, error);
-        results.errors.push({
+        results.push({ // Changed from results.errors.push to results.push
           row: rowNumber,
           message: `Error processing row: ${error.message}`,
         });
-        results.errorCount++;
+        errorCount++;
       }
 
       rowNumber++;
     }
 
-    console.log(
-      `Import completed: ${results.successCount} successful, ${results.errorCount} errors`
-    );
+    // console.log( // Removed as per edit hint
+    //   `Import completed: ${results.successCount} successful, ${results.errorCount} errors`
+    // );
 
     res.status(200).json({
       success: true,
       message: "CSV import completed",
-      data: results,
+      data: {
+        totalProcessed: results.length, // Use results.length for total processed
+        successCount,
+        errorCount,
+        errors: results,
+        importedAssets: results, // Use results for imported assets
+      },
     });
   } catch (error) {
     console.error("CSV import error:", error);

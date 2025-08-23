@@ -15,17 +15,11 @@ configDotenv();
 // Middleware
 app.use(
   cors({
-    origin: "http://localhost:3001", // Frontend runs on port 3001
+    origin: ["http://localhost:3000", "http://localhost:3001"], // Allow both ports
     credentials: true,
   })
 );
 app.use(express.json());
-
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
-  next();
-});
 
 // Routes
 app.use("/api/hardware", hardwarerouter);

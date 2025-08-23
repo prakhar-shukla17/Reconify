@@ -15,7 +15,6 @@ import CsvImportModal from "../../components/lazy/CsvImportModal.lazy";
 import TicketCard from "../../components/TicketCard";
 import TicketManagementModal from "../../components/lazy/TicketManagementModal.lazy";
 import HealthDashboard from "../../components/lazy/HealthDashboard.lazy";
-import MLAnalyticsDashboard from "../../components/lazy/MLAnalyticsDashboard.lazy";
 import MLServiceControlPanel from "../../components/lazy/MLServiceControlPanel.lazy";
 import Pagination from "../../components/Pagination";
 import LazyLoader from "../../components/LazyLoader";
@@ -39,7 +38,6 @@ import {
   Bell,
   Ticket,
   Activity,
-  Brain,
   FileText,
   AlertCircle,
   Play,
@@ -68,7 +66,6 @@ export default function AdminPage() {
   const [showTicketManagementModal, setShowTicketManagementModal] =
     useState(false);
   const [showHealthDashboard, setShowHealthDashboard] = useState(false);
-  const [showMLDashboard, setShowMLDashboard] = useState(false);
   const [showMLControlPanel, setShowMLControlPanel] = useState(false);
   const [showCsvImportModal, setShowCsvImportModal] = useState(false);
   const [dashboardStats, setDashboardStats] = useState(null);
@@ -937,13 +934,6 @@ export default function AdminPage() {
                     <Activity className="h-4 w-4 inline mr-2" />
                     Health
                   </button>
-                  <button
-                    onClick={() => setShowMLDashboard(true)}
-                    className="py-3 px-3 border-b-2 border-transparent font-medium text-sm text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 transition-all duration-200 rounded-t-lg"
-                  >
-                    <Brain className="h-4 w-4 inline mr-2" />
-                    ML Analytics
-                  </button>
                 </nav>
               </div>
 
@@ -1662,44 +1652,6 @@ export default function AdminPage() {
             onClose={() => setShowHealthDashboard(false)}
           />
         </LazyLoader>
-
-        {/* ML Analytics Dashboard */}
-        {showMLDashboard && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[95vh] overflow-hidden">
-              <div className="flex justify-between items-center p-6 border-b border-gray-200">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-                    <Brain className="h-6 w-6 mr-2 text-indigo-600" />
-                    ML Analytics Dashboard
-                  </h2>
-                  <p className="text-gray-600 mt-1">
-                    Advanced machine learning insights and predictions
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setShowMLControlPanel(true)}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
-                  >
-                    ML Service Control
-                  </button>
-                  <button
-                    onClick={() => setShowMLDashboard(false)}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-              <div className="overflow-y-auto max-h-[calc(95vh-100px)]">
-                <LazyLoader>
-                  <MLAnalyticsDashboard />
-                </LazyLoader>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ML Service Control Panel */}
         <LazyLoader>
