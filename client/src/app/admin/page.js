@@ -520,17 +520,17 @@ export default function AdminPage() {
 
   // Search function that only triggers when explicitly called
   const handleSearch = useCallback((term) => {
-    setSearchTerm(term);
-    setCurrentPage(1);
-    if (activeTab === "assets") {
-      if (assetType === "hardware") {
-        fetchHardware(1);
-      } else {
-        fetchSoftware(1);
+      setSearchTerm(term);
+      setCurrentPage(1);
+      if (activeTab === "assets") {
+        if (assetType === "hardware") {
+          fetchHardware(1);
+        } else {
+          fetchSoftware(1);
+        }
+      } else if (activeTab === "users") {
+        fetchUsers();
       }
-    } else if (activeTab === "users") {
-      fetchUsers();
-    }
   }, [activeTab, assetType, fetchHardware, fetchSoftware, fetchUsers]);
 
   // Handle search input change without triggering search
@@ -633,7 +633,8 @@ export default function AdminPage() {
               </p>
             </div>
 
-            {/* Stats Cards */}
+            {/* Stats Cards - Hidden for alerts tab */}
+            {activeTab !== "alerts" && (
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
               {activeTab === "tickets" ? (
                 <>
@@ -919,6 +920,7 @@ export default function AdminPage() {
                 </>
               )}
             </div>
+            )}
 
             {/* Tab Navigation */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
