@@ -18,7 +18,7 @@ import HealthDashboard from "../../components/lazy/HealthDashboard.lazy";
 import MLServiceControlPanel from "../../components/lazy/MLServiceControlPanel.lazy";
 import Pagination from "../../components/Pagination";
 import LazyLoader from "../../components/LazyLoader";
-import { hardwareAPI, authAPI, ticketsAPI, softwareAPI } from "../../lib/api";
+import { hardwareAPI, authAPI, ticketsAPI, softwareAPI, alertsAPI } from "../../lib/api";
 import toast from "react-hot-toast";
 import { throttle } from "../../utils/performance";
 import {
@@ -41,6 +41,8 @@ import {
   FileText,
   AlertCircle,
   Play,
+  AlertTriangle,
+  Clock,
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -69,6 +71,14 @@ export default function AdminPage() {
   const [showMLControlPanel, setShowMLControlPanel] = useState(false);
   const [showCsvImportModal, setShowCsvImportModal] = useState(false);
   const [dashboardStats, setDashboardStats] = useState(null);
+  const [alerts, setAlerts] = useState([]);
+  const [alertsSummary, setAlertsSummary] = useState({
+    total: 0,
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0
+  });
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -102,6 +112,9 @@ export default function AdminPage() {
       fetchUsers();
     } else if (activeTab === "tickets") {
       fetchTickets();
+    } else if (activeTab === "alerts") {
+      console.log("Alerts tab selected, fetching alerts...");
+      fetchAlerts();
     }
   }, [activeTab, assetType]);
 
@@ -227,6 +240,8 @@ export default function AdminPage() {
       console.error("Error fetching dashboard stats:", error);
     }
   };
+
+
 
   const fetchSoftware = async (page = currentPage, limit = itemsPerPage) => {
     try {
@@ -362,6 +377,23 @@ export default function AdminPage() {
     }
   };
 
+  const fetchAlerts = async () => {
+    try {
+      setLoading(true);
+      console.log("Fetching alerts...");
+      const response = await alertsAPI.getWarrantyAlerts(30); // 30 days
+      console.log("Alerts response:", response);
+      setAlerts(response.data.alerts || []);
+      setAlertsSummary(response.data.summary || {});
+      console.log("Alerts summary set:", response.data.summary || {});
+    } catch (error) {
+      console.error("Error fetching alerts:", error);
+      toast.error("Failed to load alerts");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAssignAsset = async (userId, macAddress) => {
     try {
       const response = await authAPI.assignAsset(userId, macAddress);
@@ -471,15 +503,11 @@ export default function AdminPage() {
         const assignedAssets =
           dashboardStats?.assignedAssets ||
           hardware.filter((h) => isAssetAssigned(h.system?.mac_address)).length;
-        const totalUsers = users.length;
-        const activeUsers = users.filter((u) => u.isActive).length;
 
         return {
           totalAssets,
           assignedAssets,
           unassignedAssets: totalAssets - assignedAssets,
-          totalUsers,
-          activeUsers,
         };
       } else {
         // Software statistics
@@ -504,8 +532,41 @@ export default function AdminPage() {
           totalStartupPrograms,
         };
       }
+    } else if (activeTab === "users") {
+      // User statistics
+      const totalUsers = users.length;
+      const activeUsers = users.filter((u) => u.isActive).length;
+      const inactiveUsers = totalUsers - activeUsers;
+      const usersWithAssets = users.filter((u) => u.assignedAssets?.length > 0).length;
+      const usersWithoutAssets = totalUsers - usersWithAssets;
+      const totalAssignedAssets = users.reduce((sum, u) => sum + (u.assignedAssets?.length || 0), 0);
+      const averageAssetsPerUser = totalUsers > 0 ? (totalAssignedAssets / totalUsers).toFixed(1) : 0;
+      const maxAssetsPerUser = Math.max(...users.map((u) => u.assignedAssets?.length || 0), 0);
+
+      return {
+        totalUsers,
+        activeUsers,
+        inactiveUsers,
+        usersWithAssets,
+        usersWithoutAssets,
+        totalAssignedAssets,
+        averageAssetsPerUser,
+        maxAssetsPerUser,
+      };
+    } else if (activeTab === "alerts") {
+      // Alerts statistics
+      console.log("Getting alerts stats, alertsSummary:", alertsSummary);
+      const stats = {
+        totalAlerts: alertsSummary.total || 0,
+        criticalAlerts: alertsSummary.critical || 0,
+        highAlerts: alertsSummary.high || 0,
+        mediumAlerts: alertsSummary.medium || 0,
+        lowAlerts: alertsSummary.low || 0,
+      };
+      console.log("Alerts stats calculated:", stats);
+      return stats;
     } else {
-      // User statistics (default)
+      // Default statistics (when no specific tab is selected)
       const totalUsers = users.length;
       const activeUsers = users.filter((u) => u.isActive).length;
 
@@ -633,8 +694,7 @@ export default function AdminPage() {
               </p>
             </div>
 
-            {/* Stats Cards - Hidden for alerts tab */}
-            {activeTab !== "alerts" && (
+            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
               {activeTab === "tickets" ? (
                 <>
@@ -737,6 +797,201 @@ export default function AdminPage() {
                     </div>
                   </div>
                 </>
+              ) : activeTab === "users" ? (
+                <>
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-md shadow-sm border border-blue-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-blue-700 mb-1">
+                          Total Users
+                        </p>
+                        <p className="text-xl font-bold text-blue-900">
+                          {stats.totalUsers}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Users className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <p className="text-xs text-blue-600">
+                        All registered accounts
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-green-700 mb-1">
+                          Active Users
+                        </p>
+                        <p className="text-xl font-bold text-green-900">
+                          {stats.activeUsers}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
+                        <UserPlus className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-green-200">
+                      <p className="text-xs text-green-600">
+                        Currently active accounts
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-md shadow-sm border border-red-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-red-700 mb-1">
+                          Inactive Users
+                        </p>
+                        <p className="text-xl font-bold text-red-900">
+                          {stats.inactiveUsers}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center shadow-sm">
+                        <X className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-red-200">
+                      <p className="text-xs text-red-600">
+                        Disabled accounts
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-md shadow-sm border border-purple-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-purple-700 mb-1">
+                          Users with Assets
+                        </p>
+                        <p className="text-xl font-bold text-purple-900">
+                          {stats.usersWithAssets}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Package className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-purple-200">
+                      <p className="text-xs text-purple-600">
+                        Have assigned devices
+                      </p>
+                    </div>
+                  </div>
+
+
+                </>
+              ) : activeTab === "alerts" ? (
+                <>
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-md shadow-sm border border-red-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-red-700 mb-1">
+                          Total Alerts
+                        </p>
+                        <p className="text-xl font-bold text-red-900">
+                          {stats.totalAlerts}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Bell className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-red-200">
+                      <p className="text-xs text-red-600">
+                        All active alerts
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-red-600 to-red-700 rounded-md shadow-sm border border-red-300 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-red-100 mb-1">
+                          Critical
+                        </p>
+                        <p className="text-xl font-bold text-white">
+                          {stats.criticalAlerts}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-red-800 to-red-900 rounded-md flex items-center justify-center shadow-sm">
+                        <AlertCircle className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-red-300">
+                      <p className="text-xs text-red-200">
+                        Immediate attention required
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-md shadow-sm border border-orange-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-orange-700 mb-1">
+                          High Priority
+                        </p>
+                        <p className="text-xl font-bold text-orange-900">
+                          {stats.highAlerts}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-md flex items-center justify-center shadow-sm">
+                        <AlertTriangle className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-orange-200">
+                      <p className="text-xs text-orange-600">
+                        High priority issues
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-md shadow-sm border border-yellow-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-yellow-700 mb-1">
+                          Medium Priority
+                        </p>
+                        <p className="text-xl font-bold text-yellow-900">
+                          {stats.mediumAlerts}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Clock className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-yellow-200">
+                      <p className="text-xs text-yellow-600">
+                        Monitor closely
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-md shadow-sm border border-blue-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-blue-700 mb-1">
+                          Low Priority
+                        </p>
+                        <p className="text-xl font-bold text-blue-900">
+                          {stats.lowAlerts}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Shield className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <p className="text-xs text-blue-600">
+                        Low risk alerts
+                      </p>
+                    </div>
+                  </div>
+                </>
               ) : (
                 <>
                   <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-md shadow-sm border border-blue-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
@@ -809,6 +1064,8 @@ export default function AdminPage() {
                           </p>
                         </div>
                       </div>
+
+
                     </>
                   ) : (
                     <>
@@ -856,71 +1113,10 @@ export default function AdminPage() {
                     </>
                   )}
 
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-md shadow-sm border border-purple-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-purple-700 mb-1">
-                          {assetType === "hardware"
-                            ? "Total Users"
-                            : "Startup Programs"}
-                        </p>
-                        <p className="text-xl font-bold text-purple-900">
-                          {assetType === "hardware"
-                            ? stats.totalUsers
-                            : stats.totalStartupPrograms}
-                        </p>
-                      </div>
-                      <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-md flex items-center justify-center shadow-sm">
-                        {assetType === "hardware" ? (
-                          <Users className="h-4 w-4 text-white" />
-                        ) : (
-                          <Play className="h-4 w-4 text-white" />
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-purple-200">
-                      <p className="text-xs text-purple-600">
-                        {assetType === "hardware"
-                          ? "Registered accounts"
-                          : "Auto-start programs"}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-md shadow-sm border border-emerald-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-emerald-700 mb-1">
-                          {assetType === "hardware"
-                            ? "Active Users"
-                            : "Active Services"}
-                        </p>
-                        <p className="text-xl font-bold text-emerald-900">
-                          {assetType === "hardware"
-                            ? stats.activeUsers
-                            : stats.totalServices}
-                        </p>
-                      </div>
-                      <div className="h-8 w-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-md flex items-center justify-center shadow-sm">
-                        {assetType === "hardware" ? (
-                          <UserPlus className="h-4 w-4 text-white" />
-                        ) : (
-                          <Settings className="h-4 w-4 text-white" />
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-emerald-200">
-                      <p className="text-xs text-emerald-600">
-                        {assetType === "hardware"
-                          ? "Currently active"
-                          : "Running services"}
-                      </p>
-                    </div>
-                  </div>
                 </>
               )}
             </div>
-            )}
 
             {/* Tab Navigation */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">

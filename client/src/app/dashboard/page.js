@@ -11,7 +11,7 @@ import AlertsPanel from "../../components/AlertsPanel";
 import CreateTicketModal from "../../components/CreateTicketModal";
 import TicketCard from "../../components/TicketCard";
 import MLServiceControlPanel from "../../components/MLServiceControlPanel";
-import { hardwareAPI, softwareAPI, ticketsAPI } from "../../lib/api";
+import { hardwareAPI, softwareAPI, ticketsAPI, authAPI } from "../../lib/api";
 import toast from "react-hot-toast";
 import Pagination from "../../components/Pagination";
 import {
@@ -51,6 +51,7 @@ export default function DashboardPage() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showMLControlPanel, setShowMLControlPanel] = useState(false);
   const [dashboardStats, setDashboardStats] = useState(null);
+  const [assignmentStats, setAssignmentStats] = useState(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -63,6 +64,7 @@ export default function DashboardPage() {
       setCurrentPage(1); // Reset to first page when switching to hardware tab
       fetchHardware(1);
       fetchDashboardStats();
+      fetchAssignmentStats();
     } else if (activeTab === "software") {
       setCurrentPage(1); // Reset to first page when switching to software tab
       fetchSoftware(1);
@@ -107,6 +109,15 @@ export default function DashboardPage() {
       setDashboardStats(response.data.data);
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
+    }
+  };
+
+  const fetchAssignmentStats = async () => {
+    try {
+      const response = await authAPI.getAssignmentStatistics();
+      setAssignmentStats(response.data.statistics);
+    } catch (error) {
+      console.error("Error fetching assignment stats:", error);
     }
   };
 
@@ -790,6 +801,68 @@ export default function DashboardPage() {
                       <p className="text-xs text-red-600">Linux servers</p>
                     </div>
                   </div>
+
+                  {/* Asset Assignment Statistics */}
+                  {assignmentStats && (
+                    <>
+                      <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-md shadow-sm border border-indigo-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-indigo-700 mb-1">
+                              Total Assets
+                            </p>
+                            <p className="text-xl font-bold text-indigo-900">
+                              {dashboardStats?.total || 0}
+                            </p>
+                          </div>
+                          <div className="h-8 w-8 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-md flex items-center justify-center shadow-sm">
+                            <Package className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-indigo-200">
+                          <p className="text-xs text-indigo-600">All registered devices</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-md shadow-sm border border-emerald-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-emerald-700 mb-1">
+                              Assigned Assets
+                            </p>
+                            <p className="text-xl font-bold text-emerald-900">
+                              {assignmentStats.totalAssignedAssets || 0}
+                            </p>
+                          </div>
+                          <div className="h-8 w-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-md flex items-center justify-center shadow-sm">
+                            <CheckCircle className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-emerald-200">
+                          <p className="text-xs text-emerald-600">Currently assigned to users</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-md shadow-sm border border-amber-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-amber-700 mb-1">
+                              Unassigned Assets
+                            </p>
+                            <p className="text-xl font-bold text-amber-900">
+                              {(dashboardStats?.total || 0) - (assignmentStats.totalAssignedAssets || 0)}
+                            </p>
+                          </div>
+                          <div className="h-8 w-8 bg-gradient-to-br from-amber-500 to-amber-600 rounded-md flex items-center justify-center shadow-sm">
+                            <AlertCircle className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-amber-200">
+                          <p className="text-xs text-amber-600">Available for assignment</p>
+                    </div>
+                  </div>
+                    </>
+                  )}
                 </>
               ) : (
                 <>
