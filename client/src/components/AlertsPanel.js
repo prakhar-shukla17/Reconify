@@ -41,21 +41,13 @@ const AlertsPanel = ({ className = "" }) => {
   const fetchAlerts = async () => {
     try {
       setLoading(true);
-      setError(null);
       const response = await alertsAPI.getWarrantyAlerts(alertDays);
-      
-      if (response?.data?.alerts) {
-        setAlerts(response.data.alerts);
-        setSummary(response.data.summary || {});
-      } else {
-        setAlerts([]);
-        setSummary({});
-      }
+      setAlerts(response.data.alerts);
+      setSummary(response.data.summary);
+      setError(null);
     } catch (err) {
       console.error("Error fetching alerts:", err);
       setError("Failed to fetch warranty alerts");
-      setAlerts([]);
-      setSummary({});
     } finally {
       setLoading(false);
     }
@@ -87,21 +79,13 @@ const AlertsPanel = ({ className = "" }) => {
           borderColor: "border-yellow-200",
           badgeColor: "bg-yellow-100 text-yellow-800",
         };
-      case "low":
+      default:
         return {
           icon: CheckCircle,
           color: "text-blue-600",
           bgColor: "bg-blue-50",
           borderColor: "border-blue-200",
           badgeColor: "bg-blue-100 text-blue-800",
-        };
-      default:
-        return {
-          icon: CheckCircle,
-          color: "text-gray-600",
-          bgColor: "bg-gray-50",
-          borderColor: "border-gray-200",
-          badgeColor: "bg-gray-100 text-gray-800",
         };
     }
   };
@@ -121,36 +105,31 @@ const AlertsPanel = ({ className = "" }) => {
     }
   };
 
-  // Calculate component-specific alert counts with severity breakdown
+  // Calculate component-specific alert counts
   const getComponentAlertCounts = () => {
     const counts = {
-      cpu: { total: 0, critical: 0, high: 0, medium: 0, low: 0 },
-      gpu: { total: 0, critical: 0, high: 0, medium: 0, low: 0 },
-      memory: { total: 0, critical: 0, high: 0, medium: 0, low: 0 },
-      storage: { total: 0, critical: 0, high: 0, medium: 0, low: 0 },
+      cpu: 0,
+      gpu: 0,
+      memory: 0,
+      storage: 0,
+      asset: 0,
     };
 
     if (Array.isArray(alerts)) {
       alerts.forEach(alert => {
-        if (alert && alert.component && alert.component.type && counts.hasOwnProperty(alert.component.type)) {
-          const componentType = alert.component.type;
-          const severity = alert.severity || 'medium';
-          
-          counts[componentType].total++;
-          if (counts[componentType].hasOwnProperty(severity)) {
-            counts[componentType][severity]++;
-          }
+        if (alert && alert.type === "asset_warranty") {
+          counts.asset++;
+        } else if (alert && alert.component && alert.component.type && counts.hasOwnProperty(alert.component.type)) {
+          counts[alert.component.type]++;
         }
       });
     }
 
     // Ensure all counts are valid numbers
-    Object.keys(counts).forEach(componentType => {
-      Object.keys(counts[componentType]).forEach(severity => {
-        if (Number.isNaN(counts[componentType][severity]) || counts[componentType][severity] === undefined || counts[componentType][severity] === null) {
-          counts[componentType][severity] = 0;
-        }
-      });
+    Object.keys(counts).forEach(key => {
+      if (Number.isNaN(counts[key]) || counts[key] === undefined || counts[key] === null) {
+        counts[key] = 0;
+      }
     });
 
     return counts;
@@ -158,10 +137,11 @@ const AlertsPanel = ({ className = "" }) => {
 
   // Get alerts by component type
   const getAlertsByComponentType = (componentType) => {
-    if (!Array.isArray(alerts)) return [];
-    
+    if (componentType === "asset") {
+      return alerts.filter(alert => alert.type === "asset_warranty");
+    }
     return alerts.filter(alert => 
-      alert && alert.component && alert.component.type === componentType
+      alert.component?.type === componentType
     );
   };
 
@@ -181,6 +161,7 @@ const AlertsPanel = ({ className = "" }) => {
       case "gpu": return "GPU";
       case "memory": return "Memory";
       case "storage": return "Storage";
+      case "asset": return "Asset";
       default: return "Unknown";
     }
   };
@@ -190,32 +171,24 @@ const AlertsPanel = ({ className = "" }) => {
     return alert.severity === filter;
   });
 
-  const ComponentAlertTile = ({ componentType, counts }) => {
+  const ComponentAlertTile = ({ componentType, count }) => {
     const ComponentIcon = getComponentIcon(componentType);
     
-    // Ensure counts are valid numbers
-    const safeCounts = {
-      total: Number.isNaN(counts.total) || counts.total === undefined || counts.total === null ? 0 : counts.total,
-      critical: Number.isNaN(counts.critical) || counts.critical === undefined || counts.critical === null ? 0 : counts.critical,
-      high: Number.isNaN(counts.high) || counts.high === undefined || counts.high === null ? 0 : counts.high,
-      medium: Number.isNaN(counts.medium) || counts.medium === undefined || counts.medium === null ? 0 : counts.medium,
-      low: Number.isNaN(counts.low) || counts.low === undefined || counts.low === null ? 0 : counts.low,
-    };
+    // Ensure count is a valid number
+    const safeCount = Number.isNaN(count) || count === undefined || count === null ? 0 : count;
     
     const getTileColor = () => {
-      if (safeCounts.total === 0) return "bg-gray-50 border-gray-200";
-      if (safeCounts.critical > 0) return "bg-red-50 border-red-200";
-      if (safeCounts.high > 0) return "bg-orange-50 border-orange-200";
-      if (safeCounts.medium > 0) return "bg-yellow-50 border-yellow-200";
-      return "bg-blue-50 border-blue-200";
+      if (safeCount === 0) return "bg-gray-50 border-gray-200";
+      if (safeCount <= 2) return "bg-yellow-50 border-yellow-200";
+      if (safeCount <= 5) return "bg-orange-50 border-orange-200";
+      return "bg-red-50 border-red-200";
     };
 
     const getTextColor = () => {
-      if (safeCounts.total === 0) return "text-gray-600";
-      if (safeCounts.critical > 0) return "text-red-700";
-      if (safeCounts.high > 0) return "text-orange-700";
-      if (safeCounts.medium > 0) return "text-yellow-700";
-      return "text-blue-700";
+      if (safeCount === 0) return "text-gray-600";
+      if (safeCount <= 2) return "text-yellow-700";
+      if (safeCount <= 5) return "text-orange-700";
+      return "text-red-700";
     };
 
     return (
@@ -224,7 +197,7 @@ const AlertsPanel = ({ className = "" }) => {
           onClick={() => openComponentModal(componentType)}
           className="w-full text-left"
         >
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <ComponentIcon className={`h-6 w-6 ${getTextColor()}`} />
               <div>
@@ -232,46 +205,16 @@ const AlertsPanel = ({ className = "" }) => {
                   {getComponentName(componentType)} Alerts
                 </h4>
                 <p className="text-sm text-gray-600">
-                  {safeCounts.total} alert{safeCounts.total !== 1 ? 's' : ''}
+                  {safeCount} alert{safeCount !== 1 ? 's' : ''}
                 </p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
               <span className={`text-2xl font-bold ${getTextColor()}`}>
-                {safeCounts.total}
+                {safeCount}
               </span>
             </div>
           </div>
-          
-          {/* Severity Breakdown */}
-          {safeCounts.total > 0 && (
-            <div className="grid grid-cols-4 gap-2 text-xs">
-              <div className="text-center">
-                <div className="bg-red-100 text-red-800 px-2 py-1 rounded font-medium">
-                  {safeCounts.critical}
-                </div>
-                <div className="text-gray-500 mt-1">Critical</div>
-              </div>
-              <div className="text-center">
-                <div className="bg-orange-100 text-orange-800 px-2 py-1 rounded font-medium">
-                  {safeCounts.high}
-                </div>
-                <div className="text-gray-500 mt-1">High</div>
-              </div>
-              <div className="text-center">
-                <div className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-medium">
-                  {safeCounts.medium}
-                </div>
-                <div className="text-gray-500 mt-1">Medium</div>
-              </div>
-              <div className="text-center">
-                <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded font-medium">
-                  {safeCounts.low}
-                </div>
-                <div className="text-gray-500 mt-1">Low</div>
-              </div>
-            </div>
-          )}
         </button>
       </div>
     );
@@ -323,8 +266,8 @@ const AlertsPanel = ({ className = "" }) => {
               </div>
             ) : (
               <div className="space-y-4">
-                {componentAlerts.map((alert, index) => (
-                  <div key={alert.id || index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                {componentAlerts.map((alert) => (
+                  <div key={alert.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center space-x-3">
                         <Monitor className="h-5 w-5 text-blue-600" />
@@ -333,17 +276,16 @@ const AlertsPanel = ({ className = "" }) => {
                             {alert.hostname || "Unknown Device"}
                           </h4>
                           <p className="text-sm text-gray-600">
-                            MAC: {alert.macAddress || "Unknown"}
+                            MAC: {alert.macAddress}
                           </p>
                         </div>
                       </div>
                       <span className={`px-3 py-1 text-sm font-medium rounded-full ${
                         alert.severity === 'critical' ? 'bg-red-100 text-red-800' :
                         alert.severity === 'high' ? 'bg-orange-100 text-orange-800' :
-                        alert.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-blue-100 text-blue-800'
+                        'bg-yellow-100 text-yellow-800'
                       }`}>
-                        {(alert.severity || 'medium').toUpperCase()}
+                        {alert.severity.toUpperCase()}
                       </span>
                     </div>
                     
@@ -364,7 +306,7 @@ const AlertsPanel = ({ className = "" }) => {
                           <span className="font-medium text-gray-700">Expires</span>
                         </div>
                         <p className="text-gray-900">
-                          {alert.expiryDate ? new Date(alert.expiryDate).toLocaleDateString() : "Unknown"}
+                          {new Date(alert.expiryDate).toLocaleDateString()}
                         </p>
                       </div>
                       
@@ -374,11 +316,11 @@ const AlertsPanel = ({ className = "" }) => {
                           <span className="font-medium text-gray-700">Time Remaining</span>
                         </div>
                         <p className={`font-medium ${
-                          (alert.daysUntilExpiry || 0) <= 7 ? 'text-red-600' :
-                          (alert.daysUntilExpiry || 0) <= 14 ? 'text-orange-600' :
+                          alert.daysUntilExpiry <= 7 ? 'text-red-600' :
+                          alert.daysUntilExpiry <= 14 ? 'text-orange-600' :
                           'text-yellow-600'
                         }`}>
-                          {(alert.daysUntilExpiry || 0) === 0 ? 'Today' : `${alert.daysUntilExpiry || 0} days`}
+                          {alert.daysUntilExpiry === 0 ? 'Today' : `${alert.daysUntilExpiry} days`}
                         </p>
                       </div>
                     </div>
@@ -392,13 +334,13 @@ const AlertsPanel = ({ className = "" }) => {
     );
   };
 
-  const AlertCard = ({ alert, index }) => {
+  const AlertCard = ({ alert }) => {
     const severityConfig = getSeverityConfig(alert.severity);
     const SeverityIcon = severityConfig.icon;
     const ComponentIcon = alert.component
       ? getComponentIcon(alert.component.type)
       : Monitor;
-    const isExpanded = expandedAlert === (alert.id || index);
+    const isExpanded = expandedAlert === alert.id;
 
     return (
       <div
@@ -412,15 +354,15 @@ const AlertsPanel = ({ className = "" }) => {
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2 mb-1">
                 <h4 className="text-sm font-medium text-gray-900 truncate">
-                  {alert.title || "Warranty Alert"}
+                  {alert.title}
                 </h4>
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${severityConfig.badgeColor}`}
                 >
-                  {(alert.severity || 'medium').toUpperCase()}
+                  {alert.severity.toUpperCase()}
                 </span>
               </div>
-              <p className="text-sm text-gray-600 mb-2">{alert.message || "Warranty expiring soon"}</p>
+              <p className="text-sm text-gray-600 mb-2">{alert.message}</p>
 
               <div className="flex items-center space-x-4 text-xs text-gray-500">
                 <div className="flex items-center space-x-1">
@@ -435,7 +377,7 @@ const AlertsPanel = ({ className = "" }) => {
                 )}
                 <div className="flex items-center space-x-1">
                   <Calendar className="h-3 w-3" />
-                  <span>{alert.expiryDate ? new Date(alert.expiryDate).toLocaleDateString() : "Unknown"}</span>
+                  <span>{new Date(alert.expiryDate).toLocaleDateString()}</span>
                 </div>
               </div>
             </div>
@@ -443,12 +385,12 @@ const AlertsPanel = ({ className = "" }) => {
 
           <div className="flex items-center space-x-2">
             <span className={`text-sm font-medium ${severityConfig.color}`}>
-              {(alert.daysUntilExpiry || 0) === 0
+              {alert.daysUntilExpiry === 0
                 ? "Today"
-                : `${alert.daysUntilExpiry || 0}d`}
+                : `${alert.daysUntilExpiry}d`}
             </span>
             <button
-              onClick={() => setExpandedAlert(isExpanded ? null : (alert.id || index))}
+              onClick={() => setExpandedAlert(isExpanded ? null : alert.id)}
               className="text-gray-400 hover:text-gray-600 p-1"
             >
               <Eye className="h-4 w-4" />
@@ -461,7 +403,7 @@ const AlertsPanel = ({ className = "" }) => {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="font-medium text-gray-700">Asset ID:</span>
-                <span className="ml-2 text-gray-600">{alert.macAddress || "Unknown"}</span>
+                <span className="ml-2 text-gray-600">{alert.macAddress}</span>
               </div>
               <div>
                 <span className="font-medium text-gray-700">Alert Type:</span>
@@ -474,7 +416,7 @@ const AlertsPanel = ({ className = "" }) => {
               <div>
                 <span className="font-medium text-gray-700">Expiry Date:</span>
                 <span className="ml-2 text-gray-600">
-                  {alert.expiryDate ? new Date(alert.expiryDate).toLocaleDateString() : "Unknown"}
+                  {new Date(alert.expiryDate).toLocaleDateString()}
                 </span>
               </div>
               <div>
@@ -482,7 +424,7 @@ const AlertsPanel = ({ className = "" }) => {
                   Days Remaining:
                 </span>
                 <span className={`ml-2 font-medium ${severityConfig.color}`}>
-                  {alert.daysUntilExpiry || 0}
+                  {alert.daysUntilExpiry}
                 </span>
               </div>
             </div>
@@ -521,7 +463,7 @@ const AlertsPanel = ({ className = "" }) => {
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            {alerts && alerts.length > 0 ? (
+            {alerts.length > 0 ? (
               <BellRing className="h-5 w-5 text-red-600" />
             ) : (
               <Bell className="h-5 w-5 text-gray-400" />
@@ -529,9 +471,9 @@ const AlertsPanel = ({ className = "" }) => {
             <h3 className="text-lg font-semibold text-gray-900">
               Warranty Alerts
             </h3>
-            {alerts && alerts.length > 0 && (
+            {(alerts && alerts.length > 0) && (
               <span className="bg-red-100 text-red-800 text-xs font-medium px-2 py-1 rounded-full">
-                {alerts.length}
+                {alerts.length || 0}
               </span>
             )}
           </div>
@@ -573,22 +515,24 @@ const AlertsPanel = ({ className = "" }) => {
           <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
             <ComponentAlertTile
               componentType="cpu"
-              counts={componentCounts.cpu}
+              count={componentCounts.cpu || 0}
             />
             <ComponentAlertTile
               componentType="gpu"
-              counts={componentCounts.gpu}
+              count={componentCounts.gpu || 0}
             />
             <ComponentAlertTile
               componentType="memory"
-              counts={componentCounts.memory}
+              count={componentCounts.memory || 0}
             />
             <ComponentAlertTile
               componentType="storage"
-              counts={componentCounts.storage}
+              count={componentCounts.storage || 0}
             />
           </div>
         </div>
+
+
       </div>
 
       {/* Alerts List */}
@@ -601,14 +545,14 @@ const AlertsPanel = ({ className = "" }) => {
             </h4>
             <p className="text-gray-500">
               {filter === "all"
-                ? `All warranties are valid for the next ${alertDays} days`
+                ? `All warranties are valid for the next ${alertDays || 30} days`
                 : `No ${filter} severity alerts found`}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredAlerts.map((alert, index) => (
-              <AlertCard key={alert.id || index} alert={alert} index={index} />
+            {filteredAlerts.map((alert) => (
+              <AlertCard key={alert.id} alert={alert} />
             ))}
           </div>
         )}
