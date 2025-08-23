@@ -20,7 +20,7 @@ import Pagination from "../../components/Pagination";
 import LazyLoader from "../../components/LazyLoader";
 import { hardwareAPI, authAPI, ticketsAPI, softwareAPI } from "../../lib/api";
 import toast from "react-hot-toast";
-import { debounce, throttle } from "../../utils/performance";
+import { throttle } from "../../utils/performance";
 import {
   Users,
   Monitor,
@@ -518,23 +518,52 @@ export default function AdminPage() {
 
   const stats = getSystemStats();
 
-  // Debounced search function to reduce API calls
-  const debouncedSearch = useCallback(
-    debounce((term) => {
-      setSearchTerm(term);
-      setCurrentPage(1);
-      if (activeTab === "assets") {
-        if (assetType === "hardware") {
-          fetchHardware(1);
-        } else {
-          fetchSoftware(1);
-        }
-      } else if (activeTab === "users") {
-        fetchUsers();
+  // Search function that only triggers when explicitly called
+  const handleSearch = useCallback((term) => {
+    setSearchTerm(term);
+    setCurrentPage(1);
+    if (activeTab === "assets") {
+      if (assetType === "hardware") {
+        fetchHardware(1);
+      } else {
+        fetchSoftware(1);
       }
-    }, 500),
-    [activeTab, assetType, fetchHardware, fetchSoftware, fetchUsers]
-  );
+    } else if (activeTab === "users") {
+      fetchUsers();
+    }
+  }, [activeTab, assetType, fetchHardware, fetchSoftware, fetchUsers]);
+
+  // Handle search input change without triggering search
+  const handleSearchInputChange = (value) => {
+    setSearchTerm(value);
+  };
+
+  // Handle search button click or Enter key press
+  const handleSearchSubmit = () => {
+    handleSearch(searchTerm);
+  };
+
+  // Clear search and reset to show all items
+  const handleClearSearch = () => {
+    setSearchTerm("");
+    setCurrentPage(1);
+    if (activeTab === "assets") {
+      if (assetType === "hardware") {
+        fetchHardware(1);
+      } else {
+        fetchSoftware(1);
+      }
+    } else if (activeTab === "users") {
+      fetchUsers();
+    }
+  };
+
+  // Handle Enter key press in search input
+  const handleSearchKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearchSubmit();
+    }
+  };
 
   if (selectedHardware) {
     return (
@@ -550,7 +579,19 @@ export default function AdminPage() {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Admin Panel
               </button>
-              <HardwareDetails hardware={selectedHardware} />
+                             <HardwareDetails 
+                 hardware={selectedHardware} 
+                 onHardwareUpdate={(updatedHardware) => {
+                   console.log('Admin page received onHardwareUpdate:', updatedHardware);
+                   setSelectedHardware(updatedHardware);
+                   // Also update the hardware in the main list
+                   setHardware(prevHardware => 
+                     prevHardware.map(h => 
+                       h._id === updatedHardware._id ? updatedHardware : h
+                     )
+                   );
+                 }}
+               />
             </div>
           </div>
         </div>
@@ -992,10 +1033,34 @@ export default function AdminPage() {
                             : "Search users..."
                         }
                         value={searchTerm}
-                        onChange={(e) => debouncedSearch(e.target.value)}
-                        className="w-full pl-7 pr-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
+                        onChange={(e) => handleSearchInputChange(e.target.value)}
+                        onKeyPress={handleSearchKeyPress}
+                        className={`w-full pl-7 pr-24 py-1.5 border rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 transition-colors ${
+                          searchTerm ? 'border-blue-300 bg-blue-50' : 'border-gray-300 bg-white'
+                        }`}
                       />
+                      <button
+                        onClick={handleSearchSubmit}
+                        disabled={searchLoading}
+                        className="absolute right-1 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 focus:ring-1 focus:ring-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {searchLoading ? (
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                        ) : (
+                          'Search'
+                        )}
+                      </button>
+                                             {searchTerm && (
+                         <button
+                           onClick={handleClearSearch}
+                           className="absolute right-16 top-1/2 transform -translate-y-1/2 px-2 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 focus:ring-1 focus:ring-gray-400 transition-colors"
+                           title="Clear search"
+                         >
+                           ×
+                         </button>
+                       )}
                     </div>
+
 
                     <div className="flex items-center space-x-2">
                       {activeTab === "assets" && (

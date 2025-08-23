@@ -29,7 +29,7 @@ import { hardwareAPI } from "../lib/api";
 import toast from "react-hot-toast";
 import MLPredictionsPanel from "./MLPredictionsPanel";
 
-const HardwareDetails = ({ hardware }) => {
+const HardwareDetails = ({ hardware, onHardwareUpdate }) => {
   const [expandedSections, setExpandedSections] = useState({
     system: true,
     asset_info: true,
@@ -252,12 +252,24 @@ const HardwareDetails = ({ hardware }) => {
         cost: parseFloat(assetInfoForm.cost) || 0,
       };
 
-      await hardwareAPI.updateAssetInfo(hardware._id, assetInfoData);
+      const response = await hardwareAPI.updateAssetInfo(hardware._id, assetInfoData);
       toast.success("Asset information updated successfully");
       setEditingAssetInfo(false);
 
-      // Refresh the page to show updated data
-      window.location.reload();
+      // Update the local hardware state with the new asset info
+      if (response.data && response.data.data) {
+        const updatedHardware = { ...hardware };
+        updatedHardware.asset_info = {
+          ...updatedHardware.asset_info,
+          ...assetInfoData
+        };
+        
+        // Update the hardware prop by calling a callback if provided
+        if (typeof onHardwareUpdate === 'function') {
+          console.log('Calling onHardwareUpdate from saveAssetInfo with:', updatedHardware);
+          onHardwareUpdate(updatedHardware);
+        }
+      }
     } catch (error) {
       console.error("Error updating asset information:", error);
       toast.error("Failed to update asset information");
@@ -266,16 +278,65 @@ const HardwareDetails = ({ hardware }) => {
 
   const saveComponentWarranty = async () => {
     try {
-      await hardwareAPI.updateComponentWarranty(
+      const response = await hardwareAPI.updateComponentWarranty(
         hardware._id,
         editingComponent.type,
         editingComponent.index,
         warrantyForm
       );
+      console.log('API Response:', response);
       toast.success("Component warranty updated successfully!");
       cancelEditing();
-      // Refresh the page to show updated data
-      window.location.reload();
+      
+              // Update the local hardware state with the new warranty data
+        if (response.data && response.data.data) {
+          // Update the specific component's warranty info in the local state
+          const updatedHardware = { ...hardware };
+          if (editingComponent.type === 'cpu' && updatedHardware.cpu) {
+            // CPU is a single object, not an array, so update it directly
+            updatedHardware.cpu = {
+              ...updatedHardware.cpu,
+              component_info: {
+                ...updatedHardware.cpu.component_info,
+                ...warrantyForm
+              }
+            };
+          } else if (editingComponent.type === 'memory' && updatedHardware.memory && updatedHardware.memory.slots) {
+          updatedHardware.memory.slots[editingComponent.index] = {
+            ...updatedHardware.memory.slots[editingComponent.index],
+            component_info: {
+              ...updatedHardware.memory.slots[editingComponent.index].component_info,
+              ...warrantyForm
+            }
+          };
+        } else if (editingComponent.type === 'storage' && updatedHardware.storage && updatedHardware.storage.drives) {
+          updatedHardware.storage.drives[editingComponent.index] = {
+            ...updatedHardware.storage.drives[editingComponent.index],
+            component_info: {
+              ...updatedHardware.storage.drives[editingComponent.index].component_info,
+              ...warrantyForm
+            }
+          };
+        } else if (editingComponent.type === 'gpu' && updatedHardware.graphics && updatedHardware.graphics.gpus) {
+          updatedHardware.graphics.gpus[editingComponent.index] = {
+            ...updatedHardware.graphics.gpus[editingComponent.index],
+            component_info: {
+              ...updatedHardware.graphics.gpus[editingComponent.index].component_info,
+              ...warrantyForm
+            }
+          };
+        }
+        
+        console.log('Updated hardware object:', updatedHardware);
+        console.log('Component type:', editingComponent.type);
+        console.log('Component index:', editingComponent.index);
+        
+        // Update the hardware prop by calling a callback if provided
+        if (typeof onHardwareUpdate === 'function') {
+          console.log('Calling onHardwareUpdate from saveComponentWarranty with:', updatedHardware);
+          onHardwareUpdate(updatedHardware);
+        }
+      }
     } catch (error) {
       console.error("Error updating component warranty:", error);
       toast.error("Failed to update component warranty");
