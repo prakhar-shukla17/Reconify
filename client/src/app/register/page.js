@@ -9,6 +9,7 @@ import { Eye, EyeOff, UserPlus } from "lucide-react";
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const { register: registerUser, isAuthenticated, loading } = useAuth();
   const router = useRouter();
   const {
@@ -19,6 +20,14 @@ export default function RegisterPage() {
   } = useForm();
 
   const password = watch("password");
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated && !loading) {
@@ -35,8 +44,13 @@ export default function RegisterPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-gray-200 border-t-black"></div>
+          <div className="absolute inset-0 animate-pulse">
+            <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20"></div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -46,27 +60,105 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <div className="mx-auto h-16 w-16 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-2xl">IT</span>
-          </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Join the IT asset management system
-          </p>
+    <div className="min-h-screen flex bg-gray-50 animate-slide-right">
+      {/* Left Side - Promotional Content */}
+      <div className="w-1/2 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center p-8 relative overflow-hidden border-r border-gray-200">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute top-10 left-10 w-32 h-32 bg-gray-400 rounded-full"></div>
+          <div className="absolute top-32 right-20 w-24 h-24 bg-gray-300 rounded-full"></div>
+          <div className="absolute bottom-20 left-20 w-40 h-40 bg-gray-500 rounded-full"></div>
+          <div className="absolute bottom-32 right-10 w-28 h-28 bg-gray-400 rounded-full"></div>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+        <div className="relative z-10 text-center text-white max-w-lg">
+          <h2 className="text-4xl font-bold mb-4">
+            Join the IT asset management revolution.
+          </h2>
+          <p className="text-xl mb-8 opacity-90">
+            Create your account and start managing your IT assets efficiently
+            with our comprehensive platform.
+          </p>
+
+          {/* Feature Cards */}
           <div className="space-y-4">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                  <div className="w-4 h-4 bg-white rounded"></div>
+                </div>
+                <div className="text-left">
+                  <div className="font-semibold">Asset Tracking</div>
+                  <div className="text-sm opacity-80">
+                    Monitor all your IT assets in real-time
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                  <div className="w-4 h-4 bg-white rounded"></div>
+                </div>
+                <div className="text-left">
+                  <div className="font-semibold">User Management</div>
+                  <div className="text-sm opacity-80">
+                    Control access and permissions
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                  <div className="w-4 h-4 bg-white rounded"></div>
+                </div>
+                <div className="text-left">
+                  <div className="font-semibold">Analytics Dashboard</div>
+                  <div className="text-sm opacity-80">
+                    Get insights into your asset utilization
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Side - Register Form */}
+      <div className="w-1/2 bg-white flex items-center justify-center p-8">
+        <div className="w-full max-w-md">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center space-x-3 mb-8">
+              <div className="h-10 w-10 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-lg">IT</span>
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900">ITAM</h1>
+            </div>
+          </div>
+
+          {/* Welcome Message */}
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              Create Account
+            </h2>
+            <p className="text-gray-600">
+              Join the IT asset management system and start managing your
+              assets.
+            </p>
+          </div>
+
+          {/* Register Form */}
+          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+            {/* Name Fields */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label
                   htmlFor="firstName"
-                  className="block text-sm font-medium text-gray-700"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
                   First Name
                 </label>
@@ -79,7 +171,7 @@ export default function RegisterPage() {
                     },
                   })}
                   type="text"
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
                   placeholder="First name"
                 />
                 {errors.firstName && (
@@ -92,7 +184,7 @@ export default function RegisterPage() {
               <div>
                 <label
                   htmlFor="lastName"
-                  className="block text-sm font-medium text-gray-700"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
                   Last Name
                 </label>
@@ -105,7 +197,7 @@ export default function RegisterPage() {
                     },
                   })}
                   type="text"
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
                   placeholder="Last name"
                 />
                 {errors.lastName && (
@@ -116,10 +208,11 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* Username Field */}
             <div>
               <label
                 htmlFor="username"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Username
               </label>
@@ -136,7 +229,7 @@ export default function RegisterPage() {
                   },
                 })}
                 type="text"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
                 placeholder="Choose a username"
               />
               {errors.username && (
@@ -146,10 +239,11 @@ export default function RegisterPage() {
               )}
             </div>
 
+            {/* Email Field */}
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Email Address
               </label>
@@ -162,7 +256,7 @@ export default function RegisterPage() {
                   },
                 })}
                 type="email"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
                 placeholder="Enter your email address"
               />
               {errors.email && (
@@ -172,29 +266,31 @@ export default function RegisterPage() {
               )}
             </div>
 
+            {/* Department Field */}
             <div>
               <label
                 htmlFor="department"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Department (Optional)
               </label>
               <input
                 {...register("department")}
                 type="text"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
                 placeholder="Your department"
               />
             </div>
 
+            {/* Password Field */}
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Password
               </label>
-              <div className="mt-1 relative">
+              <div className="relative">
                 <input
                   {...register("password", {
                     required: "Password is required",
@@ -204,7 +300,7 @@ export default function RegisterPage() {
                     },
                   })}
                   type={showPassword ? "text" : "password"}
-                  className="appearance-none relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
                   placeholder="Create a password"
                 />
                 <button
@@ -213,9 +309,9 @@ export default function RegisterPage() {
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
+                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
+                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   )}
                 </button>
               </div>
@@ -226,10 +322,11 @@ export default function RegisterPage() {
               )}
             </div>
 
+            {/* Confirm Password Field */}
             <div>
               <label
                 htmlFor="confirmPassword"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Confirm Password
               </label>
@@ -240,7 +337,7 @@ export default function RegisterPage() {
                     value === password || "Passwords do not match",
                 })}
                 type={showPassword ? "text" : "password"}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
                 placeholder="Confirm your password"
               />
               {errors.confirmPassword && (
@@ -249,41 +346,67 @@ export default function RegisterPage() {
                 </p>
               )}
             </div>
-          </div>
 
-          <div>
+            {/* Register Button */}
             <button
               type="submit"
               disabled={isSubmitting}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-b from-gray-800 to-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:from-gray-900 hover:to-black focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
               {isSubmitting ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
                   Creating account...
                 </div>
               ) : (
-                <div className="flex items-center">
-                  <UserPlus className="h-4 w-4 mr-2" />
+                <div className="flex items-center justify-center">
+                  <UserPlus className="h-5 w-5 mr-2" />
                   Create Account
                 </div>
               )}
             </button>
-          </div>
 
-          <div className="text-center">
-            <p className="text-sm text-gray-600">
-              Already have an account?{" "}
-              <Link
-                href="/login"
-                className="font-medium text-blue-600 hover:text-blue-500"
-              >
-                Sign in here
-              </Link>
-            </p>
-          </div>
-        </form>
+            {/* Login Link */}
+            <div className="text-center">
+              <p className="text-sm text-gray-600">
+                Already have an account?{" "}
+                <Link
+                  href="/login"
+                  className="font-medium text-gray-800 hover:text-black transition-colors duration-200"
+                >
+                  Sign in here
+                </Link>
+              </p>
+            </div>
+          </form>
+        </div>
       </div>
+
+      {/* Footer */}
+      <div className="absolute bottom-4 left-4 right-4 flex justify-between text-sm text-gray-500">
+        <span>Copyright © 2025 ITAM Enterprises LTD.</span>
+        <Link href="#" className="hover:text-gray-700">
+          Privacy Policy
+        </Link>
+      </div>
+
+      {/* Custom CSS for animations */}
+      <style jsx>{`
+        @keyframes fade-in-right {
+          from {
+            opacity: 0;
+            transform: translateX(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        .animate-slide-right {
+          animation: fade-in-right 0.6s ease-out forwards;
+        }
+      `}</style>
     </div>
   );
 }
