@@ -83,8 +83,6 @@ export default function AdminPage() {
   // Ref for the assets section to scroll to
   const assetsSectionRef = useRef(null);
 
-
-
   useEffect(() => {
     if (activeTab === "assets") {
       setCurrentPage(1); // Reset to first page when switching to assets tab
@@ -519,7 +517,8 @@ export default function AdminPage() {
   const stats = getSystemStats();
 
   // Search function that only triggers when explicitly called
-  const handleSearch = useCallback((term) => {
+  const handleSearch = useCallback(
+    (term) => {
       setSearchTerm(term);
       setCurrentPage(1);
       if (activeTab === "assets") {
@@ -531,7 +530,9 @@ export default function AdminPage() {
       } else if (activeTab === "users") {
         fetchUsers();
       }
-  }, [activeTab, assetType, fetchHardware, fetchSoftware, fetchUsers]);
+    },
+    [activeTab, assetType, fetchHardware, fetchSoftware, fetchUsers]
+  );
 
   // Handle search input change without triggering search
   const handleSearchInputChange = (value) => {
@@ -560,7 +561,7 @@ export default function AdminPage() {
 
   // Handle Enter key press in search input
   const handleSearchKeyPress = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleSearchSubmit();
     }
   };
@@ -579,19 +580,22 @@ export default function AdminPage() {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Admin Panel
               </button>
-                             <HardwareDetails 
-                 hardware={selectedHardware} 
-                 onHardwareUpdate={(updatedHardware) => {
-                   console.log('Admin page received onHardwareUpdate:', updatedHardware);
-                   setSelectedHardware(updatedHardware);
-                   // Also update the hardware in the main list
-                   setHardware(prevHardware => 
-                     prevHardware.map(h => 
-                       h._id === updatedHardware._id ? updatedHardware : h
-                     )
-                   );
-                 }}
-               />
+              <HardwareDetails
+                hardware={selectedHardware}
+                onHardwareUpdate={(updatedHardware) => {
+                  console.log(
+                    "Admin page received onHardwareUpdate:",
+                    updatedHardware
+                  );
+                  setSelectedHardware(updatedHardware);
+                  // Also update the hardware in the main list
+                  setHardware((prevHardware) =>
+                    prevHardware.map((h) =>
+                      h._id === updatedHardware._id ? updatedHardware : h
+                    )
+                  );
+                }}
+              />
             </div>
           </div>
         </div>
@@ -604,9 +608,9 @@ export default function AdminPage() {
       <ProtectedRoute requireAdmin>
         <div className="min-h-screen bg-gray-50">
           <Navbar />
-          <SoftwareDetails 
-            software={selectedSoftware} 
-            onBack={() => setSelectedSoftware(null)} 
+          <SoftwareDetails
+            software={selectedSoftware}
+            onBack={() => setSelectedSoftware(null)}
           />
         </div>
       </ProtectedRoute>
@@ -621,314 +625,322 @@ export default function AdminPage() {
         <div className="py-6">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Header */}
-            <div className="mb-8">
-              <div className="flex items-center space-x-3 mb-4">
-                <Shield className="h-8 w-8 text-blue-600" />
-                <h1 className="text-3xl font-bold text-gray-900">
-                  Admin Dashboard
-                </h1>
+            <div className="mb-6">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm">
+                  <Shield className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    Admin Dashboard
+                  </h1>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Manage users, assets, and system configuration
+                  </p>
+                </div>
               </div>
-              <p className="text-gray-600">
-                Manage users, assets, and system configuration
-              </p>
             </div>
 
             {/* Stats Cards - Hidden for alerts tab */}
             {activeTab !== "alerts" && (
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
-              {activeTab === "tickets" ? (
-                <>
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-md shadow-sm border border-blue-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-blue-700 mb-1">
-                          Total Tickets
-                        </p>
-                        <p className="text-xl font-bold text-blue-900">
-                          {stats.totalTickets}
-                        </p>
-                      </div>
-                      <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center shadow-sm">
-                        <Ticket className="h-4 w-4 text-white" />
-                      </div>
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-blue-200">
-                      <p className="text-xs text-blue-600">
-                        All support requests
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-md shadow-sm border border-red-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-red-700 mb-1">
-                          Open
-                        </p>
-                        <p className="text-xl font-bold text-red-900">
-                          {stats.openTickets}
-                        </p>
-                      </div>
-                      <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center shadow-sm">
-                        <AlertCircle className="h-4 w-4 text-white" />
-                      </div>
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-red-200">
-                      <p className="text-xs text-red-600">Awaiting response</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-md shadow-sm border border-amber-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-amber-700 mb-1">
-                          In Progress
-                        </p>
-                        <p className="text-xl font-bold text-amber-900">
-                          {stats.inProgressTickets}
-                        </p>
-                      </div>
-                      <div className="h-8 w-8 bg-gradient-to-br from-amber-500 to-amber-600 rounded-md flex items-center justify-center shadow-sm">
-                        <Settings className="h-4 w-4 text-white" />
-                      </div>
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-amber-200">
-                      <p className="text-xs text-amber-600">Being worked on</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-green-700 mb-1">
-                          Resolved
-                        </p>
-                        <p className="text-xl font-bold text-green-900">
-                          {stats.resolvedTickets}
-                        </p>
-                      </div>
-                      <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
-                        <Check className="h-4 w-4 text-white" />
-                      </div>
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-green-200">
-                      <p className="text-xs text-green-600">
-                        Successfully completed
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-md shadow-sm border border-gray-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-gray-700 mb-1">
-                          Closed
-                        </p>
-                        <p className="text-xl font-bold text-gray-900">
-                          {stats.closedTickets}
-                        </p>
-                      </div>
-                      <div className="h-8 w-8 bg-gradient-to-br from-gray-500 to-gray-600 rounded-md flex items-center justify-center shadow-sm">
-                        <X className="h-4 w-4 text-white" />
-                      </div>
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-gray-200">
-                      <p className="text-xs text-gray-600">Archived tickets</p>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-md shadow-sm border border-blue-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-blue-700 mb-1">
-                          {assetType === "hardware"
-                            ? "Total Assets"
-                            : "Total Systems"}
-                        </p>
-                        <p className="text-xl font-bold text-blue-900">
-                          {assetType === "hardware"
-                            ? stats.totalAssets
-                            : stats.totalSystems}
-                        </p>
-                      </div>
-                      <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center shadow-sm">
-                        <Package className="h-4 w-4 text-white" />
-                      </div>
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-blue-200">
-                      <p className="text-xs text-blue-600">
-                        {assetType === "hardware"
-                          ? "All registered devices"
-                          : "All scanned systems"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {assetType === "hardware" ? (
-                    <>
-                      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <p className="text-xs font-medium text-green-700 mb-1">
-                              Assigned
-                            </p>
-                            <p className="text-xl font-bold text-green-900">
-                              {stats.assignedAssets}
-                            </p>
-                          </div>
-                          <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
-                            <Check className="h-4 w-4 text-white" />
-                          </div>
-                        </div>
-                        <div className="mt-2 pt-2 border-t border-green-200">
-                          <p className="text-xs text-green-600">
-                            User assigned
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                {activeTab === "tickets" ? (
+                  <>
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                            Total Tickets
+                          </p>
+                          <p className="text-2xl font-bold text-gray-900">
+                            {stats.totalTickets}
                           </p>
                         </div>
-                      </div>
-
-                      <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-md shadow-sm border border-red-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <p className="text-xs font-medium text-red-700 mb-1">
-                              Unassigned
-                            </p>
-                            <p className="text-xl font-bold text-red-900">
-                              {stats.unassignedAssets}
-                            </p>
-                          </div>
-                          <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center shadow-sm">
-                            <X className="h-4 w-4 text-white" />
-                          </div>
+                        <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                          <Ticket className="h-5 w-5 text-white" />
                         </div>
-                        <div className="mt-2 pt-2 border-t border-red-200">
-                          <p className="text-xs text-red-600">
-                            Available for assignment
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs text-gray-500">
+                          All support requests
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                            Open
+                          </p>
+                          <p className="text-2xl font-bold text-gray-900">
+                            {stats.openTickets}
                           </p>
                         </div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <p className="text-xs font-medium text-green-700 mb-1">
-                              Software Packages
-                            </p>
-                            <p className="text-xl font-bold text-green-900">
-                              {stats.totalPackages}
-                            </p>
-                          </div>
-                          <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
-                            <Package className="h-4 w-4 text-white" />
-                          </div>
+                        <div className="h-10 w-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center shadow-sm">
+                          <AlertCircle className="h-5 w-5 text-white" />
                         </div>
-                        <div className="mt-2 pt-2 border-t border-green-200">
-                          <p className="text-xs text-green-600">
-                            Installed software
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs text-gray-500">
+                          Awaiting response
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                            In Progress
+                          </p>
+                          <p className="text-2xl font-bold text-gray-900">
+                            {stats.inProgressTickets}
                           </p>
                         </div>
-                      </div>
-
-                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-md shadow-sm border border-purple-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <p className="text-xs font-medium text-purple-700 mb-1">
-                              Services
-                            </p>
-                            <p className="text-xl font-bold text-purple-900">
-                              {stats.totalServices}
-                            </p>
-                          </div>
-                          <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-md flex items-center justify-center shadow-sm">
-                            <Settings className="h-4 w-4 text-white" />
-                          </div>
+                        <div className="h-10 w-10 bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg flex items-center justify-center shadow-sm">
+                          <Settings className="h-5 w-5 text-white" />
                         </div>
-                        <div className="mt-2 pt-2 border-t border-purple-200">
-                          <p className="text-xs text-purple-600">
-                            System services
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs text-gray-500">Being worked on</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                            Resolved
+                          </p>
+                          <p className="text-2xl font-bold text-gray-900">
+                            {stats.resolvedTickets}
                           </p>
                         </div>
+                        <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center shadow-sm">
+                          <Check className="h-5 w-5 text-white" />
+                        </div>
                       </div>
-                    </>
-                  )}
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs text-gray-500">
+                          Successfully completed
+                        </p>
+                      </div>
+                    </div>
 
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-md shadow-sm border border-purple-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-purple-700 mb-1">
-                          {assetType === "hardware"
-                            ? "Total Users"
-                            : "Startup Programs"}
-                        </p>
-                        <p className="text-xl font-bold text-purple-900">
-                          {assetType === "hardware"
-                            ? stats.totalUsers
-                            : stats.totalStartupPrograms}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                            Closed
+                          </p>
+                          <p className="text-2xl font-bold text-gray-900">
+                            {stats.closedTickets}
+                          </p>
+                        </div>
+                        <div className="h-10 w-10 bg-gradient-to-br from-gray-500 to-gray-600 rounded-lg flex items-center justify-center shadow-sm">
+                          <X className="h-5 w-5 text-white" />
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs text-gray-500">
+                          Archived tickets
                         </p>
                       </div>
-                      <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-md flex items-center justify-center shadow-sm">
-                        {assetType === "hardware" ? (
-                          <Users className="h-4 w-4 text-white" />
-                        ) : (
-                          <Play className="h-4 w-4 text-white" />
-                        )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                            {assetType === "hardware"
+                              ? "Total Assets"
+                              : "Total Systems"}
+                          </p>
+                          <p className="text-2xl font-bold text-gray-900">
+                            {assetType === "hardware"
+                              ? stats.totalAssets
+                              : stats.totalSystems}
+                          </p>
+                        </div>
+                        <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                          <Package className="h-5 w-5 text-white" />
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs text-gray-500">
+                          {assetType === "hardware"
+                            ? "All registered devices"
+                            : "All scanned systems"}
+                        </p>
                       </div>
                     </div>
-                    <div className="mt-2 pt-2 border-t border-purple-200">
-                      <p className="text-xs text-purple-600">
-                        {assetType === "hardware"
-                          ? "Registered accounts"
-                          : "Auto-start programs"}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-md shadow-sm border border-emerald-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-emerald-700 mb-1">
+                    {assetType === "hardware" ? (
+                      <>
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                                Assigned
+                              </p>
+                              <p className="text-2xl font-bold text-gray-900">
+                                {stats.assignedAssets}
+                              </p>
+                            </div>
+                            <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center shadow-sm">
+                              <Check className="h-5 w-5 text-white" />
+                            </div>
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <p className="text-xs text-gray-500">
+                              User assigned
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                                Unassigned
+                              </p>
+                              <p className="text-2xl font-bold text-gray-900">
+                                {stats.unassignedAssets}
+                              </p>
+                            </div>
+                            <div className="h-10 w-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center shadow-sm">
+                              <X className="h-5 w-5 text-white" />
+                            </div>
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <p className="text-xs text-gray-500">
+                              Available for assignment
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                                Software Packages
+                              </p>
+                              <p className="text-2xl font-bold text-gray-900">
+                                {stats.totalPackages}
+                              </p>
+                            </div>
+                            <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center shadow-sm">
+                              <Package className="h-5 w-5 text-white" />
+                            </div>
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <p className="text-xs text-gray-500">
+                              Installed software
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                                Services
+                              </p>
+                              <p className="text-2xl font-bold text-gray-900">
+                                {stats.totalServices}
+                              </p>
+                            </div>
+                            <div className="h-10 w-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
+                              <Settings className="h-5 w-5 text-white" />
+                            </div>
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <p className="text-xs text-gray-500">
+                              System services
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                            {assetType === "hardware"
+                              ? "Total Users"
+                              : "Startup Programs"}
+                          </p>
+                          <p className="text-2xl font-bold text-gray-900">
+                            {assetType === "hardware"
+                              ? stats.totalUsers
+                              : stats.totalStartupPrograms}
+                          </p>
+                        </div>
+                        <div className="h-10 w-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
+                          {assetType === "hardware" ? (
+                            <Users className="h-5 w-5 text-white" />
+                          ) : (
+                            <Play className="h-5 w-5 text-white" />
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs text-gray-500">
                           {assetType === "hardware"
-                            ? "Active Users"
-                            : "Active Services"}
-                        </p>
-                        <p className="text-xl font-bold text-emerald-900">
-                          {assetType === "hardware"
-                            ? stats.activeUsers
-                            : stats.totalServices}
+                            ? "Registered accounts"
+                            : "Auto-start programs"}
                         </p>
                       </div>
-                      <div className="h-8 w-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-md flex items-center justify-center shadow-sm">
-                        {assetType === "hardware" ? (
-                          <UserPlus className="h-4 w-4 text-white" />
-                        ) : (
-                          <Settings className="h-4 w-4 text-white" />
-                        )}
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                            {assetType === "hardware"
+                              ? "Active Users"
+                              : "Active Services"}
+                          </p>
+                          <p className="text-2xl font-bold text-gray-900">
+                            {assetType === "hardware"
+                              ? stats.activeUsers
+                              : stats.totalServices}
+                          </p>
+                        </div>
+                        <div className="h-10 w-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-sm">
+                          {assetType === "hardware" ? (
+                            <UserPlus className="h-5 w-5 text-white" />
+                          ) : (
+                            <Settings className="h-5 w-5 text-white" />
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs text-gray-500">
+                          {assetType === "hardware"
+                            ? "Currently active"
+                            : "Running services"}
+                        </p>
                       </div>
                     </div>
-                    <div className="mt-2 pt-2 border-t border-emerald-200">
-                      <p className="text-xs text-emerald-600">
-                        {assetType === "hardware"
-                          ? "Currently active"
-                          : "Running services"}
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+                  </>
+                )}
+              </div>
             )}
 
             {/* Tab Navigation */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="border-b border-gray-200">
-                <nav className="flex space-x-1 px-4" aria-label="Tabs">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
+              <div className="border-b border-gray-100">
+                <nav className="flex space-x-1 px-6 py-1" aria-label="Tabs">
                   <button
                     onClick={() => setActiveTab("assets")}
-                    className={`py-3 px-3 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
+                    className={`py-3 px-4 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
                       activeTab === "assets"
                         ? "border-blue-500 text-blue-600 bg-blue-50"
                         : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
@@ -939,7 +951,7 @@ export default function AdminPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab("users")}
-                    className={`py-3 px-3 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
+                    className={`py-3 px-4 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
                       activeTab === "users"
                         ? "border-blue-500 text-blue-600 bg-blue-50"
                         : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
@@ -950,7 +962,7 @@ export default function AdminPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab("alerts")}
-                    className={`py-3 px-3 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
+                    className={`py-3 px-4 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
                       activeTab === "alerts"
                         ? "border-blue-500 text-blue-600 bg-blue-50"
                         : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
@@ -961,7 +973,7 @@ export default function AdminPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab("tickets")}
-                    className={`py-3 px-3 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
+                    className={`py-3 px-4 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
                       activeTab === "tickets"
                         ? "border-blue-500 text-blue-600 bg-blue-50"
                         : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
@@ -972,7 +984,7 @@ export default function AdminPage() {
                   </button>
                   <button
                     onClick={() => setShowHealthDashboard(true)}
-                    className="py-3 px-3 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 rounded-t-lg"
+                    className="py-3 px-4 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 rounded-t-lg"
                   >
                     <Activity className="h-4 w-4 inline mr-2" />
                     Health
@@ -982,7 +994,7 @@ export default function AdminPage() {
 
               {/* Search and Filter Bar */}
               {activeTab !== "alerts" && activeTab !== "tickets" && (
-                <div className="bg-white rounded border border-gray-200 p-3">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
                   {/* Asset Type Toggle */}
                   {activeTab === "assets" && (
                     <div className="mb-3">
@@ -1017,9 +1029,9 @@ export default function AdminPage() {
                     </div>
                   )}
 
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <div className="flex-1 relative">
-                      <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                       {searchLoading && (
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
@@ -1035,44 +1047,45 @@ export default function AdminPage() {
                             : "Search users..."
                         }
                         value={searchTerm}
-                        onChange={(e) => handleSearchInputChange(e.target.value)}
+                        onChange={(e) =>
+                          handleSearchInputChange(e.target.value)
+                        }
                         onKeyPress={handleSearchKeyPress}
-                        className={`w-full pl-7 pr-24 py-1.5 border rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 transition-colors ${
-                          searchTerm ? 'border-blue-300 bg-blue-50' : 'border-gray-300 bg-white'
+                        className={`w-full pl-10 pr-24 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 transition-all duration-200 ${
+                          searchTerm ? "border-blue-300 bg-blue-50" : "bg-white"
                         }`}
                       />
                       <button
                         onClick={handleSearchSubmit}
                         disabled={searchLoading}
-                        className="absolute right-1 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 focus:ring-1 focus:ring-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="absolute right-1 top-1/2 transform -translate-y-1/2 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {searchLoading ? (
                           <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
                         ) : (
-                          'Search'
+                          "Search"
                         )}
                       </button>
-                                             {searchTerm && (
-                         <button
-                           onClick={handleClearSearch}
-                           className="absolute right-16 top-1/2 transform -translate-y-1/2 px-2 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 focus:ring-1 focus:ring-gray-400 transition-colors"
-                           title="Clear search"
-                         >
-                           ×
-                         </button>
-                       )}
+                      {searchTerm && (
+                        <button
+                          onClick={handleClearSearch}
+                          className="absolute right-16 top-1/2 transform -translate-y-1/2 px-2 py-1 bg-gray-500 text-white text-xs rounded-md hover:bg-gray-600 focus:ring-2 focus:ring-gray-500 transition-all duration-200"
+                          title="Clear search"
+                        >
+                          ×
+                        </button>
+                      )}
                     </div>
 
-
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-3">
                       {activeTab === "assets" && (
                         <>
                           <div className="relative">
-                            <Filter className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <select
                               value={filterType}
                               onChange={(e) => setFilterType(e.target.value)}
-                              className="pl-7 pr-5 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
+                              className="pl-10 pr-8 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 bg-white transition-all duration-200"
                             >
                               {assetType === "hardware" ? (
                                 <>
@@ -1104,7 +1117,7 @@ export default function AdminPage() {
                                   fetchSoftware(1, newLimit);
                                 }
                               }}
-                              className="px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
+                              className="px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 bg-white transition-all duration-200"
                             >
                               <option value={12}>12 per page</option>
                               <option value={24}>24 per page</option>
@@ -1129,10 +1142,10 @@ export default function AdminPage() {
                             : fetchUsers
                         }
                         disabled={loading}
-                        className="flex items-center px-2 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 focus:ring-1 focus:ring-gray-400 disabled:opacity-50 text-sm"
+                        className="flex items-center px-3 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 disabled:opacity-50 text-sm transition-all duration-200"
                       >
                         <RefreshCw
-                          className={`h-3.5 w-3.5 mr-1 ${
+                          className={`h-4 w-4 mr-1.5 ${
                             loading ? "animate-spin" : ""
                           }`}
                         />
@@ -1143,16 +1156,16 @@ export default function AdminPage() {
                         <>
                           <button
                             onClick={() => setShowCsvImportModal(true)}
-                            className="flex items-center px-2 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 focus:ring-1 focus:ring-gray-400 text-sm"
+                            className="flex items-center px-3 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 text-sm transition-all duration-200"
                           >
-                            <FileText className="h-3.5 w-3.5 mr-1" />
+                            <FileText className="h-4 w-4 mr-1.5" />
                             Import CSV
                           </button>
                           <button
                             onClick={() => setShowManualAssetModal(true)}
-                            className="flex items-center px-2 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 focus:ring-1 focus:ring-gray-400 text-sm"
+                            className="flex items-center px-3 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 text-sm transition-all duration-200"
                           >
-                            <Package className="h-3.5 w-3.5 mr-1" />
+                            <Package className="h-4 w-4 mr-1.5" />
                             Add Asset
                           </button>
                         </>
@@ -1394,7 +1407,8 @@ export default function AdminPage() {
                                         </div>
                                         <div>
                                           <h3 className="text-lg font-semibold text-gray-900">
-                                            {item.system?.hostname || "Unknown System"}
+                                            {item.system?.hostname ||
+                                              "Unknown System"}
                                           </h3>
                                           <p className="text-sm text-gray-500">
                                             {item.system?.platform} Software
@@ -1402,9 +1416,12 @@ export default function AdminPage() {
                                         </div>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-xs text-gray-500">MAC Address</p>
+                                        <p className="text-xs text-gray-500">
+                                          MAC Address
+                                        </p>
                                         <p className="text-sm font-mono text-gray-700">
-                                          {item.system?.mac_address || "Unknown"}
+                                          {item.system?.mac_address ||
+                                            "Unknown"}
                                         </p>
                                       </div>
                                     </div>
@@ -1413,44 +1430,62 @@ export default function AdminPage() {
                                       <div className="flex items-center space-x-2">
                                         <Package className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">Installed</p>
-                                          <p className="text-sm font-medium text-gray-900">
-                                            {item.installed_software?.length || 0}
+                                          <p className="text-xs text-gray-500">
+                                            Installed
                                           </p>
-                                          <p className="text-xs text-gray-500">packages</p>
+                                          <p className="text-sm font-medium text-gray-900">
+                                            {item.installed_software?.length ||
+                                              0}
+                                          </p>
+                                          <p className="text-xs text-gray-500">
+                                            packages
+                                          </p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center space-x-2">
                                         <Settings className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">Services</p>
+                                          <p className="text-xs text-gray-500">
+                                            Services
+                                          </p>
                                           <p className="text-sm font-medium text-gray-900">
                                             {item.services?.length || 0}
                                           </p>
-                                          <p className="text-xs text-gray-500">running</p>
+                                          <p className="text-xs text-gray-500">
+                                            running
+                                          </p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center space-x-2">
                                         <Play className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">Startup</p>
+                                          <p className="text-xs text-gray-500">
+                                            Startup
+                                          </p>
                                           <p className="text-sm font-medium text-gray-900">
                                             {item.startup_programs?.length || 0}
                                           </p>
-                                          <p className="text-xs text-gray-500">programs</p>
+                                          <p className="text-xs text-gray-500">
+                                            programs
+                                          </p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center space-x-2">
                                         <Monitor className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">Total</p>
-                                          <p className="text-sm font-medium text-gray-900">
-                                            {item.scan_metadata?.total_software_count || 0}
+                                          <p className="text-xs text-gray-500">
+                                            Total
                                           </p>
-                                          <p className="text-xs text-gray-500">items</p>
+                                          <p className="text-sm font-medium text-gray-900">
+                                            {item.scan_metadata
+                                              ?.total_software_count || 0}
+                                          </p>
+                                          <p className="text-xs text-gray-500">
+                                            items
+                                          </p>
                                         </div>
                                       </div>
                                     </div>
@@ -1459,12 +1494,15 @@ export default function AdminPage() {
                                       <div className="text-xs text-gray-500">
                                         Last scan:{" "}
                                         {new Date(
-                                          item.scan_metadata?.last_updated || item.updatedAt
+                                          item.scan_metadata?.last_updated ||
+                                            item.updatedAt
                                         ).toLocaleDateString()}
                                       </div>
                                       <div className="flex items-center space-x-1">
                                         <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                                        <span className="text-xs text-gray-600">Scanned</span>
+                                        <span className="text-xs text-gray-600">
+                                          Scanned
+                                        </span>
                                       </div>
                                     </div>
                                   </div>
@@ -1521,23 +1559,23 @@ export default function AdminPage() {
               </div>
             ) : activeTab === "users" ? (
               // Users Tab
-              <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         User
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Role
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Department
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Assigned Assets
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
                     </tr>
@@ -1742,10 +1780,10 @@ export default function AdminPage() {
                 fetchHardware(1);
               } else {
                 fetchSoftware(1);
-            }
-            setShowCsvImportModal(false);
-          }}
-        />
+              }
+              setShowCsvImportModal(false);
+            }}
+          />
         </LazyLoader>
       </div>
     </ProtectedRoute>
