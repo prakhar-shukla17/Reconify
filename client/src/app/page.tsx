@@ -53,7 +53,56 @@ export default function HomePage() {
         }}
       />
 
-      <header className="fixed top-0 w-full bg-white/90 backdrop-blur-xl border-b border-gray-100/50 z-50 transition-all duration-300">
+      {/* Sidebar */}
+      <div className="fixed left-4 top-4 bottom-4 w-64 bg-black rounded-3xl z-40 shadow-2xl border border-gray-800/20">
+        <div className="p-6">
+          {/* App Name with Icon */}
+          <div className="flex items-center justify-center mb-8">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-900">
+                  <circle cx="12" cy="12" r="10"/>
+                  <circle cx="12" cy="12" r="6"/>
+                  <circle cx="12" cy="12" r="2"/>
+                </svg>
+              </div>
+              <span className="text-white font-bold text-lg tracking-wider">RECONIFY</span>
+            </div>
+          </div>
+
+          {/* Monitoring Tiles */}
+          <div className="space-y-3">
+            <Link
+              href="/"
+              className="group flex items-center space-x-3 p-4 rounded-2xl bg-gray-900/80 cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-gray-900"
+            >
+              <div className="w-1 h-6 bg-blue-500 rounded-full shadow-sm"></div>
+              <Monitor className="h-5 w-5 text-white" />
+              <span className="text-white font-medium text-sm">Asset Monitoring</span>
+            </Link>
+
+            <Link
+              href="/patches"
+              className="group flex items-center space-x-3 p-4 rounded-2xl hover:bg-gray-900/80 cursor-pointer shadow-md hover:shadow-lg transition-all duration-300"
+            >
+              <div className="w-1 h-6 bg-transparent rounded-full"></div>
+              <Shield className="h-5 w-5 text-gray-400 group-hover:text-white" />
+              <span className="text-gray-400 group-hover:text-white font-medium text-sm">Patch Monitoring</span>
+            </Link>
+
+            <Link
+              href="/network"
+              className="group flex items-center space-x-3 p-4 rounded-2xl hover:bg-gray-900/80 cursor-pointer shadow-md hover:shadow-lg transition-all duration-300"
+            >
+              <div className="w-1 h-6 bg-transparent rounded-full"></div>
+              <Activity className="h-5 w-5 text-gray-400 group-hover:text-white" />
+              <span className="text-gray-400 group-hover:text-white font-medium text-sm">Network Monitoring</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <header className="fixed top-0 left-72 right-0 bg-white/90 backdrop-blur-xl border-b border-gray-100/50 z-50 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3 group">
@@ -82,7 +131,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="pt-16 relative">
+      <main className="pt-16 relative ml-72">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="pt-24 pb-20 text-center relative">
             <div className="fade-in opacity-0 translate-y-8">
@@ -212,7 +261,7 @@ export default function HomePage() {
         </div>
       </main>
 
-      <footer className="border-t border-gray-100 py-16 bg-gray-50/50">
+      <footer className="border-t border-gray-100 py-16 bg-gray-50/50 ml-72">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
           <div className="flex items-center justify-center space-x-3 mb-6">
             <div className="w-8 h-8 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center">
