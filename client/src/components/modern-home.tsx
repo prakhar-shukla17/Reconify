@@ -1,31 +1,31 @@
-"use client";
+"use client"
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "../contexts/AuthContext";
-import Link from "next/link";
-import { Monitor, Shield, Users, Package, ArrowRight } from "lucide-react";
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "../contexts/AuthContext"
+import Link from "next/link"
+import { Monitor, Shield, Users, Package, ArrowRight } from "lucide-react"
 
 export default function Home() {
-  const { isAuthenticated, loading } = useAuth();
-  const router = useRouter();
+  const { isAuthenticated, loading } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
     if (isAuthenticated && !loading) {
-      router.push("/dashboard");
+      router.push("/dashboard")
     }
-  }, [isAuthenticated, loading, router]);
+  }, [isAuthenticated, loading, router])
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
       </div>
-    );
+    )
   }
 
   if (isAuthenticated) {
-    return null;
+    return null
   }
 
   return (
@@ -38,9 +38,7 @@ export default function Home() {
               <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-xl">IT</span>
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Asset Manager
-              </h1>
+              <h1 className="text-2xl font-bold text-gray-900">Asset Manager</h1>
             </div>
             <div className="flex space-x-4">
               <Link
@@ -68,9 +66,8 @@ export default function Home() {
             <span className="text-blue-600"> Made Simple</span>
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Comprehensive hardware tracking, user management, and asset
-            monitoring for modern IT organizations. Keep track of every device,
-            every user, every detail.
+            Comprehensive hardware tracking, user management, and asset monitoring for modern IT organizations. Keep
+            track of every device, every user, every detail.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -95,13 +92,10 @@ export default function Home() {
             <div className="h-16 w-16 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-6">
               <Monitor className="h-8 w-8 text-blue-600" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              Hardware Tracking
-            </h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Hardware Tracking</h3>
             <p className="text-gray-600">
-              Automatically discover and track all hardware components including
-              CPU, memory, storage, and network interfaces across your
-              organization.
+              Automatically discover and track all hardware components including CPU, memory, storage, and network
+              interfaces across your organization.
             </p>
           </div>
 
@@ -109,12 +103,10 @@ export default function Home() {
             <div className="h-16 w-16 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-6">
               <Users className="h-8 w-8 text-green-600" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              User Management
-            </h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">User Management</h3>
             <p className="text-gray-600">
-              Manage user accounts, assign assets, and control access with
-              role-based permissions for users and administrators.
+              Manage user accounts, assign assets, and control access with role-based permissions for users and
+              administrators.
             </p>
           </div>
 
@@ -122,12 +114,10 @@ export default function Home() {
             <div className="h-16 w-16 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-6">
               <Shield className="h-8 w-8 text-purple-600" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              Admin Controls
-            </h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Admin Controls</h3>
             <p className="text-gray-600">
-              Comprehensive admin dashboard to manage all assets, assign devices
-              to users, and monitor system-wide statistics and performance.
+              Comprehensive admin dashboard to manage all assets, assign devices to users, and monitor system-wide
+              statistics and performance.
             </p>
           </div>
 
@@ -135,12 +125,10 @@ export default function Home() {
             <div className="h-16 w-16 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-6">
               <Package className="h-8 w-8 text-red-600" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              Asset Assignment
-            </h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Asset Assignment</h3>
             <p className="text-gray-600">
-              Easily assign and track which devices belong to which users, with
-              detailed hardware specifications and usage monitoring.
+              Easily assign and track which devices belong to which users, with detailed hardware specifications and
+              usage monitoring.
             </p>
           </div>
 
@@ -148,12 +136,10 @@ export default function Home() {
             <div className="h-16 w-16 bg-yellow-100 rounded-lg flex items-center justify-center mx-auto mb-6">
               <Monitor className="h-8 w-8 text-yellow-600" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              Real-time Monitoring
-            </h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Real-time Monitoring</h3>
             <p className="text-gray-600">
-              Monitor system health, performance metrics, and hardware status in
-              real-time with automated scanning and reporting.
+              Monitor system health, performance metrics, and hardware status in real-time with automated scanning and
+              reporting.
             </p>
           </div>
 
@@ -161,25 +147,19 @@ export default function Home() {
             <div className="h-16 w-16 bg-indigo-100 rounded-lg flex items-center justify-center mx-auto mb-6">
               <Shield className="h-8 w-8 text-indigo-600" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              Secure Access
-            </h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Secure Access</h3>
             <p className="text-gray-600">
-              Role-based authentication ensures users only see their assigned
-              assets while administrators have full system visibility and
-              control.
+              Role-based authentication ensures users only see their assigned assets while administrators have full
+              system visibility and control.
             </p>
           </div>
         </div>
 
         {/* CTA Section */}
         <div className="mt-20 bg-blue-600 rounded-2xl p-8 md:p-12 text-center text-white">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Ready to Get Started?
-          </h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Get Started?</h2>
           <p className="text-xl mb-8 opacity-90">
-            Join organizations already using our IT Asset Management system to
-            streamline their operations.
+            Join organizations already using our IT Asset Management system to streamline their operations.
           </p>
           <Link
             href="/register"
@@ -206,5 +186,5 @@ export default function Home() {
         </div>
       </footer>
     </div>
-  );
+  )
 }
