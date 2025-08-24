@@ -11,6 +11,7 @@ import AlertsPanel from "../../components/AlertsPanel";
 import CreateTicketModal from "../../components/CreateTicketModal";
 import TicketCard from "../../components/TicketCard";
 import MLServiceControlPanel from "../../components/MLServiceControlPanel";
+import Pagination from "../../components/Pagination";
 import { hardwareAPI, softwareAPI, ticketsAPI, authAPI } from "../../lib/api";
 import toast from "react-hot-toast";
 
@@ -42,6 +43,9 @@ import {
   Download,
   Clock,
   X,
+  BarChart3,
+  Calendar,
+  AlertTriangle,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -49,11 +53,28 @@ export default function DashboardPage() {
   const [hardware, setHardware] = useState([]);
   const [software, setSoftware] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [paginationLoading, setPaginationLoading] = useState(false);
   const [selectedHardware, setSelectedHardware] = useState(null);
   const [selectedSoftware, setSelectedSoftware] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [activeTab, setActiveTab] = useState("hardware");
+
+  // Asset pagination state
+  const [assetPagination, setAssetPagination] = useState({
+    currentPage: 1,
+    itemsPerPage: 12,
+    totalPages: 1,
+    totalItems: 0
+  });
+
+  // Asset cache for better performance
+  const [assetCache, setAssetCache] = useState(new Map());
+
+  // Generate cache key for assets
+  const getAssetCacheKey = useCallback((type, page, limit, search, filter) => {
+    return `${type}-${page}-${limit}-${search || 'none'}-${filter || 'all'}`;
+  }, []);
 
   const [tickets, setTickets] = useState([]);
   const [showCreateTicketModal, setShowCreateTicketModal] = useState(false);
@@ -254,13 +275,82 @@ export default function DashboardPage() {
 
 
 
+  // Pagination handlers for assets
+  const handleAssetPageChange = (newPage) => {
+    setPaginationLoading(true);
+    setAssetPagination(prev => ({ ...prev, currentPage: newPage }));
+    
+    // Scroll to top of assets section when page changes
+    setTimeout(() => {
+      const assetsSection = document.querySelector('[data-assets-section]');
+      if (assetsSection) {
+        assetsSection.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    }, 100); // Small delay to ensure state update completes
+  };
+
+  const handleAssetItemsPerPageChange = (newItemsPerPage) => {
+    setPaginationLoading(true);
+    setAssetPagination(prev => ({ 
+      ...prev, 
+      itemsPerPage: newItemsPerPage,
+      currentPage: 1 // Reset to first page
+    }));
+    
+    // Scroll to top of assets section when items per page changes
+    setTimeout(() => {
+      const assetsSection = document.querySelector('[data-assets-section]');
+      if (assetsSection) {
+        assetsSection.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    }, 100); // Small delay to ensure state update completes
+  };
+
+  // Fetch assets when pagination changes
   useEffect(() => {
     if (activeTab === "hardware") {
-      fetchHardware();
+      fetchHardware(assetPagination.currentPage, assetPagination.itemsPerPage);
+    } else if (activeTab === "software") {
+      fetchSoftware(assetPagination.currentPage, assetPagination.itemsPerPage);
+    }
+  }, [assetPagination.currentPage, assetPagination.itemsPerPage, activeTab]);
+
+  // Reset pagination when search or filter changes
+  useEffect(() => {
+    setAssetPagination(prev => ({ ...prev, currentPage: 1 }));
+    
+    // Clear cache when filters change for fresh results
+    setAssetCache(new Map());
+  }, [searchTerm, filterType]);
+
+  // Debounced search effect for better performance
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm && activeTab !== "tickets") {
+        if (activeTab === "hardware") {
+          fetchHardware(1, assetPagination.itemsPerPage);
+        } else if (activeTab === "software") {
+          fetchSoftware(1, assetPagination.itemsPerPage);
+        }
+      }
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, activeTab]);
+
+  useEffect(() => {
+    if (activeTab === "hardware") {
+      fetchHardware(1, assetPagination.itemsPerPage);
       fetchDashboardStats();
       fetchAssignmentStats();
     } else if (activeTab === "software") {
-      fetchSoftware();
+      fetchSoftware(1, assetPagination.itemsPerPage);
     } else if (activeTab === "tickets") {
       fetchTickets();
     }
@@ -285,16 +375,61 @@ export default function DashboardPage() {
 
 
 
-  const fetchHardware = async () => {
+  const fetchHardware = async (page = 1, limit = assetPagination.itemsPerPage) => {
     try {
       setLoading(true);
-      const response = await hardwareAPI.getAll();
-      setHardware(response.data.data || []);
+      
+      // Check cache first
+      const cacheKey = getAssetCacheKey('hardware', page, limit, searchTerm, filterType);
+      const cached = assetCache.get(cacheKey);
+      
+      if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) { // 5 minutes cache
+        setHardware(cached.data);
+        setAssetPagination(prev => ({
+          ...prev,
+          currentPage: cached.pagination.currentPage,
+          totalPages: cached.pagination.totalPages,
+          totalItems: cached.pagination.totalItems,
+          itemsPerPage: cached.pagination.itemsPerPage
+        }));
+        setLoading(false);
+        setPaginationLoading(false);
+        return;
+      }
+      
+      const response = await hardwareAPI.getAll({ 
+        page, 
+        limit,
+        search: searchTerm,
+        filter: filterType 
+      });
+      
+      const hardwareData = response.data.data || [];
+      setHardware(hardwareData);
+      
+      // Update pagination state from server response
+      if (response.data.pagination) {
+        setAssetPagination(prev => ({
+          ...prev,
+          currentPage: response.data.pagination.currentPage,
+          totalPages: response.data.pagination.totalPages,
+          totalItems: response.data.pagination.totalItems,
+          itemsPerPage: response.data.pagination.itemsPerPage
+        }));
+        
+        // Cache the result
+        setAssetCache(prev => new Map(prev).set(cacheKey, {
+          data: hardwareData,
+          pagination: response.data.pagination,
+          timestamp: Date.now()
+        }));
+      }
     } catch (error) {
       console.error("Error fetching hardware:", error);
       toast.error("Failed to load hardware data");
     } finally {
       setLoading(false);
+      setPaginationLoading(false);
     }
   };
 
@@ -316,47 +451,97 @@ export default function DashboardPage() {
     }
   };
 
-  const fetchSoftware = async () => {
+  const fetchSoftware = async (page = 1, limit = assetPagination.itemsPerPage) => {
     try {
       setLoading(true);
-      const response = await softwareAPI.getAll();
-      setSoftware(response.data.data || []);
+      
+      // Check cache first
+      const cacheKey = getAssetCacheKey('software', page, limit, searchTerm, filterType);
+      const cached = assetCache.get(cacheKey);
+      
+      if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) { // 5 minutes cache
+        setSoftware(cached.data);
+        setAssetPagination(prev => ({
+          ...prev,
+          currentPage: cached.pagination.currentPage,
+          totalPages: cached.pagination.totalPages,
+          totalItems: cached.pagination.totalItems,
+          itemsPerPage: cached.pagination.itemsPerPage
+        }));
+        setLoading(false);
+        setPaginationLoading(false);
+        return;
+      }
+      
+      const response = await softwareAPI.getAll({ 
+        page, 
+        limit,
+        search: searchTerm,
+        filter: filterType 
+      });
+      
+      const softwareData = response.data.data || [];
+      setSoftware(softwareData);
+      
+      // Update pagination state from server response
+      if (response.data.pagination) {
+        setAssetPagination(prev => ({
+          ...prev,
+          currentPage: response.data.pagination.currentPage,
+          totalPages: response.data.pagination.totalPages,
+          totalItems: response.data.pagination.totalItems,
+          itemsPerPage: response.data.pagination.itemsPerPage
+        }));
+        
+        // Cache the result
+        setAssetCache(prev => new Map(prev).set(cacheKey, {
+          data: softwareData,
+          pagination: response.data.pagination,
+          timestamp: Date.now()
+        }));
+      }
     } catch (error) {
       console.error("Error fetching software:", error);
       toast.error("Failed to load software data");
     } finally {
       setLoading(false);
+      setPaginationLoading(false);
     }
   };
 
-  const filteredHardware = hardware.filter((item) => {
-    const matchesSearch =
-      item.system?.hostname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.system?.mac_address
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      item.cpu?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+  // Memoized filtered results for better performance
+  const filteredHardware = useMemo(() => {
+    return hardware.filter((item) => {
+      const matchesSearch =
+        item.system?.hostname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.system?.mac_address
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        item.cpu?.name?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesFilter =
-      filterType === "all" ||
-      (filterType === "desktop" &&
-        item.system?.platform?.toLowerCase().includes("windows")) ||
-      (filterType === "laptop" && item.power_thermal?.battery) ||
-      (filterType === "server" &&
-        item.system?.platform?.toLowerCase().includes("linux"));
+      const matchesFilter =
+        filterType === "all" ||
+        (filterType === "desktop" &&
+          item.system?.platform?.toLowerCase().includes("windows")) ||
+        (filterType === "laptop" && item.power_thermal?.battery) ||
+        (filterType === "server" &&
+          item.system?.platform?.toLowerCase().includes("linux"));
 
-    return matchesSearch && matchesFilter;
-  });
+      return matchesSearch && matchesFilter;
+    });
+  }, [hardware, searchTerm, filterType]);
 
-  const filteredSoftware = software.filter((item) => {
-    const matchesSearch =
-      item.system?.hostname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.system?.mac_address
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase());
+  const filteredSoftware = useMemo(() => {
+    return software.filter((item) => {
+      const matchesSearch =
+        item.system?.hostname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.system?.mac_address
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase());
 
-    return matchesSearch;
-  });
+      return matchesSearch;
+    });
+  }, [software, searchTerm, filterType]);
 
   const getSystemStats = () => {
     if (activeTab === "hardware") {
@@ -1113,106 +1298,58 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Search and Filter Bar */}
-            <div className="bg-white rounded border border-gray-200 p-3 mb-4">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search by hostname, MAC address, or CPU..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-7 pr-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
-                  />
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <div className="relative">
-                    <Filter className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <select
-                      value={filterType}
-                      onChange={(e) => setFilterType(e.target.value)}
-                      className="pl-7 pr-5 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
-                    >
-                      <option value="all">All Types</option>
-                      <option value="desktop">Desktops</option>
-                      <option value="laptop">Laptops</option>
-                      <option value="server">Servers</option>
-                    </select>
-                  </div>
-
-                  <button
-                    onClick={fetchHardware}
-                    disabled={loading}
-                    className="flex items-center px-2 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 focus:ring-1 focus:ring-gray-400 disabled:opacity-50 text-sm"
-                  >
-                    <RefreshCw
-                      className={`h-3.5 w-3.5 mr-1 ${
-                        loading ? "animate-spin" : ""
-                      }`}
-                    />
-                    Refresh
-                  </button>
-                </div>
-              </div>
-            </div>
-
             {/* Content Grid */}
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              </div>
-            ) : activeTab === "alerts" ? (
-              <AlertsPanel />
-            ) : activeTab === "tickets" ? (
-              <div>
-                {/* Create Ticket Button */}
-                <div className="mb-6 flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    Your Support Tickets
-                  </h2>
-                                     <div className="flex items-center space-x-3">
-                     <div className="flex items-center space-x-2">
-                       <button
-                         onClick={() => fetchTickets(true)}
-                         disabled={ticketLoading}
-                         className="text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                       >
-                         {ticketLoading ? (
-                           <div className="flex items-center space-x-2">
-                             <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-600"></div>
-                             <span>Loading...</span>
-                           </div>
-                         ) : (
-                           <div className="flex items-center space-x-2">
-                             <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                             </svg>
-                             <span>Refresh</span>
-                           </div>
-                         )}
-                       </button>
-                       
-                       {/* Last Updated Indicator */}
-                       <div className="text-xs text-gray-500 flex items-center space-x-1">
-                         <Clock className="h-3 w-3" />
-                         <span>
-                           Last updated: {lastTicketFetch ? new Date(lastTicketFetch).toLocaleTimeString() : 'Never'}
-                         </span>
-                         {activeTab === "tickets" && (
-                           <div className="flex items-center space-x-1">
-                             <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-                             <span className="text-green-600">Auto-refresh active</span>
-                           </div>
-                         )}
-                       </div>
-                     </div>
+            <div data-assets-section>
+              {activeTab === "alerts" ? (
+                <AlertsPanel />
+              ) : activeTab === "tickets" ? (
+                <div>
+                  {/* Create Ticket Button */}
+                  <div className="mb-6 flex justify-between items-center">
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      Your Support Tickets
+                    </h2>
+                    <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => fetchTickets(true)}
+                          disabled={ticketLoading}
+                          className="text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                        >
+                          {ticketLoading ? (
+                            <div className="flex items-center space-x-2">
+                              <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-600"></div>
+                              <span>Loading...</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-2">
+                              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                              <span>Refresh</span>
+                            </div>
+                          )}
+                        </button>
+                        
+                        {/* Last Updated Indicator */}
+                        <div className="text-xs text-gray-500 flex items-center space-x-1">
+                          <Clock className="h-3 w-3" />
+                          <span>
+                            Last updated: {lastTicketFetch ? new Date(lastTicketFetch).toLocaleTimeString() : 'Never'}
+                          </span>
+                          {activeTab === "tickets" && (
+                            <div className="flex items-center space-x-1">
+                              <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+                              <span className="text-green-600">Auto-refresh active</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     
-                                         {/* Export Buttons */}
-                     {tickets.length > 0 && (
-                       <div className="flex items-center space-x-2">
-                                                   <button
+                      {/* Export Buttons */}
+                      {tickets.length > 0 && (
+                        <div className="flex items-center space-x-2">
+                          <button
                             onClick={async () => {
                               // Always fetch fresh data before export
                               try {
@@ -1266,194 +1403,146 @@ export default function DashboardPage() {
                                 setCachedTickets(sortedTickets);
                                 
                                 // Export fresh data
-                                exportTicketStatsToCSV(sortedTickets, 'ticket_statistics');
-                                toast.success('Exported ticket statistics to CSV (fresh data)');
+                                exportTicketsResolvedToday(sortedTickets);
+                                toast.success(`Exported ${sortedTickets.filter(t => t.status === "Resolved").length} resolved tickets from today`);
                               } catch (error) {
                                 console.error('Error fetching fresh tickets for export:', error);
                                 // Fallback to cached data
-                                exportTicketStatsToCSV(tickets, 'ticket_statistics');
-                                toast.success('Exported ticket statistics to CSV (cached data)');
+                                exportTicketsResolvedToday(tickets);
+                                toast.success(`Exported ${tickets.filter(t => t.status === "Resolved").length} resolved tickets from today (cached data)`);
+                              }
+                            }}
+                            disabled={ticketLoading}
+                            className="text-xs border border-blue-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                            title="Export resolved tickets from today (with fresh data)"
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Today's Resolved
+                          </button>
+                          <button
+                            onClick={async () => {
+                              // Always fetch fresh data before export
+                              try {
+                                const response = await ticketsAPI.getAll();
+                                const freshTickets = response.data.data || [];
+                                const sortedTickets = freshTickets.sort((a, b) => {
+                                  const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+                                  const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                                  if (aIsClosed && !bIsClosed) return 1;
+                                  if (!aIsClosed && bIsClosed) return -1;
+                                  return 0;
+                                });
+                                
+                                // Update local state with fresh data
+                                setTickets(sortedTickets);
+                                setCachedTickets(sortedTickets);
+                                
+                                // Export fresh data
+                                exportTicketStatsToCSV(sortedTickets);
+                                toast.success(`Exported ticket statistics to CSV (fresh data)`);
+                              } catch (error) {
+                                console.error('Error fetching fresh tickets for export:', error);
+                                // Fallback to cached data
+                                exportTicketStatsToCSV(tickets);
+                                toast.success(`Exported ticket statistics to CSV (cached data)`);
                               }
                             }}
                             disabled={ticketLoading}
                             className="text-xs border border-purple-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-700 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
                             title="Export ticket statistics to CSV (with fresh data)"
                           >
-                            <Download className="h-3 w-3 mr-1" />
-                            Export Stats
+                            <BarChart3 className="h-3 w-3 mr-1" />
+                            Statistics
                           </button>
-                          
-                          {/* Export Filtered Tickets Button */}
                           <button
-                            onClick={() => {
-                              if (filteredTickets.length === 0) {
-                                toast.error('No filtered tickets to export');
-                                return;
+                            onClick={async () => {
+                              // Always fetch fresh data before export
+                              try {
+                                const response = await ticketsAPI.getAll();
+                                const freshTickets = response.data.data || [];
+                                const sortedTickets = freshTickets.sort((a, b) => {
+                                  const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+                                  const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                                  if (aIsClosed && !bIsClosed) return 1;
+                                  if (!aIsClosed && bIsClosed) return -1;
+                                  return 0;
+                                });
+                                
+                                // Update local state with fresh data
+                                setTickets(sortedTickets);
+                                setCachedTickets(sortedTickets);
+                                
+                                // Export fresh data
+                                exportTicketsByTimePeriod(sortedTickets);
+                                toast.success(`Exported tickets by time period to CSV (fresh data)`);
+                              } catch (error) {
+                                console.error('Error fetching fresh tickets for export:', error);
+                                // Fallback to cached data
+                                exportTicketsByTimePeriod(tickets);
+                                toast.success(`Exported tickets by time period to CSV (cached data)`);
                               }
-                              exportTicketsToCSV(filteredTickets, 'filtered_tickets');
-                              toast.success(`Exported ${filteredTickets.length} filtered tickets to CSV`);
                             }}
-                            disabled={ticketLoading || filteredTickets.length === 0}
-                            className="text-xs border border-indigo-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
-                            title="Export currently filtered tickets to CSV"
+                            disabled={ticketLoading}
+                            className="text-xs border border-orange-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500 text-orange-700 bg-orange-50 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                            title="Export tickets by time period to CSV (with fresh data)"
                           >
-                            <Download className="h-3 w-3 mr-1" />
-                            Export Filtered
+                            <Calendar className="h-3 w-3 mr-1" />
+                            By Period
                           </button>
-                         
-                         {/* Time-based Export Buttons */}
-                         <div className="flex items-center space-x-1">
-                           <button
-                             onClick={async () => {
-                               // Always fetch fresh data before export
-                               try {
-                                 const response = await ticketsAPI.getAll();
-                                 const freshTickets = response.data.data || [];
-                                 const sortedTickets = freshTickets.sort((a, b) => {
-                                   const aIsClosed = a.status === "Closed" || a.status === "Rejected";
-                                   const bIsClosed = b.status === "Closed" || b.status === "Rejected";
-                                   if (aIsClosed && !bIsClosed) return 1;
-                                   if (!aIsClosed && bIsClosed) return -1;
-                                   return 0;
-                                 });
-                                 
-                                 // Update local state with fresh data
-                                 setTickets(sortedTickets);
-                                 setCachedTickets(sortedTickets);
-                                 
-                                 // Export fresh data
-                                 const count = exportTicketsResolvedToday(sortedTickets, 'tickets_resolved_today');
-                                 toast.success(`Exported ${count} tickets resolved today to CSV (fresh data)`);
-                               } catch (error) {
-                                 console.error('Error fetching fresh tickets for export:', error);
-                                 // Fallback to cached data
-                                 const count = exportTicketsResolvedToday(tickets, 'tickets_resolved_today');
-                                 toast.success(`Exported ${count} tickets resolved today to CSV (cached data)`);
-                               }
-                             }}
-                             disabled={ticketLoading}
-                             className="text-xs border border-blue-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
-                             title="Export tickets resolved today (with fresh data)"
-                           >
-                             <Download className="h-3 w-3 mr-1" />
-                             Today
-                           </button>
-                           <button
-                             onClick={async () => {
-                               // Always fetch fresh data before export
-                               try {
-                                 const response = await ticketsAPI.getAll();
-                                 const freshTickets = response.data.data || [];
-                                 const sortedTickets = freshTickets.sort((a, b) => {
-                                   const aIsClosed = a.status === "Closed" || a.status === "Rejected";
-                                   const bIsClosed = b.status === "Closed" || b.status === "Rejected";
-                                   if (aIsClosed && !bIsClosed) return 1;
-                                   if (!aIsClosed && bIsClosed) return -1;
-                                   return 0;
-                                 });
-                                 
-                                 // Update local state with fresh data
-                                 setTickets(sortedTickets);
-                                 setCachedTickets(sortedTickets);
-                                 
-                                 // Export fresh data
-                                 const count = exportTicketsByTimePeriod(sortedTickets, '7d', 'tickets_last_7_days');
-                                 toast.success(`Exported ${count} tickets from last 7 days to CSV (fresh data)`);
-                               } catch (error) {
-                                 console.error('Error fetching fresh tickets for export:', error);
-                                 // Fallback to cached data
-                                 const count = exportTicketsByTimePeriod(tickets, '7d', 'tickets_last_7_days');
-                                 toast.success(`Exported ${count} tickets from last 7 days to CSV (cached data)`);
-                               }
-                             }}
-                             disabled={ticketLoading}
-                             className="text-xs border border-orange-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-orange-700 bg-orange-50 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
-                             title="Export tickets from last 7 days (with fresh data)"
-                           >
-                             <Download className="h-3 w-3 mr-1" />
-                             7 Days
-                           </button>
-                           <button
-                             onClick={async () => {
-                               // Always fetch fresh data before export
-                               try {
-                                 const response = await ticketsAPI.getAll();
-                                 const freshTickets = response.data.data || [];
-                                 const sortedTickets = freshTickets.sort((a, b) => {
-                                   const aIsClosed = a.status === "Closed" || a.status === "Rejected";
-                                   const bIsClosed = b.status === "Closed" || b.status === "Rejected";
-                                   if (aIsClosed && !bIsClosed) return 1;
-                                   if (!aIsClosed && bIsClosed) return -1;
-                                   return 0;
-                                 });
-                                 
-                                 // Update local state with fresh data
-                                 setTickets(sortedTickets);
-                                 setCachedTickets(sortedTickets);
-                                 
-                                 // Export fresh data
-                                 const count = exportTicketsBySLACompliance(sortedTickets, 'compliant', 'sla_compliant_tickets');
-                                 toast.success(`Exported ${count} SLA compliant tickets to CSV (fresh data)`);
-                               } catch (error) {
-                                 console.error('Error fetching fresh tickets for export:', error);
-                                 // Fallback to cached data
-                                 const count = exportTicketsBySLACompliance(tickets, 'compliant', 'sla_compliant_tickets');
-                                 toast.success(`Exported ${count} SLA compliant tickets to CSV (cached data)`);
-                               }
-                             }}
-                             disabled={ticketLoading}
-                             className="text-xs border border-emerald-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
-                             title="Export SLA compliant tickets (with fresh data)"
-                           >
-                             <Download className="h-3 w-3 mr-1" />
-                             SLA OK
-                           </button>
-                         </div>
-                       </div>
-                     )}
-                    
-                  <button
-                    onClick={() => setShowCreateTicketModal(true)}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-colors"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Ticket
-                  </button>
-                  </div>
-                </div>
-
-                {/* Advanced Filter Controls */}
-                {tickets.length > 0 && (
-                  <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                      {/* Search Input */}
-                      <div className="lg:col-span-2">
-                                               <label className="block text-xs font-medium text-gray-900 mb-1">
-                         Search Tickets
-                       </label>
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          <input
-                            type="text"
-                            placeholder="Search by title, description, ID..."
-                            value={ticketFilters.searchTerm}
-                            onChange={(e) => setTicketFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-                            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
+                          <button
+                            onClick={async () => {
+                              // Always fetch fresh data before export
+                              try {
+                                const response = await ticketsAPI.getAll();
+                                const freshTickets = response.data.data || [];
+                                const sortedTickets = freshTickets.sort((a, b) => {
+                                  const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+                                  const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                                  if (aIsClosed && !bIsClosed) return 1;
+                                  if (!aIsClosed && bIsClosed) return -1;
+                                  return 0;
+                                });
+                                
+                                // Update local state with fresh data
+                                setTickets(sortedTickets);
+                                setCachedTickets(sortedTickets);
+                                
+                                // Export fresh data
+                                exportTicketsBySLACompliance(sortedTickets);
+                                toast.success(`Exported tickets by SLA compliance to CSV (fresh data)`);
+                              } catch (error) {
+                                console.error('Error fetching fresh tickets for export:', error);
+                                // Fallback to cached data
+                                exportTicketsBySLACompliance(tickets);
+                                toast.success(`Exported tickets by SLA compliance to CSV (cached data)`);
+                              }
+                            }}
+                            disabled={ticketLoading}
+                            className="text-xs border border-red-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-500 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                            title="Export tickets by SLA compliance to CSV (with fresh data)"
+                          >
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            SLA Compliance
+                          </button>
                         </div>
-                      </div>
+                      )}
+                    </div>
+                  </div>
 
+                  {/* Ticket Filters */}
+                  <div className="mb-6 bg-white rounded-lg border border-gray-200 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {/* Status Filter */}
-                                             <div>
-                         <label className="block text-xs font-medium text-gray-900 mb-1">
-                           Status
-                         </label>
-                                                 <select
-                           value={ticketFilters.status}
-                           onChange={(e) => setTicketFilters(prev => ({ ...prev, status: e.target.value }))}
-                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                         >
-                          <option value="all">All Status</option>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Status
+                        </label>
+                        <select
+                          value={ticketFilters.status}
+                          onChange={(e) => setTicketFilters(prev => ({ ...prev, status: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        >
+                          <option value="all">All Statuses</option>
                           <option value="Open">Open</option>
                           <option value="In Progress">In Progress</option>
                           <option value="Resolved">Resolved</option>
@@ -1462,17 +1551,17 @@ export default function DashboardPage() {
                         </select>
                       </div>
 
-                                             {/* Priority Filter */}
-                       <div>
-                         <label className="block text-xs font-medium text-gray-900 mb-1">
-                           Priority
-                         </label>
-                                                 <select
-                           value={ticketFilters.priority}
-                           onChange={(e) => setTicketFilters(prev => ({ ...prev, priority: e.target.value }))}
-                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                         >
-                          <option value="all">All Priority</option>
+                      {/* Priority Filter */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Priority
+                        </label>
+                        <select
+                          value={ticketFilters.priority}
+                          onChange={(e) => setTicketFilters(prev => ({ ...prev, priority: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        >
+                          <option value="all">All Priorities</option>
                           <option value="Low">Low</option>
                           <option value="Medium">Medium</option>
                           <option value="High">High</option>
@@ -1480,406 +1569,284 @@ export default function DashboardPage() {
                         </select>
                       </div>
 
-                                             {/* Date Range Filter */}
-                       <div>
-                         <label className="block text-xs font-medium text-gray-900 mb-1">
-                           Date Range
-                         </label>
-                                                 <select
-                           value={ticketFilters.dateRange}
-                           onChange={(e) => setTicketFilters(prev => ({ ...prev, dateRange: e.target.value }))}
-                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                         >
+                      {/* Category Filter */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Category
+                        </label>
+                        <select
+                          value={ticketFilters.category}
+                          onChange={(e) => setTicketFilters(prev => ({ ...prev, category: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        >
+                          <option value="all">All Categories</option>
+                          <option value="Hardware">Hardware</option>
+                          <option value="Software">Software</option>
+                          <option value="Network">Network</option>
+                          <option value="Account">Account</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+
+                      {/* Date Range Filter */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Date Range
+                        </label>
+                        <select
+                          value={ticketFilters.dateRange}
+                          onChange={(e) => setTicketFilters(prev => ({ ...prev, dateRange: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        >
                           <option value="all">All Time</option>
                           <option value="today">Today</option>
-                          <option value="week">Last 7 Days</option>
-                          <option value="month">Last 30 Days</option>
-                          <option value="quarter">Last 90 Days</option>
+                          <option value="week">This Week</option>
+                          <option value="month">This Month</option>
+                          <option value="quarter">This Quarter</option>
+                          <option value="year">This Year</option>
                         </select>
                       </div>
 
-                      {/* Clear Filters Button */}
-                      <div className="flex items-end">
-                        <button
-                          onClick={() => setTicketFilters({
-                            status: 'all',
-                            priority: 'all',
-                            searchTerm: '',
-                            dateRange: 'all'
-                          })}
-                                                     className="w-full px-3 py-2 text-sm text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      {/* Assigned To Filter */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Assigned To
+                        </label>
+                        <select
+                          value={ticketFilters.assignedTo}
+                          onChange={(e) => setTicketFilters(prev => ({ ...prev, assignedTo: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                         >
-                          Clear Filters
+                          <option value="all">All Users</option>
+                          {users.map((user) => (
+                            <option key={user._id} value={user._id}>
+                              {user.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Search Input */}
+                      <div className="md:col-span-2 lg:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Search Tickets
+                        </label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search by title, description, ID..."
+                            value={ticketFilters.searchTerm}
+                            onChange={(e) => setTicketFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Clear Filters Button */}
+                    {hasActiveFilters && (
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          onClick={() => {
+                            setTicketFilters({
+                              status: 'all',
+                              priority: 'all',
+                              category: 'all',
+                              searchTerm: '',
+                              dateRange: 'all',
+                              assignedTo: 'all'
+                            });
+                          }}
+                          className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                        >
+                          Clear All Filters
                         </button>
                       </div>
-                    </div>
-
-                                         {/* Filter Summary */}
-                     <div className="mt-3 flex items-center justify-between text-xs text-gray-800">
-                       <span>
-                         Showing {paginatedTickets.length} of {filteredTickets.length} tickets
-                         {ticketFilters.searchTerm && ` matching "${ticketFilters.searchTerm}"`}
-                         {ticketFilters.status !== 'all' && ` with status "${ticketFilters.status}"`}
-                         {hasActiveFilters && ticketFilters.status === 'all' && ` (excluding closed/rejected)`}
-                         {ticketFilters.priority !== 'all' && ` with priority "${ticketFilters.priority}"`}
-                         {ticketFilters.dateRange !== 'all' && ` from ${ticketFilters.dateRange}`}
-                       </span>
-                       <span className="text-green-700 font-medium">
-                         {filteredTickets.length > 0 && (
-                           `${((filteredTickets.length / tickets.length) * 100).toFixed(1)}% of total tickets`
-                         )}
-                       </span>
-                     </div>
-
-
-
-                     {/* Quick Actions */}
-                     <div className="mt-2 flex items-center space-x-4 text-xs">
-                       <span className="text-gray-800">Quick Actions:</span>
-                       <button
-                         onClick={() => setTicketFilters(prev => ({ ...prev, status: 'Open' }))}
-                         className="text-blue-700 hover:text-blue-900 hover:underline"
-                       >
-                         Show Open Tickets
-                       </button>
-                       <button
-                         onClick={() => setTicketFilters(prev => ({ ...prev, priority: 'Critical' }))}
-                         className="text-red-700 hover:text-red-900 hover:underline"
-                       >
-                         Show Critical Priority
-                       </button>
-                       <button
-                         onClick={() => setTicketFilters(prev => ({ ...prev, dateRange: 'today' }))}
-                         className="text-green-700 hover:text-green-900 hover:underline"
-                       >
-                         Show Today's Tickets
-                       </button>
-                       <button
-                         onClick={() => setTicketFilters(prev => ({ ...prev, status: 'Closed' }))}
-                         className="text-gray-700 hover:text-gray-900 hover:underline"
-                       >
-                         Show Closed Tickets
-                       </button>
-                     </div>
-
-
+                    )}
                   </div>
-                )}
 
-                {/* Tickets List */}
-                {tickets.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Ticket className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No support tickets found
-                    </h3>
-                    <p className="text-gray-500 mb-4">
-                      You haven't created any support tickets yet.
-                    </p>
-                    <button
-                      onClick={() => setShowCreateTicketModal(true)}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-colors"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Your First Ticket
-                    </button>
-                  </div>
-                ) : ticketLoading ? (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="bg-white rounded-lg shadow-md p-6 animate-pulse">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                          <div className="h-4 bg-gray-200 rounded w-16"></div>
-                        </div>
-                        <div className="h-3 bg-gray-200 rounded w-1/2 mb-3"></div>
-                        <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                  {/* Tickets List */}
+                  {ticketLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600">Loading tickets...</p>
                       </div>
-                    ))}
-                  </div>
-                ) : ticketError ? (
-                  <div className="text-center py-12">
-                    <AlertCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Failed to load tickets
-                    </h3>
-                    <p className="text-gray-500 mb-4">{ticketError}</p>
-                    <button
-                      onClick={() => fetchTickets(true)}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                ) : filteredTickets.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No tickets match your filters
-                    </h3>
-                    <p className="text-gray-500 mb-4">
-                      Try adjusting your search criteria or clearing some filters.
-                    </p>
-                    <button
-                      onClick={() => setTicketFilters({
-                        status: 'all',
-                        priority: 'all',
-                        searchTerm: '',
-                        dateRange: 'all'
-                      })}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      Clear All Filters
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {paginatedTickets.map((ticket) => (
-                      <TicketCard
-                        key={ticket._id}
-                        ticket={ticket}
-                        onClick={(ticket) => setSelectedTicket(ticket)}
-                        isAdmin={false}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {/* Pagination Controls */}
-                {filteredTickets.length > 0 && (
-                  <div className="mt-6 flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      {/* Items per page selector */}
-                      <div className="flex items-center space-x-2">
-                        <label className="text-sm text-gray-700">Show:</label>
-                        <select
-                          value={ticketPagination.itemsPerPage}
-                          onChange={(e) => {
-                            const newItemsPerPage = parseInt(e.target.value);
-                            setTicketPagination(prev => ({
-                              ...prev,
-                              itemsPerPage: newItemsPerPage,
-                              currentPage: 1, // Reset to first page
-                              totalPages: Math.ceil(filteredTickets.length / newItemsPerPage)
-                            }));
+                    </div>
+                  ) : ticketError ? (
+                    <div className="text-center py-12">
+                      <AlertCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Tickets</h3>
+                      <p className="text-gray-500 mb-4">{ticketError}</p>
+                      <button
+                        onClick={() => fetchTickets(true)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  ) : filteredTickets.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        {hasActiveFilters
+                          ? `No tickets found${ticketFilters.searchTerm && ` matching "${ticketFilters.searchTerm}"`}`
+                          : "No tickets found"}
+                      </h3>
+                      <p className="text-gray-500 mb-4">
+                        {hasActiveFilters
+                          ? "Try adjusting your search criteria or clearing some filters."
+                          : "No support tickets have been created yet."}
+                      </p>
+                      {hasActiveFilters && (
+                        <button
+                          onClick={() => {
+                            setTicketFilters({
+                              status: 'all',
+                              priority: 'all',
+                              category: 'all',
+                              searchTerm: '',
+                              dateRange: 'all',
+                              assignedTo: 'all'
+                            });
                           }}
-                                                     className="px-2 py-1 border border-gray-300 rounded text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                         >
-                          <option value={4}>4</option>
-                          <option value={8}>8</option>
-                          <option value={12}>12</option>
-                          <option value={16}>16</option>
-                          <option value={20}>20</option>
-                        </select>
-                        <span className="text-sm text-gray-800">per page</span>
+                          Clear All Filters
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      {/* Results Info */}
+                      <div className="mb-4 text-sm text-gray-600">
+                        Showing {filteredTickets.length} of {tickets.length} tickets
+                        {ticketFilters.searchTerm && ` matching "${ticketFilters.searchTerm}"`}
                       </div>
 
-                      {/* Page info */}
-                      <div className="text-sm text-gray-800">
-                        Page {ticketPagination.currentPage} of {ticketPagination.totalPages} 
-                        ({ticketPagination.totalItems} total tickets)
+                      {/* Tickets Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredTickets.map((ticket) => (
+                          <TicketCard
+                            key={ticket._id}
+                            ticket={ticket}
+                            onClick={setSelectedTicket}
+                            onStatusChange={handleTicketStatusChange}
+                            onPriorityChange={handleTicketPriorityChange}
+                            onCategoryChange={handleTicketCategoryChange}
+                            onAssignedToChange={handleTicketAssignedToChange}
+                            onDelete={handleTicketDelete}
+                            users={users}
+                            user={user}
+                          />
+                        ))}
                       </div>
-                    </div>
 
-                    {/* Pagination buttons */}
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => setTicketPagination(prev => ({
-                          ...prev,
-                          currentPage: Math.max(1, prev.currentPage - 1)
-                        }))}
-                        disabled={ticketPagination.currentPage === 1}
-                        className="px-3 py-2 text-sm text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500"
-                      >
-                        Previous
-                      </button>
-                      
-                      {/* Page numbers */}
-                      <div className="flex items-center space-x-1">
-                        {Array.from({ length: Math.min(5, ticketPagination.totalPages) }, (_, i) => {
-                          let pageNum;
-                          if (ticketPagination.totalPages <= 5) {
-                            pageNum = i + 1;
-                          } else if (ticketPagination.currentPage <= 3) {
-                            pageNum = i + 1;
-                          } else if (ticketPagination.currentPage >= ticketPagination.totalPages - 2) {
-                            pageNum = ticketPagination.totalPages - 4 + i;
-                          } else {
-                            pageNum = ticketPagination.currentPage - 2 + i;
-                          }
-                          
-                          return (
-                            <button
-                              key={pageNum}
-                              onClick={() => setTicketPagination(prev => ({
-                                ...prev,
-                                currentPage: pageNum
-                              }))}
-                              className={`px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 ${
-                                pageNum === ticketPagination.currentPage
-                                  ? 'bg-blue-600 text-white border-blue-600'
-                                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                              }`}
-                            >
-                              {pageNum}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      
-                      <button
-                        onClick={() => setTicketPagination(prev => ({
-                          ...prev,
-                          currentPage: Math.min(prev.totalPages, prev.currentPage + 1)
-                        }))}
-                        disabled={ticketPagination.currentPage === ticketPagination.totalPages}
-                        className="px-3 py-2 text-sm text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500"
-                      >
-                        Next
-                      </button>
+                      {/* Ticket Pagination */}
+                      {ticketPagination.totalPages > 1 && (
+                        <div className="mt-8">
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm text-gray-700">
+                              Page {ticketPagination.currentPage} of {ticketPagination.totalPages}
+                            </div>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => setTicketPagination(prev => ({
+                                  ...prev,
+                                  currentPage: Math.max(1, prev.currentPage - 1)
+                                }))}
+                                disabled={ticketPagination.currentPage === 1}
+                                className="px-3 py-2 text-sm text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500"
+                              >
+                                Previous
+                              </button>
+                              
+                              <button
+                                onClick={() => setTicketPagination(prev => ({
+                                  ...prev,
+                                  currentPage: Math.min(prev.totalPages, prev.currentPage + 1)
+                                }))}
+                                disabled={ticketPagination.currentPage === ticketPagination.totalPages}
+                                className="px-3 py-2 text-sm text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500"
+                              >
+                                Next
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-              </div>
-            ) : activeTab === "hardware" ? (
-              filteredHardware.length === 0 ? (
+                  )}
+                </div>
+              ) : activeTab === "hardware" ? (
                 <div className="text-center py-12">
                   <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No hardware assets found
+                    Hardware Assets
+                  </h3>
+                  <p className="text-gray-500">
+                    Hardware asset display has been removed from the dashboard.
+                  </p>
+                </div>
+              ) : filteredSoftware.length === 0 ? (
+                <div className="text-center py-12">
+                  <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {searchTerm || filterType !== "all"
+                      ? "No software data matches your criteria"
+                      : "No software data found"}
                   </h3>
                   <p className="text-gray-500">
                     {searchTerm || filterType !== "all"
-                      ? "Try adjusting your search or filter criteria."
-                      : user?.role === "admin"
-                      ? "No assets have been registered yet."
-                      : "No assets have been assigned to you yet."}
+                      ? "Try adjusting your search criteria."
+                      : "No software inventory data available yet."}
                   </p>
+                  {(searchTerm || filterType !== "all") && (
+                    <button
+                      onClick={() => {
+                        setSearchTerm("");
+                        setFilterType("all");
+                        fetchSoftware(1, assetPagination.itemsPerPage);
+                      }}
+                      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Clear Filters
+                    </button>
+                  )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredHardware.map((item) => (
-                    <HardwareCard
-                      key={item._id}
-                      hardware={item}
-                      onClick={setSelectedHardware}
-                    />
-                  ))}
+                <div className="text-center py-12">
+                  <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Software Assets
+                  </h3>
+                  <p className="text-gray-500">
+                    Software asset display has been removed from the dashboard.
+                  </p>
                 </div>
-              )
-            ) : filteredSoftware.length === 0 ? (
-              <div className="text-center py-12">
-                <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No software data found
-                </h3>
-                <p className="text-gray-500">
-                  {searchTerm
-                    ? "Try adjusting your search criteria."
-                    : "No software inventory data available yet."}
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredSoftware.map((item) => (
-                  <div
-                    key={item._id}
-                    className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border cursor-pointer"
-                    onClick={() => setSelectedSoftware(item)}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
-                          <Package className="h-6 w-6 text-green-600" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {item.system?.hostname || "Unknown System"}
-                          </h3>
-                          <p className="text-sm text-gray-500">
-                            {item.system?.platform} Software
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500">MAC Address</p>
-                        <p className="text-sm font-mono text-gray-700">
-                          {item.system?.mac_address || "Unknown"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className="flex items-center space-x-2">
-                        <Package className="h-4 w-4 text-gray-600" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs text-gray-500">Installed</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {item.installed_software?.length || 0}
-                          </p>
-                          <p className="text-xs text-gray-500">packages</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Settings className="h-4 w-4 text-gray-600" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs text-gray-500">Services</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {item.services?.length || 0}
-                          </p>
-                          <p className="text-xs text-gray-500">running</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Play className="h-4 w-4 text-gray-600" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs text-gray-500">Startup</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {item.startup_programs?.length || 0}
-                          </p>
-                          <p className="text-xs text-gray-500">programs</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Monitor className="h-4 w-4 text-gray-600" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs text-gray-500">Total</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {item.scan_metadata?.total_software_count || 0}
-                          </p>
-                          <p className="text-xs text-gray-500">items</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-center pt-4 border-t">
-                      <div className="text-xs text-gray-500">
-                        Last scan:{" "}
-                        {new Date(
-                          item.scan_metadata?.last_updated || item.updatedAt
-                        ).toLocaleDateString()}
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                        <span className="text-xs text-gray-600">Scanned</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Results Info */}
-            {!loading && activeTab !== "alerts" && (
+            {!loading && activeTab !== "alerts" && activeTab !== "tickets" && (
               <div className="mt-8 text-center text-sm text-gray-500">
                 {activeTab === "hardware"
-                  ? filteredHardware.length > 0 &&
-                    `Showing ${filteredHardware.length} of ${hardware.length} hardware assets`
-                  : filteredSoftware.length > 0 &&
-                    `Showing ${filteredSoftware.length} of ${software.length} software inventories`}
+                  ? `Showing ${hardware.length} of ${assetPagination.totalItems} hardware assets (Page ${assetPagination.currentPage} of ${assetPagination.totalPages})`
+                  : `Showing ${software.length} of ${assetPagination.totalItems} software inventories (Page ${assetPagination.currentPage} of ${assetPagination.totalPages})`}
+                
+                {assetPagination.totalItems > 1000 && (
+                  <div className="mt-2 text-xs text-blue-600">
+                    💡 Tip: Use search and filters to quickly find specific assets
+                  </div>
+                )}
+                
+                {/* Cache indicator */}
+                {assetCache.size > 0 && (
+                  <div className="mt-2 text-xs text-green-600">
+                    🚀 {assetCache.size} pages cached for faster loading
+                  </div>
+                )}
               </div>
             )}
 

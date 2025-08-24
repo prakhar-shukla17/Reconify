@@ -18,6 +18,7 @@ import HealthDashboard from "../../components/lazy/HealthDashboard.lazy";
 import MLServiceControlPanel from "../../components/lazy/MLServiceControlPanel.lazy";
 
 import LazyLoader from "../../components/LazyLoader";
+import Pagination from "../../components/Pagination";
 import { hardwareAPI, authAPI, ticketsAPI, softwareAPI, alertsAPI } from "../../lib/api";
 import toast from "react-hot-toast";
 
@@ -62,6 +63,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [paginationLoading, setPaginationLoading] = useState(false);
   const [selectedHardware, setSelectedHardware] = useState(null);
   const [selectedSoftware, setSelectedSoftware] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -90,9 +92,7 @@ export default function AdminPage() {
 
 
 
-  // Cache for asset data to prevent unnecessary API calls
-  const [assetCache, setAssetCache] = useState({});
-  const [lastFetchTime, setLastFetchTime] = useState({});
+
 
   // Enhanced ticket filtering and pagination state
   const [ticketFilters, setTicketFilters] = useState({
@@ -113,6 +113,17 @@ export default function AdminPage() {
 
   // Ref for the assets section to scroll to
   const assetsSectionRef = useRef(null);
+
+  // Asset pagination state
+  const [assetPagination, setAssetPagination] = useState({
+    currentPage: 1,
+    itemsPerPage: 12,
+    totalPages: 1,
+    totalItems: 0
+  });
+
+  // Asset cache for better performance
+  const [assetCache, setAssetCache] = useState(new Map());
 
   // Ticket optimization state
   const [ticketCache, setTicketCache] = useState(new Map());
@@ -365,21 +376,15 @@ export default function AdminPage() {
   useEffect(() => {
     if (activeTab === "assets") {
       if (assetType === "hardware") {
-        fetchHardware();
-        fetchDashboardStats();
+        fetchHardware(1, assetPagination.itemsPerPage);
       } else {
-        fetchSoftware();
-      }
-      // Only fetch users once when needed, not every time
-      if (users.length === 0) {
-        fetchUsers();
+        fetchSoftware(1, assetPagination.itemsPerPage);
       }
     } else if (activeTab === "users") {
       fetchUsers();
     } else if (activeTab === "tickets") {
       fetchTickets();
     } else if (activeTab === "alerts") {
-      console.log("Alerts tab selected, fetching alerts...");
       fetchAlerts();
     }
   }, [activeTab, assetType]);
@@ -401,14 +406,33 @@ export default function AdminPage() {
       // Add debounce for search to reduce API calls
       const timeoutId = setTimeout(() => {
         if (assetType === "hardware") {
-          fetchHardware();
+          fetchHardware(1, assetPagination.itemsPerPage);
         } else {
-          fetchSoftware();
+          fetchSoftware(1, assetPagination.itemsPerPage);
         }
       }, 300); // 300ms delay
 
       return () => clearTimeout(timeoutId);
     }
+  }, [searchTerm, filterType]);
+
+  // Fetch assets when pagination changes
+  useEffect(() => {
+    if (activeTab === "assets") {
+      if (assetType === "hardware") {
+        fetchHardware(assetPagination.currentPage, assetPagination.itemsPerPage);
+      } else {
+        fetchSoftware(assetPagination.currentPage, assetPagination.itemsPerPage);
+      }
+    }
+  }, [assetPagination.currentPage, assetPagination.itemsPerPage, activeTab, assetType]);
+
+  // Reset pagination when search or filter changes
+  useEffect(() => {
+    setAssetPagination(prev => ({ ...prev, currentPage: 1 }));
+    
+    // Clear cache when filters change for fresh results
+    setAssetCache(new Map());
   }, [searchTerm, filterType]);
 
   const handleAssetTypeChange = (type) => {
@@ -423,22 +447,29 @@ export default function AdminPage() {
     }
 
     if (type === "hardware") {
-      fetchHardware();
+      fetchHardware(1, assetPagination.itemsPerPage);
     } else {
-      fetchSoftware();
+      fetchSoftware(1, assetPagination.itemsPerPage);
     }
   };
 
-  const fetchHardware = async () => {
+  const fetchHardware = async (page = 1, limit = assetPagination.itemsPerPage) => {
     try {
       // Check cache first
-      const cacheKey = `hardware_${searchTerm}_${filterType}`;
-      const now = Date.now();
-      const cacheAge = now - (lastFetchTime[cacheKey] || 0);
-
-      // Use cache if it's less than 30 seconds old and we have the data
-      if (assetCache[cacheKey] && cacheAge < 30000) {
-        setHardware(assetCache[cacheKey].data);
+      const cacheKey = `hardware_${page}_${limit}_${searchTerm}_${filterType}`;
+      const cached = assetCache.get(cacheKey);
+      
+      if (cached && Date.now() - cached.timestamp < 300000) { // 5 minutes TTL
+        setHardware(cached.data);
+        if (cached.pagination) {
+          setAssetPagination(prev => ({
+            ...prev,
+            currentPage: cached.pagination.currentPage,
+            totalPages: cached.pagination.totalPages,
+            totalItems: cached.pagination.totalItems,
+            itemsPerPage: cached.pagination.itemsPerPage
+          }));
+        }
         return;
       }
 
@@ -450,7 +481,10 @@ export default function AdminPage() {
       }
 
       // Build query parameters
-      const params = {};
+      const params = {
+        page,
+        limit
+      };
 
       // Add search and filter parameters if we're on the assets tab
       if (activeTab === "assets") {
@@ -467,23 +501,30 @@ export default function AdminPage() {
 
       setHardware(hardwareData);
 
-        // Cache the response
-        setAssetCache((prev) => ({
+      // Update pagination state from server response
+      if (response.data.pagination) {
+        setAssetPagination(prev => ({
           ...prev,
-          [cacheKey]: {
-            data: hardwareData,
-          },
+          currentPage: response.data.pagination.currentPage,
+          totalPages: response.data.pagination.totalPages,
+          totalItems: response.data.pagination.totalItems,
+          itemsPerPage: response.data.pagination.itemsPerPage
         }));
-        setLastFetchTime((prev) => ({
-          ...prev,
-          [cacheKey]: now,
+
+        // Cache the response with pagination data
+        setAssetCache(prev => new Map(prev).set(cacheKey, {
+          data: hardwareData,
+          pagination: response.data.pagination,
+          timestamp: Date.now()
         }));
+      }
     } catch (error) {
       console.error("Error fetching hardware:", error);
       toast.error("Failed to load hardware data");
     } finally {
       setLoading(false);
       setSearchLoading(false);
+      setPaginationLoading(false);
     }
   };
 
@@ -498,16 +539,23 @@ export default function AdminPage() {
 
 
 
-  const fetchSoftware = async () => {
+  const fetchSoftware = async (page = 1, limit = assetPagination.itemsPerPage) => {
     try {
       // Check cache first
-      const cacheKey = `software_${searchTerm}_${filterType}`;
-      const now = Date.now();
-      const cacheAge = now - (lastFetchTime[cacheKey] || 0);
-
-      // Use cache if it's less than 30 days old and we have the data
-      if (assetCache[cacheKey] && cacheAge < 30000) {
-        setSoftware(assetCache[cacheKey].data);
+      const cacheKey = `software_${page}_${limit}_${searchTerm}_${filterType}`;
+      const cached = assetCache.get(cacheKey);
+      
+      if (cached && Date.now() - cached.timestamp < 300000) { // 5 minutes TTL
+        setSoftware(cached.data);
+        if (cached.pagination) {
+          setAssetPagination(prev => ({
+            ...prev,
+            currentPage: cached.pagination.currentPage,
+            totalPages: cached.pagination.totalPages,
+            totalItems: cached.pagination.totalItems,
+            itemsPerPage: cached.pagination.itemsPerPage
+          }));
+        }
         return;
       }
 
@@ -519,7 +567,10 @@ export default function AdminPage() {
       }
 
       // Build query parameters
-      const params = {};
+      const params = {
+        page,
+        limit
+      };
 
       // Add search and filter parameters if we're on the assets tab
       if (activeTab === "assets") {
@@ -536,23 +587,30 @@ export default function AdminPage() {
 
       setSoftware(softwareData);
 
-        // Cache the response
-        setAssetCache((prev) => ({
+      // Update pagination state from server response
+      if (response.data.pagination) {
+        setAssetPagination(prev => ({
           ...prev,
-          [cacheKey]: {
-            data: softwareData,
-          },
+          currentPage: response.data.pagination.currentPage,
+          totalPages: response.data.pagination.totalPages,
+          totalItems: response.data.pagination.totalItems,
+          itemsPerPage: response.data.pagination.itemsPerPage
         }));
-        setLastFetchTime((prev) => ({
-          ...prev,
-          [cacheKey]: now,
+
+        // Cache the response with pagination data
+        setAssetCache(prev => new Map(prev).set(cacheKey, {
+          data: softwareData,
+          pagination: response.data.pagination,
+          timestamp: Date.now()
         }));
+      }
     } catch (error) {
       console.error("Error fetching software:", error);
       toast.error("Failed to load software data");
     } finally {
       setLoading(false);
       setSearchLoading(false);
+      setPaginationLoading(false);
     }
   };
 
@@ -636,9 +694,9 @@ export default function AdminPage() {
     setSelectedAssets([]);
     fetchUsers();
     if (assetType === "hardware") {
-      fetchHardware();
+      fetchHardware(assetPagination.currentPage, assetPagination.itemsPerPage);
     } else {
-      fetchSoftware();
+      fetchSoftware(assetPagination.currentPage, assetPagination.itemsPerPage);
     }
   };
 
@@ -816,6 +874,41 @@ export default function AdminPage() {
     if (e.key === 'Enter') {
       handleSearchSubmit();
     }
+  };
+
+  // Pagination handlers for assets
+  const handleAssetPageChange = (newPage) => {
+    setPaginationLoading(true);
+    setAssetPagination(prev => ({ ...prev, currentPage: newPage }));
+    
+    // Scroll to top of assets section when page changes
+    setTimeout(() => {
+      if (assetsSectionRef.current) {
+        assetsSectionRef.current.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    }, 100); // Small delay to ensure state update completes
+  };
+
+  const handleAssetItemsPerPageChange = (newItemsPerPage) => {
+    setPaginationLoading(true);
+    setAssetPagination(prev => ({ 
+      ...prev, 
+      itemsPerPage: newItemsPerPage,
+      currentPage: 1 // Reset to first page
+    }));
+    
+    // Scroll to top of assets section when items per page changes
+    setTimeout(() => {
+      if (assetsSectionRef.current) {
+        assetsSectionRef.current.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    }, 100); // Small delay to ensure state update completes
   };
 
   if (selectedHardware) {
@@ -2023,7 +2116,7 @@ export default function AdminPage() {
                   <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
                     <div className="flex items-center justify-between text-sm text-gray-600">
                       <span>
-                        Showing {currentAssets.length} {assetType === "hardware" ? "hardware assets" : "software systems"}
+                        Showing {currentAssets.length} of {assetPagination.totalItems} {assetType === "hardware" ? "hardware assets" : "software systems"} (Page {assetPagination.currentPage} of {assetPagination.totalPages})
                       </span>
                     </div>
                   </div>
@@ -2092,8 +2185,18 @@ export default function AdminPage() {
                       </div>
                     )}
 
+                    {/* Pagination Loading Indicator */}
+                    {paginationLoading && (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                          <p className="text-gray-600 text-sm">Loading page...</p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Actual Assets Grid */}
-                    {!loading && (
+                    {!loading && !paginationLoading && (
                       <>
                         {/* Bulk Actions Bar */}
                         <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
@@ -2127,6 +2230,12 @@ export default function AdminPage() {
                                 </div>
                               )}
                             </div>
+                            {selectedAssets.length > 0 && (
+                              <div className="text-sm text-gray-600">
+                                {selectedAssets.length} asset
+                                {selectedAssets.length !== 1 ? "s" : ""} selected
+                              </div>
+                            )}
                             {selectedAssets.length > 0 && (
                               <button
                                 onClick={handleEnhancedAssignment}
@@ -2302,6 +2411,83 @@ export default function AdminPage() {
                       </>
                     )}
 
+                    {/* Assets Pagination */}
+                    {assetPagination.totalPages > 1 && (
+                      <div className="mt-8">
+                        <Pagination
+                          currentPage={assetPagination.currentPage}
+                          totalPages={assetPagination.totalPages}
+                          totalItems={assetPagination.totalItems}
+                          itemsPerPage={assetPagination.itemsPerPage}
+                          onPageChange={handleAssetPageChange}
+                          onItemsPerPageChange={handleAssetItemsPerPageChange}
+                        />
+                        
+                        {/* Mobile-friendly load more option */}
+                        <div className="mt-4 text-center sm:hidden">
+                          <button
+                            onClick={() => handleAssetPageChange(assetPagination.currentPage + 1)}
+                            disabled={assetPagination.currentPage >= assetPagination.totalPages}
+                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Load More
+                          </button>
+                        </div>
+                        
+                        {/* Quick jump for large datasets */}
+                        {assetPagination.totalPages > 10 && (
+                          <div className="mt-4 text-center">
+                            <div className="inline-flex items-center space-x-2 bg-gray-100 rounded-lg px-4 py-2">
+                              <span className="text-sm text-gray-800 font-medium">Quick Jump:</span>
+                              <input
+                                type="text"
+                                placeholder="Page #"
+                                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900 text-center"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const page = parseInt(e.target.value);
+                                    if (page >= 1 && page <= assetPagination.totalPages) {
+                                      handleAssetPageChange(page);
+                                      e.target.value = '';
+                                    } else {
+                                      toast.error(`Please enter a page number between 1 and ${assetPagination.totalPages}`);
+                                    }
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  const page = parseInt(e.target.value);
+                                  if (page >= 1 && page <= assetPagination.totalPages) {
+                                    handleAssetPageChange(page);
+                                    e.target.value = '';
+                                  }
+                                }}
+                              />
+                              <span className="text-xs text-gray-700 font-medium">of {assetPagination.totalPages}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Results Info */}
+                    {!loading && (
+                      <div className="mt-8 text-center text-sm text-gray-500">
+                        Showing {currentAssets.length} of {assetPagination.totalItems} {assetType === "hardware" ? "hardware assets" : "software systems"} (Page {assetPagination.currentPage} of {assetPagination.totalPages})
+                        
+                        {assetPagination.totalItems > 1000 && (
+                          <div className="mt-2 text-xs text-blue-600">
+                            💡 Tip: Use search and filters to quickly find specific assets
+                          </div>
+                        )}
+                        
+                        {/* Cache indicator */}
+                        {assetCache.size > 0 && (
+                          <div className="mt-2 text-xs text-green-600">
+                            🚀 {assetCache.size} pages cached for faster loading
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                   </div>
                 )}

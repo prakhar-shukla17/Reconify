@@ -530,3 +530,599 @@ export const exportTicketStatsToCSV = (tickets, filename = 'ticket_statistics') 
     window.open(csvData);
   }
 };
+
+/**
+ * ALERT EXPORT FUNCTIONS - Industry Standard for IT Asset Management
+ * Following best practices from ServiceNow, BMC Remedy, and other enterprise ITSM platforms
+ */
+
+/**
+ * Calculate warranty risk assessment metrics
+ */
+const calculateWarrantyRiskMetrics = (alert) => {
+  const daysUntilExpiry = alert.daysUntilExpiry || 0;
+  
+  // Risk assessment based on industry standards
+  let riskLevel = 'Low';
+  let riskScore = 1;
+  let actionRequired = 'Monitor';
+  let businessImpact = 'Minimal';
+  
+  if (daysUntilExpiry <= 0) {
+    riskLevel = 'Critical';
+    riskScore = 5;
+    actionRequired = 'Immediate Action Required';
+    businessImpact = 'High - Service Disruption Risk';
+  } else if (daysUntilExpiry <= 7) {
+    riskLevel = 'Critical';
+    riskScore = 5;
+    actionRequired = 'Urgent - Renewal Required';
+    businessImpact = 'High - Critical Service Risk';
+  } else if (daysUntilExpiry <= 14) {
+    riskLevel = 'High';
+    riskScore = 4;
+    actionRequired = 'High Priority - Plan Renewal';
+    businessImpact = 'Medium-High - Service Risk';
+  } else if (daysUntilExpiry <= 30) {
+    riskLevel = 'Medium';
+    riskScore = 3;
+    actionRequired = 'Medium Priority - Schedule Renewal';
+    businessImpact = 'Medium - Planning Required';
+  } else if (daysUntilExpiry <= 60) {
+    riskLevel = 'Low-Medium';
+    riskScore = 2;
+    actionRequired = 'Low Priority - Monitor';
+    businessImpact = 'Low - Planning Opportunity';
+  } else {
+    riskLevel = 'Low';
+    riskScore = 1;
+    actionRequired = 'Monitor';
+    businessImpact = 'Minimal - No Action Required';
+  }
+  
+  return {
+    riskLevel,
+    riskScore,
+    actionRequired,
+    businessImpact,
+    daysUntilExpiry
+  };
+};
+
+/**
+ * Export warranty alerts to CSV with industry-standard fields
+ * Following ITIL and ITSM best practices
+ */
+export const exportWarrantyAlertsToCSV = (alerts, summary = {}, filename = 'warranty_alerts_report') => {
+  if (!alerts || alerts.length === 0) {
+    console.warn('No warranty alerts data to export');
+    return;
+  }
+
+  // Industry-standard CSV headers for warranty management
+  const headers = [
+    'Alert ID',
+    'Asset Hostname',
+    'Asset MAC Address',
+    'Asset Model',
+    'Asset Serial Number',
+    'Asset Location',
+    'Asset Department',
+    'Asset Owner',
+    'Component Type',
+    'Component Name',
+    'Component Model',
+    'Component Serial Number',
+    'Warranty Type',
+    'Warranty Provider',
+    'Warranty Start Date',
+    'Warranty Expiry Date',
+    'Days Until Expiry',
+    'Risk Level',
+    'Risk Score',
+    'Action Required',
+    'Business Impact',
+    'Severity',
+    'Priority',
+    'Status',
+    'Assigned To',
+    'Last Updated',
+    'Notes',
+    'Cost Center',
+    'Budget Allocation',
+    'Replacement Cost',
+    'Vendor Contact',
+    'Support Level',
+    'Contract Number',
+    'Renewal Terms',
+    'Auto-Renewal',
+    'Maintenance Schedule',
+    'Next Maintenance Date',
+    'Compliance Status',
+    'Audit Trail'
+  ];
+
+  // Convert alerts to CSV rows with enhanced data
+  const csvRows = alerts.map(alert => {
+    const riskMetrics = calculateWarrantyRiskMetrics(alert);
+    
+    return [
+      escapeCSVValue(alert.id || `ALERT_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`),
+      escapeCSVValue(alert.hostname || 'Unknown Device'),
+      escapeCSVValue(alert.macAddress || 'N/A'),
+      escapeCSVValue(alert.assetModel || alert.component?.model || 'N/A'),
+      escapeCSVValue(alert.assetSerial || alert.component?.serialNumber || 'N/A'),
+      escapeCSVValue(alert.assetLocation || 'N/A'),
+      escapeCSVValue(alert.assetDepartment || 'IT'),
+      escapeCSVValue(alert.assetOwner || 'Unassigned'),
+      escapeCSVValue(alert.component?.type || 'Asset'),
+      escapeCSVValue(alert.component?.name || 'Asset'),
+      escapeCSVValue(alert.component?.model || 'N/A'),
+      escapeCSVValue(alert.component?.serialNumber || 'N/A'),
+      escapeCSVValue(alert.warrantyType || 'Standard'),
+      escapeCSVValue(alert.warrantyProvider || 'N/A'),
+      escapeCSVValue(formatDate(alert.warrantyStartDate)),
+      escapeCSVValue(formatDate(alert.expiryDate)),
+      escapeCSVValue(riskMetrics.daysUntilExpiry),
+      escapeCSVValue(riskMetrics.riskLevel),
+      escapeCSVValue(riskMetrics.riskScore),
+      escapeCSVValue(riskMetrics.actionRequired),
+      escapeCSVValue(riskMetrics.businessImpact),
+      escapeCSVValue(alert.severity || 'medium'),
+      escapeCSVValue(alert.priority || 'medium'),
+      escapeCSVValue(alert.status || 'Active'),
+      escapeCSVValue(alert.assignedTo || 'Unassigned'),
+      escapeCSVValue(formatDate(alert.updatedAt || alert.createdAt)),
+      escapeCSVValue(alert.notes || ''),
+      escapeCSVValue(alert.costCenter || 'IT Operations'),
+      escapeCSVValue(alert.budgetAllocation || 'N/A'),
+      escapeCSVValue(alert.replacementCost || 'N/A'),
+      escapeCSVValue(alert.vendorContact || 'N/A'),
+      escapeCSVValue(alert.supportLevel || 'Standard'),
+      escapeCSVValue(alert.contractNumber || 'N/A'),
+      escapeCSVValue(alert.renewalTerms || 'N/A'),
+      escapeCSVValue(alert.autoRenewal ? 'Yes' : 'No'),
+      escapeCSVValue(alert.maintenanceSchedule || 'N/A'),
+      escapeCSVValue(formatDate(alert.nextMaintenanceDate)),
+      escapeCSVValue(alert.complianceStatus || 'Compliant'),
+      escapeCSVValue(alert.auditTrail || 'N/A')
+    ];
+  });
+
+  // Combine headers and rows
+  const csvContent = [headers, ...csvRows]
+    .map(row => row.join(','))
+    .join('\n');
+
+  // Create and download the CSV file
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } else {
+    // Fallback for older browsers
+    const csvData = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent);
+    window.open(csvData);
+  }
+};
+
+/**
+ * Export warranty alerts by risk level
+ */
+export const exportWarrantyAlertsByRiskLevel = (alerts, riskLevel, filename = 'warranty_alerts_by_risk') => {
+  const filteredAlerts = alerts.filter(alert => {
+    const riskMetrics = calculateWarrantyRiskMetrics(alert);
+    return riskMetrics.riskLevel.toLowerCase() === riskLevel.toLowerCase();
+  });
+  
+  const riskFilename = `${filename}_${riskLevel.toLowerCase()}_${new Date().toISOString().split('T')[0]}`;
+  exportWarrantyAlertsToCSV(filteredAlerts, {}, riskFilename);
+  return filteredAlerts.length;
+};
+
+/**
+ * Export warranty alerts by component type
+ */
+export const exportWarrantyAlertsByComponentType = (alerts, componentType, filename = 'warranty_alerts_by_component') => {
+  if (!alerts || alerts.length === 0) {
+    console.warn('No alerts provided for component export');
+    return 0;
+  }
+  
+  const filteredAlerts = alerts.filter(alert => {
+    if (componentType === 'asset') {
+      return alert.type === 'asset_warranty';
+    }
+    return alert.component?.type === componentType;
+  });
+  
+  const componentFilename = `${filename}_${componentType}_${new Date().toISOString().split('T')[0]}`;
+  exportWarrantyAlertsToCSV(filteredAlerts, {}, componentFilename);
+  return filteredAlerts.length;
+};
+
+/**
+ * Export warranty alerts by time period
+ */
+export const exportWarrantyAlertsByTimePeriod = (alerts, period, filename = 'warranty_alerts_by_period') => {
+  let filteredAlerts = [...alerts];
+  
+  switch (period) {
+    case 'expired':
+      filteredAlerts = alerts.filter(alert => (alert.daysUntilExpiry || 0) <= 0);
+      break;
+    case '7days':
+      filteredAlerts = alerts.filter(alert => (alert.daysUntilExpiry || 0) <= 7);
+      break;
+    case '14days':
+      filteredAlerts = alerts.filter(alert => (alert.daysUntilExpiry || 0) <= 14);
+      break;
+    case '30days':
+      filteredAlerts = alerts.filter(alert => (alert.daysUntilExpiry || 0) <= 30);
+      break;
+    case '60days':
+      filteredAlerts = alerts.filter(alert => (alert.daysUntilExpiry || 0) <= 60);
+      break;
+    case '90days':
+      filteredAlerts = alerts.filter(alert => (alert.daysUntilExpiry || 0) <= 90);
+      break;
+    default:
+      // No filtering
+      break;
+  }
+  
+  const periodFilename = `${filename}_${period}_${new Date().toISOString().split('T')[0]}`;
+  exportWarrantyAlertsToCSV(filteredAlerts, {}, periodFilename);
+  return filteredAlerts.length;
+};
+
+/**
+ * Export warranty alerts by severity
+ */
+export const exportWarrantyAlertsBySeverity = (alerts, severity, filename = 'warranty_alerts_by_severity') => {
+  const filteredAlerts = alerts.filter(alert => alert.severity === severity);
+  const severityFilename = `${filename}_${severity}_${new Date().toISOString().split('T')[0]}`;
+  exportWarrantyAlertsToCSV(filteredAlerts, {}, severityFilename);
+  return filteredAlerts.length;
+};
+
+/**
+ * Export warranty alerts by location
+ */
+export const exportWarrantyAlertsByLocation = (alerts, location, filename = 'warranty_alerts_by_location') => {
+  const filteredAlerts = alerts.filter(alert => 
+    alert.assetLocation?.toLowerCase().includes(location.toLowerCase())
+  );
+  const locationFilename = `${filename}_${location.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`;
+  exportWarrantyAlertsToCSV(filteredAlerts, {}, locationFilename);
+  return filteredAlerts.length;
+};
+
+/**
+ * Export warranty alerts by department
+ */
+export const exportWarrantyAlertsByDepartment = (alerts, department, filename = 'warranty_alerts_by_department') => {
+  const filteredAlerts = alerts.filter(alert => 
+    alert.assetDepartment?.toLowerCase() === department.toLowerCase()
+  );
+  const departmentFilename = `${filename}_${department.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`;
+  exportWarrantyAlertsToCSV(filteredAlerts, {}, departmentFilename);
+  return filteredAlerts.length;
+};
+
+/**
+ * Export warranty alerts with advanced filtering
+ */
+export const exportFilteredWarrantyAlertsToCSV = (alerts, filters = {}, filename = 'filtered_warranty_alerts') => {
+  let filteredAlerts = [...alerts];
+  
+  // Apply filters if provided
+  if (filters.riskLevel && filters.riskLevel !== 'all') {
+    filteredAlerts = filteredAlerts.filter(alert => {
+      const riskMetrics = calculateWarrantyRiskMetrics(alert);
+      return riskMetrics.riskLevel.toLowerCase() === filters.riskLevel.toLowerCase();
+    });
+  }
+  
+  if (filters.componentType && filters.componentType !== 'all') {
+    filteredAlerts = filteredAlerts.filter(alert => {
+      if (filters.componentType === 'asset') {
+        return alert.type === 'asset_warranty';
+      }
+      return alert.component?.type === filters.componentType;
+    });
+  }
+  
+  if (filters.severity && filters.severity !== 'all') {
+    filteredAlerts = filteredAlerts.filter(alert => alert.severity === filters.severity);
+  }
+  
+  if (filters.location) {
+    filteredAlerts = filteredAlerts.filter(alert => 
+      alert.assetLocation?.toLowerCase().includes(filters.location.toLowerCase())
+    );
+  }
+  
+  if (filters.department) {
+    filteredAlerts = filteredAlerts.filter(alert => 
+      alert.assetDepartment?.toLowerCase().includes(filters.department.toLowerCase())
+    );
+  }
+  
+  if (filters.timePeriod) {
+    switch (filters.timePeriod) {
+      case 'expired':
+        filteredAlerts = filteredAlerts.filter(alert => (alert.daysUntilExpiry || 0) <= 0);
+        break;
+      case '7days':
+        filteredAlerts = filteredAlerts.filter(alert => (alert.daysUntilExpiry || 0) <= 7);
+        break;
+      case '14days':
+        filteredAlerts = filteredAlerts.filter(alert => (alert.daysUntilExpiry || 0) <= 14);
+        break;
+      case '30days':
+        filteredAlerts = filteredAlerts.filter(alert => (alert.daysUntilExpiry || 0) <= 30);
+        break;
+      case '60days':
+        filteredAlerts = filteredAlerts.filter(alert => (alert.daysUntilExpiry || 0) <= 60);
+        break;
+      case '90days':
+        filteredAlerts = filteredAlerts.filter(alert => (alert.daysUntilExpiry || 0) <= 90);
+        break;
+    }
+  }
+  
+  // Create filename with filter info
+  let exportFilename = filename;
+  if (filters.riskLevel && filters.riskLevel !== 'all') {
+    exportFilename += `_${filters.riskLevel}`;
+  }
+  if (filters.componentType && filters.componentType !== 'all') {
+    exportFilename += `_${filters.componentType}`;
+  }
+  if (filters.severity && filters.severity !== 'all') {
+    exportFilename += `_${filters.severity}`;
+  }
+  if (filters.timePeriod) {
+    exportFilename += `_${filters.timePeriod}`;
+  }
+  if (filters.location) {
+    exportFilename += `_${filters.location.replace(/\s+/g, '_')}`;
+  }
+  if (filters.department) {
+    exportFilename += `_${filters.department.replace(/\s+/g, '_')}`;
+  }
+  
+  exportWarrantyAlertsToCSV(filteredAlerts, {}, exportFilename);
+  return filteredAlerts.length;
+};
+
+/**
+ * Export warranty alerts summary statistics to CSV
+ */
+export const exportWarrantyAlertsStatsToCSV = (alerts, summary = {}, filename = 'warranty_alerts_statistics') => {
+  if (!alerts || alerts.length === 0) {
+    console.warn('No warranty alerts data to export statistics');
+    return;
+  }
+
+  // Calculate comprehensive statistics
+  const total = alerts.length;
+  
+  // Risk level breakdown
+  const riskLevels = {};
+  alerts.forEach(alert => {
+    const riskMetrics = calculateWarrantyRiskMetrics(alert);
+    const level = riskMetrics.riskLevel;
+    riskLevels[level] = (riskLevels[level] || 0) + 1;
+  });
+  
+  // Component type breakdown
+  const componentTypes = {};
+  alerts.forEach(alert => {
+    if (alert.type === 'asset_warranty') {
+      componentTypes['Asset'] = (componentTypes['Asset'] || 0) + 1;
+    } else if (alert.component?.type) {
+      const type = alert.component.type.charAt(0).toUpperCase() + alert.component.type.slice(1);
+      componentTypes[type] = (componentTypes[type] || 0) + 1;
+    }
+  });
+  
+  // Severity breakdown
+  const severities = {};
+  alerts.forEach(alert => {
+    const severity = alert.severity || 'medium';
+    severities[severity] = (severities[severity] || 0) + 1;
+  });
+  
+  // Location breakdown
+  const locations = {};
+  alerts.forEach(alert => {
+    const location = alert.assetLocation || 'Unknown';
+    locations[location] = (locations[location] || 0) + 1;
+  });
+  
+  // Department breakdown
+  const departments = {};
+  alerts.forEach(alert => {
+    const department = alert.assetDepartment || 'Unknown';
+    departments[department] = (departments[department] || 0) + 1;
+  });
+  
+  // Time-based statistics
+  const expired = alerts.filter(alert => (alert.daysUntilExpiry || 0) <= 0).length;
+  const critical7Days = alerts.filter(alert => (alert.daysUntilExpiry || 0) <= 7).length;
+  const critical14Days = alerts.filter(alert => (alert.daysUntilExpiry || 0) <= 14).length;
+  const critical30Days = alerts.filter(alert => (alert.daysUntilExpiry || 0) <= 30).length;
+  const critical60Days = alerts.filter(alert => (alert.daysUntilExpiry || 0) <= 60).length;
+  const critical90Days = alerts.filter(alert => (alert.daysUntilExpiry || 0) <= 90).length;
+  
+  // Average risk score
+  const totalRiskScore = alerts.reduce((sum, alert) => {
+    const riskMetrics = calculateWarrantyRiskMetrics(alert);
+    return sum + riskMetrics.riskScore;
+  }, 0);
+  const avgRiskScore = total > 0 ? (totalRiskScore / total).toFixed(2) : 0;
+  
+  // Create CSV content for comprehensive statistics
+  const statsHeaders = ['Category', 'Metric', 'Count', 'Percentage', 'Details'];
+  const statsRows = [
+    ['Overview', 'Total Warranty Alerts', total, '100%', 'All active warranty alerts'],
+    ['Overview', 'Expired Warranties', expired, `${((expired / total) * 100).toFixed(1)}%`, 'Warranties that have expired'],
+    ['Overview', 'Critical (≤7 days)', critical7Days, `${((critical7Days / total) * 100).toFixed(1)}%`, 'Warranties expiring within 7 days'],
+    ['Overview', 'High (≤14 days)', critical14Days, `${((critical14Days / total) * 100).toFixed(1)}%`, 'Warranties expiring within 14 days'],
+    ['Overview', 'Medium (≤30 days)', critical30Days, `${((critical30Days / total) * 100).toFixed(1)}%`, 'Warranties expiring within 30 days'],
+    ['Overview', 'Low-Medium (≤60 days)', critical60Days, `${((critical60Days / total) * 100).toFixed(1)}%`, 'Warranties expiring within 60 days'],
+    ['Overview', 'Low (≤90 days)', critical90Days, `${((critical90Days / total) * 100).toFixed(1)}%`, 'Warranties expiring within 90 days'],
+    ['Overview', 'Average Risk Score', avgRiskScore, 'N/A', 'Mean risk assessment score'],
+    ['', '', '', '', ''],
+    ...Object.entries(riskLevels).map(([level, count]) => [
+      'Risk Levels',
+      level,
+      count,
+      `${((count / total) * 100).toFixed(1)}%`,
+      'Alerts by risk level'
+    ]),
+    ['', '', '', '', ''],
+    ...Object.entries(componentTypes).map(([type, count]) => [
+      'Component Types',
+      type,
+      count,
+      `${((count / total) * 100).toFixed(1)}%`,
+      'Alerts by component type'
+    ]),
+    ['', '', '', '', ''],
+    ...Object.entries(severities).map(([severity, count]) => [
+      'Severity Levels',
+      severity.charAt(0).toUpperCase() + severity.slice(1),
+      count,
+      `${((count / total) * 100).toFixed(1)}%`,
+      'Alerts by severity'
+    ]),
+    ['', '', '', '', ''],
+    ...Object.entries(locations).map(([location, count]) => [
+      'Locations',
+      location,
+      count,
+      `${((count / total) * 100).toFixed(1)}%`,
+      'Alerts by asset location'
+    ]),
+    ['', '', '', '', ''],
+    ...Object.entries(departments).map(([dept, count]) => [
+      'Departments',
+      dept,
+      count,
+      `${((count / total) * 100).toFixed(1)}%`,
+      'Alerts by department'
+    ])
+  ];
+
+  const csvContent = [statsHeaders, ...statsRows]
+    .map(row => row.map(cell => escapeCSVValue(cell)).join(','))
+    .join('\n');
+
+  // Create and download the CSV file
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } else {
+    // Fallback for older browsers
+    const csvData = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent);
+    window.open(csvData);
+  }
+};
+
+/**
+ * Export warranty alerts for executive summary
+ */
+export const exportWarrantyAlertsExecutiveSummary = (alerts, summary = {}, filename = 'warranty_alerts_executive_summary') => {
+  if (!alerts || alerts.length === 0) {
+    console.warn('No warranty alerts data to export executive summary');
+    return;
+  }
+
+  // Executive-level metrics
+  const total = alerts.length;
+  const critical = alerts.filter(alert => {
+    const riskMetrics = calculateWarrantyRiskMetrics(alert);
+    return riskMetrics.riskLevel === 'Critical';
+  }).length;
+  
+  const high = alerts.filter(alert => {
+    const riskMetrics = calculateWarrantyRiskMetrics(alert);
+    return riskMetrics.riskLevel === 'High';
+  }).length;
+  
+  const expired = alerts.filter(alert => (alert.daysUntilExpiry || 0) <= 0).length;
+  const expiring7Days = alerts.filter(alert => (alert.daysUntilExpiry || 0) <= 7).length;
+  
+  // Financial impact estimation (placeholder - would be populated from actual data)
+  const estimatedReplacementCost = total * 1500; // Example: $1500 per asset
+  const estimatedMaintenanceCost = total * 300; // Example: $300 maintenance per asset
+  
+  // Compliance metrics
+  const complianceRisk = expired + expiring7Days;
+  const compliancePercentage = ((complianceRisk / total) * 100).toFixed(1);
+  
+  // Executive summary headers
+  const headers = [
+    'Metric',
+    'Value',
+    'Status',
+    'Business Impact',
+    'Recommendations'
+  ];
+  
+  const summaryRows = [
+    ['Total Warranty Alerts', total, 'Active', 'Operational Risk', 'Monitor and prioritize'],
+    ['Critical Risk Alerts', critical, 'High', 'Immediate Action Required', 'Escalate to management'],
+    ['High Risk Alerts', high, 'Medium', 'Planning Required', 'Schedule renewal activities'],
+    ['Expired Warranties', expired, 'Critical', 'Compliance Risk', 'Immediate renewal required'],
+    ['Expiring in 7 Days', expiring7Days, 'High', 'Service Disruption Risk', 'Urgent attention needed'],
+    ['Compliance Risk Level', `${compliancePercentage}%`, complianceRisk > 10 ? 'High' : 'Medium', 'Regulatory Risk', 'Review compliance procedures'],
+    ['Estimated Replacement Cost', `$${estimatedReplacementCost.toLocaleString()}`, 'Financial', 'Budget Impact', 'Plan for capital expenditure'],
+    ['Estimated Maintenance Cost', `$${estimatedMaintenanceCost.toLocaleString()}`, 'Operational', 'Ongoing Cost', 'Include in operational budget'],
+    ['Risk Mitigation Priority', 'High', 'Strategic', 'Business Continuity', 'Implement risk management plan'],
+    ['Next Review Date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString(), 'Schedule', 'Ongoing', 'Weekly executive review recommended']
+  ];
+
+  const csvContent = [headers, ...summaryRows]
+    .map(row => row.map(cell => escapeCSVValue(cell)).join(','))
+    .join('\n');
+
+  // Create and download the CSV file
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } else {
+    // Fallback for older browsers
+    const csvData = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent);
+    window.open(csvData);
+  }
+};
