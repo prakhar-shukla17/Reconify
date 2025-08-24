@@ -97,7 +97,7 @@ export const softwareAPI = {
 
 // Alerts API calls
 export const alertsAPI = {
-  getWarrantyAlerts: (days = 30) => api.get(`/alerts/warranty?days=${days}`),
+  getWarrantyAlerts: (days = 30, page = 1, limit = 20, filter = "all") => api.get(`/alerts/warranty?days=${days}&page=${page}&limit=${limit}&filter=${filter}`),
   getStatistics: () => api.get("/alerts/statistics"),
 };
 

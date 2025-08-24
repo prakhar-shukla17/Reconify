@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import Navbar from "../../components/Navbar";
@@ -13,12 +13,18 @@ import TicketCard from "../../components/TicketCard";
 import MLServiceControlPanel from "../../components/MLServiceControlPanel";
 import { hardwareAPI, softwareAPI, ticketsAPI, authAPI } from "../../lib/api";
 import toast from "react-hot-toast";
-import Pagination from "../../components/Pagination";
+
+import { 
+  exportTicketsToCSV, 
+  exportTicketStatsToCSV, 
+  exportTicketsResolvedToday, 
+  exportTicketsByTimePeriod,
+  exportTicketsBySLACompliance
+} from "../../utils/exportUtils";
 import {
   Monitor,
   HardDrive,
   Cpu,
-  MemoryStick,
   Search,
   Filter,
   RefreshCw,
@@ -33,6 +39,9 @@ import {
   Brain,
   CheckCircle,
   XCircle,
+  Download,
+  Clock,
+  X,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -45,7 +54,7 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [activeTab, setActiveTab] = useState("hardware");
-  const [showAlertsPanel, setShowAlertsPanel] = useState(false);
+
   const [tickets, setTickets] = useState([]);
   const [showCreateTicketModal, setShowCreateTicketModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -53,48 +62,234 @@ export default function DashboardPage() {
   const [dashboardStats, setDashboardStats] = useState(null);
   const [assignmentStats, setAssignmentStats] = useState(null);
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalItems, setTotalItems] = useState(0);
-  const [itemsPerPage, setItemsPerPage] = useState(12);
+
+
+  // Ticket optimization state
+  const [ticketCache, setTicketCache] = useState(new Map());
+  const [lastTicketFetch, setLastTicketFetch] = useState(0);
+  const [ticketLoading, setTicketLoading] = useState(false);
+  const [ticketError, setTicketError] = useState(null);
+  const TICKET_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+
+
+
+
+  // Get cached tickets if available
+  const getCachedTickets = useCallback(() => {
+    const cacheKey = `tickets-${user?.role || 'user'}`;
+    const cached = ticketCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < TICKET_CACHE_DURATION) {
+      return cached.data;
+    }
+    return null;
+  }, [ticketCache, user?.role]);
+
+  // Set cached tickets
+  const setCachedTickets = useCallback((data) => {
+    const cacheKey = `tickets-${user?.role || 'user'}`;
+    setTicketCache(prev => new Map(prev).set(cacheKey, {
+      data,
+      timestamp: Date.now()
+    }));
+  }, [user?.role]);
+
+  // Optimized ticket fetching with caching
+  const fetchTickets = useCallback(async (forceRefresh = false) => {
+    // Check cache first (unless forcing refresh)
+    if (!forceRefresh) {
+      const cached = getCachedTickets();
+      if (cached) {
+        setTickets(cached);
+        setTicketError(null);
+        return;
+      }
+    }
+
+    try {
+      setTicketLoading(true);
+      setTicketError(null);
+      
+      const response = await ticketsAPI.getAll();
+      const ticketsData = response.data.data || [];
+
+      // Sort tickets: active tickets first, closed tickets last
+      const sortedTickets = ticketsData.sort((a, b) => {
+        const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+        const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+
+        if (aIsClosed && !bIsClosed) return 1; // a goes after b
+        if (!aIsClosed && bIsClosed) return -1; // a goes before b
+        return 0; // keep original order for same status type
+      });
+
+      setTickets(sortedTickets);
+      setCachedTickets(sortedTickets);
+      setLastTicketFetch(Date.now());
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      setTicketError("Failed to load tickets");
+      toast.error("Failed to load tickets");
+    } finally {
+      setTicketLoading(false);
+    }
+  }, [getCachedTickets, setCachedTickets]);
+
+  // Memoized ticket statistics
+  const ticketStats = useMemo(() => {
+    if (!tickets.length) return { total: 0, open: 0, resolved: 0, closed: 0 };
+    
+    return {
+      total: tickets.length,
+      open: tickets.filter((t) => t.status === "Open").length,
+      resolved: tickets.filter((t) => t.status === "Resolved").length,
+      closed: tickets.filter((t) => t.status === "Closed").length,
+    };
+  }, [tickets]);
+
+  // Enhanced filtering and pagination state
+  const [ticketFilters, setTicketFilters] = useState({
+    status: 'all',
+    priority: 'all',
+    searchTerm: '',
+    dateRange: 'all'
+  });
+  
+  const [ticketPagination, setTicketPagination] = useState({
+    currentPage: 1,
+    itemsPerPage: 12,
+    totalPages: 1,
+    totalItems: 0
+  });
+
+  // Check if any filters are active
+  const hasActiveFilters = useMemo(() => {
+    return ticketFilters.status !== 'all' || 
+           ticketFilters.priority !== 'all' || 
+           ticketFilters.dateRange !== 'all' || 
+           ticketFilters.searchTerm;
+  }, [ticketFilters]);
+
+  // Memoized filtered tickets with advanced filtering
+  const filteredTickets = useMemo(() => {
+    let filtered = [...tickets];
+    
+    // Status filter
+    if (ticketFilters.status !== 'all') {
+      filtered = filtered.filter(ticket => ticket.status === ticketFilters.status);
+    }
+    
+    // Only hide closed tickets if other filters are applied (not by default)
+    if (hasActiveFilters && ticketFilters.status === 'all') {
+      // When filters are applied but status is 'all', exclude closed and rejected tickets
+      filtered = filtered.filter(ticket => 
+        ticket.status !== 'Closed' && ticket.status !== 'Rejected'
+      );
+    }
+    
+    // Priority filter
+    if (ticketFilters.priority !== 'all') {
+      filtered = filtered.filter(ticket => ticket.priority === ticketFilters.priority);
+    }
+    
+    // Search term filter
+    if (ticketFilters.searchTerm) {
+      const searchLower = ticketFilters.searchTerm.toLowerCase();
+      filtered = filtered.filter(ticket =>
+        ticket.title?.toLowerCase().includes(searchLower) ||
+        ticket.description?.toLowerCase().includes(searchLower) ||
+        ticket.ticket_id?.toLowerCase().includes(searchLower) ||
+        ticket.created_by_name?.toLowerCase().includes(searchLower) ||
+        ticket.asset_hostname?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Date range filter
+    if (ticketFilters.dateRange !== 'all') {
+      const now = new Date();
+      let startDate;
+      
+      switch (ticketFilters.dateRange) {
+        case 'today':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'week':
+          startDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+          break;
+        case 'month':
+          startDate = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+          break;
+        case 'quarter':
+          startDate = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+          break;
+        default:
+          break;
+      }
+      
+      if (startDate) {
+        filtered = filtered.filter(ticket => new Date(ticket.created_at) >= startDate);
+      }
+    }
+    
+    return filtered;
+  }, [tickets, ticketFilters, hasActiveFilters]);
+
+  // Memoized paginated tickets
+  const paginatedTickets = useMemo(() => {
+    const startIndex = (ticketPagination.currentPage - 1) * ticketPagination.itemsPerPage;
+    const endIndex = startIndex + ticketPagination.itemsPerPage;
+    return filteredTickets.slice(startIndex, endIndex);
+  }, [filteredTickets, ticketPagination.currentPage, ticketPagination.itemsPerPage]);
+
+  // Update pagination when filters change
+  useEffect(() => {
+    const totalPages = Math.ceil(filteredTickets.length / ticketPagination.itemsPerPage);
+    setTicketPagination(prev => ({
+      ...prev,
+      currentPage: 1, // Reset to first page when filters change
+      totalPages: Math.max(1, totalPages),
+      totalItems: filteredTickets.length
+    }));
+  }, [filteredTickets, ticketPagination.itemsPerPage]);
+
+
 
   useEffect(() => {
     if (activeTab === "hardware") {
-      setCurrentPage(1); // Reset to first page when switching to hardware tab
-      fetchHardware(1);
+      fetchHardware();
       fetchDashboardStats();
       fetchAssignmentStats();
     } else if (activeTab === "software") {
-      setCurrentPage(1); // Reset to first page when switching to software tab
-      fetchSoftware(1);
+      fetchSoftware();
     } else if (activeTab === "tickets") {
       fetchTickets();
     }
-  }, [activeTab]);
+  }, [activeTab, fetchTickets]);
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-    if (activeTab === "hardware") {
-      fetchHardware(page);
-    } else if (activeTab === "software") {
-      fetchSoftware(page);
+  // Auto-refresh tickets every 30 seconds when on tickets tab
+  useEffect(() => {
+    if (activeTab === "tickets") {
+      const interval = setInterval(() => {
+        fetchTickets(true); // Force refresh every 30 seconds
+      }, 30000); // 30 seconds
+
+      return () => clearInterval(interval);
     }
-  };
+  }, [activeTab, fetchTickets]);
 
-  const fetchHardware = async (page = currentPage, limit = itemsPerPage) => {
+
+
+
+
+  
+
+
+
+  const fetchHardware = async () => {
     try {
       setLoading(true);
-      // Get hardware with pagination for dashboard display
-      const response = await hardwareAPI.getAll({ page, limit });
+      const response = await hardwareAPI.getAll();
       setHardware(response.data.data || []);
-
-      // Update pagination info
-      if (response.data.pagination) {
-        setCurrentPage(response.data.pagination.currentPage);
-        setTotalPages(response.data.pagination.totalPages);
-        setTotalItems(response.data.pagination.totalItems);
-      }
     } catch (error) {
       console.error("Error fetching hardware:", error);
       toast.error("Failed to load hardware data");
@@ -121,46 +316,14 @@ export default function DashboardPage() {
     }
   };
 
-  const fetchSoftware = async (page = currentPage, limit = itemsPerPage) => {
+  const fetchSoftware = async () => {
     try {
       setLoading(true);
-      const response = await softwareAPI.getAll({ page, limit });
+      const response = await softwareAPI.getAll();
       setSoftware(response.data.data || []);
-
-      // Update pagination info
-      if (response.data.pagination) {
-        setCurrentPage(response.data.pagination.currentPage);
-        setTotalPages(response.data.pagination.totalPages);
-        setTotalItems(response.data.pagination.totalItems);
-      }
     } catch (error) {
       console.error("Error fetching software:", error);
       toast.error("Failed to load software data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchTickets = async () => {
-    try {
-      setLoading(true);
-      const response = await ticketsAPI.getAll();
-      const ticketsData = response.data.data || [];
-
-      // Sort tickets: active tickets first, closed tickets last
-      const sortedTickets = ticketsData.sort((a, b) => {
-        const aIsClosed = a.status === "Closed" || a.status === "Rejected";
-        const bIsClosed = b.status === "Closed" || b.status === "Rejected";
-
-        if (aIsClosed && !bIsClosed) return 1; // a goes after b
-        if (!aIsClosed && bIsClosed) return -1; // a goes before b
-        return 0; // keep original order for same status type
-      });
-
-      setTickets(sortedTickets);
-    } catch (error) {
-      console.error("Error fetching tickets:", error);
-      toast.error("Failed to load tickets");
     } finally {
       setLoading(false);
     }
@@ -213,7 +376,7 @@ export default function DashboardPage() {
       ).length;
 
       const stats = {
-        total: dashboardStats?.totalAssets || hardware.length,
+        total: hardware.length,
         assigned: dashboardStats?.assignedAssets || 0,
         active: dashboardStats?.activeAssets || 0,
         expiring: dashboardStats?.expiringWarranties || 0,
@@ -223,13 +386,7 @@ export default function DashboardPage() {
       };
       return stats;
     } else if (activeTab === "tickets") {
-      const stats = {
-        total: tickets.length,
-        open: tickets.filter((t) => t.status === "Open").length,
-        resolved: tickets.filter((t) => t.status === "Resolved").length,
-        closed: tickets.filter((t) => t.status === "Closed").length,
-      };
-      return stats;
+      return ticketStats;
     } else {
       const stats = {
         total: software.length,
@@ -1015,6 +1172,246 @@ export default function DashboardPage() {
                   <h2 className="text-lg font-semibold text-gray-900">
                     Your Support Tickets
                   </h2>
+                                     <div className="flex items-center space-x-3">
+                     <div className="flex items-center space-x-2">
+                       <button
+                         onClick={() => fetchTickets(true)}
+                         disabled={ticketLoading}
+                         className="text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                       >
+                         {ticketLoading ? (
+                           <div className="flex items-center space-x-2">
+                             <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-600"></div>
+                             <span>Loading...</span>
+                           </div>
+                         ) : (
+                           <div className="flex items-center space-x-2">
+                             <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                             </svg>
+                             <span>Refresh</span>
+                           </div>
+                         )}
+                       </button>
+                       
+                       {/* Last Updated Indicator */}
+                       <div className="text-xs text-gray-500 flex items-center space-x-1">
+                         <Clock className="h-3 w-3" />
+                         <span>
+                           Last updated: {lastTicketFetch ? new Date(lastTicketFetch).toLocaleTimeString() : 'Never'}
+                         </span>
+                         {activeTab === "tickets" && (
+                           <div className="flex items-center space-x-1">
+                             <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+                             <span className="text-green-600">Auto-refresh active</span>
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                    
+                                         {/* Export Buttons */}
+                     {tickets.length > 0 && (
+                       <div className="flex items-center space-x-2">
+                                                   <button
+                            onClick={async () => {
+                              // Always fetch fresh data before export
+                              try {
+                                const response = await ticketsAPI.getAll();
+                                const freshTickets = response.data.data || [];
+                                const sortedTickets = freshTickets.sort((a, b) => {
+                                  const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+                                  const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                                  if (aIsClosed && !bIsClosed) return 1;
+                                  if (!aIsClosed && bIsClosed) return -1;
+                                  return 0;
+                                });
+                                
+                                // Update local state with fresh data
+                                setTickets(sortedTickets);
+                                setCachedTickets(sortedTickets);
+                                
+                                // Export fresh data
+                                exportTicketsToCSV(sortedTickets, 'all_tickets');
+                                toast.success(`Exported ${sortedTickets.length} tickets to CSV (fresh data)`);
+                              } catch (error) {
+                                console.error('Error fetching fresh tickets for export:', error);
+                                // Fallback to cached data
+                                exportTicketsToCSV(tickets, 'all_tickets');
+                                toast.success(`Exported ${tickets.length} tickets to CSV (cached data)`);
+                              }
+                            }}
+                            disabled={ticketLoading}
+                            className="text-xs border border-green-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                            title="Export all tickets to CSV (with fresh data)"
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            Export All
+                          </button>
+                          <button
+                            onClick={async () => {
+                              // Always fetch fresh data before export
+                              try {
+                                const response = await ticketsAPI.getAll();
+                                const freshTickets = response.data.data || [];
+                                const sortedTickets = freshTickets.sort((a, b) => {
+                                  const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+                                  const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                                  if (aIsClosed && !bIsClosed) return 1;
+                                  if (!aIsClosed && bIsClosed) return -1;
+                                  return 0;
+                                });
+                                
+                                // Update local state with fresh data
+                                setTickets(sortedTickets);
+                                setCachedTickets(sortedTickets);
+                                
+                                // Export fresh data
+                                exportTicketStatsToCSV(sortedTickets, 'ticket_statistics');
+                                toast.success('Exported ticket statistics to CSV (fresh data)');
+                              } catch (error) {
+                                console.error('Error fetching fresh tickets for export:', error);
+                                // Fallback to cached data
+                                exportTicketStatsToCSV(tickets, 'ticket_statistics');
+                                toast.success('Exported ticket statistics to CSV (cached data)');
+                              }
+                            }}
+                            disabled={ticketLoading}
+                            className="text-xs border border-purple-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-700 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                            title="Export ticket statistics to CSV (with fresh data)"
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            Export Stats
+                          </button>
+                          
+                          {/* Export Filtered Tickets Button */}
+                          <button
+                            onClick={() => {
+                              if (filteredTickets.length === 0) {
+                                toast.error('No filtered tickets to export');
+                                return;
+                              }
+                              exportTicketsToCSV(filteredTickets, 'filtered_tickets');
+                              toast.success(`Exported ${filteredTickets.length} filtered tickets to CSV`);
+                            }}
+                            disabled={ticketLoading || filteredTickets.length === 0}
+                            className="text-xs border border-indigo-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                            title="Export currently filtered tickets to CSV"
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            Export Filtered
+                          </button>
+                         
+                         {/* Time-based Export Buttons */}
+                         <div className="flex items-center space-x-1">
+                           <button
+                             onClick={async () => {
+                               // Always fetch fresh data before export
+                               try {
+                                 const response = await ticketsAPI.getAll();
+                                 const freshTickets = response.data.data || [];
+                                 const sortedTickets = freshTickets.sort((a, b) => {
+                                   const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+                                   const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                                   if (aIsClosed && !bIsClosed) return 1;
+                                   if (!aIsClosed && bIsClosed) return -1;
+                                   return 0;
+                                 });
+                                 
+                                 // Update local state with fresh data
+                                 setTickets(sortedTickets);
+                                 setCachedTickets(sortedTickets);
+                                 
+                                 // Export fresh data
+                                 const count = exportTicketsResolvedToday(sortedTickets, 'tickets_resolved_today');
+                                 toast.success(`Exported ${count} tickets resolved today to CSV (fresh data)`);
+                               } catch (error) {
+                                 console.error('Error fetching fresh tickets for export:', error);
+                                 // Fallback to cached data
+                                 const count = exportTicketsResolvedToday(tickets, 'tickets_resolved_today');
+                                 toast.success(`Exported ${count} tickets resolved today to CSV (cached data)`);
+                               }
+                             }}
+                             disabled={ticketLoading}
+                             className="text-xs border border-blue-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                             title="Export tickets resolved today (with fresh data)"
+                           >
+                             <Download className="h-3 w-3 mr-1" />
+                             Today
+                           </button>
+                           <button
+                             onClick={async () => {
+                               // Always fetch fresh data before export
+                               try {
+                                 const response = await ticketsAPI.getAll();
+                                 const freshTickets = response.data.data || [];
+                                 const sortedTickets = freshTickets.sort((a, b) => {
+                                   const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+                                   const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                                   if (aIsClosed && !bIsClosed) return 1;
+                                   if (!aIsClosed && bIsClosed) return -1;
+                                   return 0;
+                                 });
+                                 
+                                 // Update local state with fresh data
+                                 setTickets(sortedTickets);
+                                 setCachedTickets(sortedTickets);
+                                 
+                                 // Export fresh data
+                                 const count = exportTicketsByTimePeriod(sortedTickets, '7d', 'tickets_last_7_days');
+                                 toast.success(`Exported ${count} tickets from last 7 days to CSV (fresh data)`);
+                               } catch (error) {
+                                 console.error('Error fetching fresh tickets for export:', error);
+                                 // Fallback to cached data
+                                 const count = exportTicketsByTimePeriod(tickets, '7d', 'tickets_last_7_days');
+                                 toast.success(`Exported ${count} tickets from last 7 days to CSV (cached data)`);
+                               }
+                             }}
+                             disabled={ticketLoading}
+                             className="text-xs border border-orange-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-orange-700 bg-orange-50 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                             title="Export tickets from last 7 days (with fresh data)"
+                           >
+                             <Download className="h-3 w-3 mr-1" />
+                             7 Days
+                           </button>
+                           <button
+                             onClick={async () => {
+                               // Always fetch fresh data before export
+                               try {
+                                 const response = await ticketsAPI.getAll();
+                                 const freshTickets = response.data.data || [];
+                                 const sortedTickets = freshTickets.sort((a, b) => {
+                                   const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+                                   const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                                   if (aIsClosed && !bIsClosed) return 1;
+                                   if (!aIsClosed && bIsClosed) return -1;
+                                   return 0;
+                                 });
+                                 
+                                 // Update local state with fresh data
+                                 setTickets(sortedTickets);
+                                 setCachedTickets(sortedTickets);
+                                 
+                                 // Export fresh data
+                                 const count = exportTicketsBySLACompliance(sortedTickets, 'compliant', 'sla_compliant_tickets');
+                                 toast.success(`Exported ${count} SLA compliant tickets to CSV (fresh data)`);
+                               } catch (error) {
+                                 console.error('Error fetching fresh tickets for export:', error);
+                                 // Fallback to cached data
+                                 const count = exportTicketsBySLACompliance(tickets, 'compliant', 'sla_compliant_tickets');
+                                 toast.success(`Exported ${count} SLA compliant tickets to CSV (cached data)`);
+                               }
+                             }}
+                             disabled={ticketLoading}
+                             className="text-xs border border-emerald-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                             title="Export SLA compliant tickets (with fresh data)"
+                           >
+                             <Download className="h-3 w-3 mr-1" />
+                             SLA OK
+                           </button>
+                         </div>
+                       </div>
+                     )}
+                    
                   <button
                     onClick={() => setShowCreateTicketModal(true)}
                     className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-colors"
@@ -1022,7 +1419,152 @@ export default function DashboardPage() {
                     <Plus className="h-4 w-4 mr-2" />
                     Create Ticket
                   </button>
+                  </div>
                 </div>
+
+                {/* Advanced Filter Controls */}
+                {tickets.length > 0 && (
+                  <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                      {/* Search Input */}
+                      <div className="lg:col-span-2">
+                                               <label className="block text-xs font-medium text-gray-900 mb-1">
+                         Search Tickets
+                       </label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search by title, description, ID..."
+                            value={ticketFilters.searchTerm}
+                            onChange={(e) => setTicketFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Status Filter */}
+                                             <div>
+                         <label className="block text-xs font-medium text-gray-900 mb-1">
+                           Status
+                         </label>
+                                                 <select
+                           value={ticketFilters.status}
+                           onChange={(e) => setTicketFilters(prev => ({ ...prev, status: e.target.value }))}
+                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                         >
+                          <option value="all">All Status</option>
+                          <option value="Open">Open</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Resolved">Resolved</option>
+                          <option value="Closed">Closed</option>
+                          <option value="Rejected">Rejected</option>
+                        </select>
+                      </div>
+
+                                             {/* Priority Filter */}
+                       <div>
+                         <label className="block text-xs font-medium text-gray-900 mb-1">
+                           Priority
+                         </label>
+                                                 <select
+                           value={ticketFilters.priority}
+                           onChange={(e) => setTicketFilters(prev => ({ ...prev, priority: e.target.value }))}
+                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                         >
+                          <option value="all">All Priority</option>
+                          <option value="Low">Low</option>
+                          <option value="Medium">Medium</option>
+                          <option value="High">High</option>
+                          <option value="Critical">Critical</option>
+                        </select>
+                      </div>
+
+                                             {/* Date Range Filter */}
+                       <div>
+                         <label className="block text-xs font-medium text-gray-900 mb-1">
+                           Date Range
+                         </label>
+                                                 <select
+                           value={ticketFilters.dateRange}
+                           onChange={(e) => setTicketFilters(prev => ({ ...prev, dateRange: e.target.value }))}
+                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                         >
+                          <option value="all">All Time</option>
+                          <option value="today">Today</option>
+                          <option value="week">Last 7 Days</option>
+                          <option value="month">Last 30 Days</option>
+                          <option value="quarter">Last 90 Days</option>
+                        </select>
+                      </div>
+
+                      {/* Clear Filters Button */}
+                      <div className="flex items-end">
+                        <button
+                          onClick={() => setTicketFilters({
+                            status: 'all',
+                            priority: 'all',
+                            searchTerm: '',
+                            dateRange: 'all'
+                          })}
+                                                     className="w-full px-3 py-2 text-sm text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        >
+                          Clear Filters
+                        </button>
+                      </div>
+                    </div>
+
+                                         {/* Filter Summary */}
+                     <div className="mt-3 flex items-center justify-between text-xs text-gray-800">
+                       <span>
+                         Showing {paginatedTickets.length} of {filteredTickets.length} tickets
+                         {ticketFilters.searchTerm && ` matching "${ticketFilters.searchTerm}"`}
+                         {ticketFilters.status !== 'all' && ` with status "${ticketFilters.status}"`}
+                         {hasActiveFilters && ticketFilters.status === 'all' && ` (excluding closed/rejected)`}
+                         {ticketFilters.priority !== 'all' && ` with priority "${ticketFilters.priority}"`}
+                         {ticketFilters.dateRange !== 'all' && ` from ${ticketFilters.dateRange}`}
+                       </span>
+                       <span className="text-green-700 font-medium">
+                         {filteredTickets.length > 0 && (
+                           `${((filteredTickets.length / tickets.length) * 100).toFixed(1)}% of total tickets`
+                         )}
+                       </span>
+                     </div>
+
+
+
+                     {/* Quick Actions */}
+                     <div className="mt-2 flex items-center space-x-4 text-xs">
+                       <span className="text-gray-800">Quick Actions:</span>
+                       <button
+                         onClick={() => setTicketFilters(prev => ({ ...prev, status: 'Open' }))}
+                         className="text-blue-700 hover:text-blue-900 hover:underline"
+                       >
+                         Show Open Tickets
+                       </button>
+                       <button
+                         onClick={() => setTicketFilters(prev => ({ ...prev, priority: 'Critical' }))}
+                         className="text-red-700 hover:text-red-900 hover:underline"
+                       >
+                         Show Critical Priority
+                       </button>
+                       <button
+                         onClick={() => setTicketFilters(prev => ({ ...prev, dateRange: 'today' }))}
+                         className="text-green-700 hover:text-green-900 hover:underline"
+                       >
+                         Show Today's Tickets
+                       </button>
+                       <button
+                         onClick={() => setTicketFilters(prev => ({ ...prev, status: 'Closed' }))}
+                         className="text-gray-700 hover:text-gray-900 hover:underline"
+                       >
+                         Show Closed Tickets
+                       </button>
+                     </div>
+
+
+                  </div>
+                )}
 
                 {/* Tickets List */}
                 {tickets.length === 0 ? (
@@ -1042,24 +1584,160 @@ export default function DashboardPage() {
                       Create Your First Ticket
                     </button>
                   </div>
+                ) : ticketLoading ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="bg-white rounded-lg shadow-md p-6 animate-pulse">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                          <div className="h-4 bg-gray-200 rounded w-16"></div>
+                        </div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2 mb-3"></div>
+                        <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : ticketError ? (
+                  <div className="text-center py-12">
+                    <AlertCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Failed to load tickets
+                    </h3>
+                    <p className="text-gray-500 mb-4">{ticketError}</p>
+                    <button
+                      onClick={() => fetchTickets(true)}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : filteredTickets.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No tickets match your filters
+                    </h3>
+                    <p className="text-gray-500 mb-4">
+                      Try adjusting your search criteria or clearing some filters.
+                    </p>
+                    <button
+                      onClick={() => setTicketFilters({
+                        status: 'all',
+                        priority: 'all',
+                        searchTerm: '',
+                        dateRange: 'all'
+                      })}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Clear All Filters
+                    </button>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {tickets.map((ticket) => (
+                    {paginatedTickets.map((ticket) => (
                       <TicketCard
                         key={ticket._id}
                         ticket={ticket}
-                        onClick={(ticket) => {
-                          // Only allow opening tickets that are not closed or rejected
-                          if (
-                            ticket.status !== "Closed" &&
-                            ticket.status !== "Rejected"
-                          ) {
-                            setSelectedTicket(ticket);
-                          }
-                        }}
+                        onClick={(ticket) => setSelectedTicket(ticket)}
                         isAdmin={false}
                       />
                     ))}
+                  </div>
+                )}
+
+                {/* Pagination Controls */}
+                {filteredTickets.length > 0 && (
+                  <div className="mt-6 flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      {/* Items per page selector */}
+                      <div className="flex items-center space-x-2">
+                        <label className="text-sm text-gray-700">Show:</label>
+                        <select
+                          value={ticketPagination.itemsPerPage}
+                          onChange={(e) => {
+                            const newItemsPerPage = parseInt(e.target.value);
+                            setTicketPagination(prev => ({
+                              ...prev,
+                              itemsPerPage: newItemsPerPage,
+                              currentPage: 1, // Reset to first page
+                              totalPages: Math.ceil(filteredTickets.length / newItemsPerPage)
+                            }));
+                          }}
+                                                     className="px-2 py-1 border border-gray-300 rounded text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value={4}>4</option>
+                          <option value={8}>8</option>
+                          <option value={12}>12</option>
+                          <option value={16}>16</option>
+                          <option value={20}>20</option>
+                        </select>
+                        <span className="text-sm text-gray-800">per page</span>
+                      </div>
+
+                      {/* Page info */}
+                      <div className="text-sm text-gray-800">
+                        Page {ticketPagination.currentPage} of {ticketPagination.totalPages} 
+                        ({ticketPagination.totalItems} total tickets)
+                      </div>
+                    </div>
+
+                    {/* Pagination buttons */}
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setTicketPagination(prev => ({
+                          ...prev,
+                          currentPage: Math.max(1, prev.currentPage - 1)
+                        }))}
+                        disabled={ticketPagination.currentPage === 1}
+                        className="px-3 py-2 text-sm text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500"
+                      >
+                        Previous
+                      </button>
+                      
+                      {/* Page numbers */}
+                      <div className="flex items-center space-x-1">
+                        {Array.from({ length: Math.min(5, ticketPagination.totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (ticketPagination.totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (ticketPagination.currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (ticketPagination.currentPage >= ticketPagination.totalPages - 2) {
+                            pageNum = ticketPagination.totalPages - 4 + i;
+                          } else {
+                            pageNum = ticketPagination.currentPage - 2 + i;
+                          }
+                          
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setTicketPagination(prev => ({
+                                ...prev,
+                                currentPage: pageNum
+                              }))}
+                              className={`px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 ${
+                                pageNum === ticketPagination.currentPage
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      
+                      <button
+                        onClick={() => setTicketPagination(prev => ({
+                          ...prev,
+                          currentPage: Math.min(prev.totalPages, prev.currentPage + 1)
+                        }))}
+                        disabled={ticketPagination.currentPage === ticketPagination.totalPages}
+                        className="px-3 py-2 text-sm text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500"
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1199,27 +1877,13 @@ export default function DashboardPage() {
               <div className="mt-8 text-center text-sm text-gray-500">
                 {activeTab === "hardware"
                   ? filteredHardware.length > 0 &&
-                    `Showing ${filteredHardware.length} of ${
-                      dashboardStats?.totalAssets || totalItems
-                    } hardware assets`
+                    `Showing ${filteredHardware.length} of ${hardware.length} hardware assets`
                   : filteredSoftware.length > 0 &&
                     `Showing ${filteredSoftware.length} of ${software.length} software inventories`}
               </div>
             )}
 
-            {/* Pagination */}
-            {!loading &&
-              activeTab !== "alerts" &&
-              activeTab !== "tickets" &&
-              totalPages > 1 && (
-                <div className="mt-6 flex justify-center">
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={handlePageChange}
-                  />
-                </div>
-              )}
+
           </div>
         </div>
 
@@ -1242,10 +1906,209 @@ export default function DashboardPage() {
             });
 
             setTickets(sortedTickets);
+             setCachedTickets(sortedTickets);
+             setLastTicketFetch(Date.now());
             setShowCreateTicketModal(false);
             toast.success("Ticket created successfully!");
           }}
         />
+
+         {/* Ticket Details Modal - for viewing/updating tickets */}
+         {selectedTicket && (
+           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+             <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+               <div className="flex items-center justify-between mb-4">
+                 <h2 className="text-xl font-semibold">Ticket Details</h2>
+                 <button
+                   onClick={() => setSelectedTicket(null)}
+                   className="text-gray-500 hover:text-gray-700"
+                 >
+                   <X className="h-6 w-6" />
+                 </button>
+               </div>
+               
+               <div className="space-y-4">
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                     Status
+                   </label>
+                   <select
+                     value={selectedTicket.status || 'Open'}
+                     onChange={async (e) => {
+                       try {
+                         const newStatus = e.target.value;
+                         // Update ticket status via API
+                         const response = await ticketsAPI.update(selectedTicket._id, {
+                           status: newStatus,
+                           ...(newStatus === 'Resolved' && { resolved_at: new Date().toISOString() }),
+                           ...(newStatus === 'Closed' && { closed_at: new Date().toISOString() })
+                         });
+                         
+                         if (response.data.success) {
+                           // Update local state
+                           const updatedTicket = { ...selectedTicket, status: newStatus };
+                           if (newStatus === 'Resolved') {
+                             updatedTicket.resolved_at = new Date().toISOString();
+                           } else if (newStatus === 'Closed') {
+                             updatedTicket.closed_at = new Date().toISOString();
+                           }
+                           
+                           const updatedTickets = tickets.map(t => 
+                             t._id === selectedTicket._id ? updatedTicket : t
+                           );
+                           
+                           // Re-sort tickets
+                           const sortedTickets = updatedTickets.sort((a, b) => {
+                             const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+                             const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                             if (aIsClosed && !bIsClosed) return 1;
+                             if (!aIsClosed && bIsClosed) return -1;
+                             return 0;
+                           });
+                           
+                           setTickets(sortedTickets);
+                           setCachedTickets(sortedTickets);
+                           setSelectedTicket(updatedTicket);
+                           toast.success(`Ticket status updated to ${newStatus}`);
+                         }
+                       } catch (error) {
+                         console.error('Error updating ticket status:', error);
+                         toast.error('Failed to update ticket status');
+                       }
+                     }}
+                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                   >
+                     <option value="Open">Open</option>
+                     <option value="In Progress">In Progress</option>
+                     <option value="Resolved">Resolved</option>
+                     <option value="Closed">Closed</option>
+                     <option value="Rejected">Rejected</option>
+                   </select>
+                 </div>
+                 
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                     Priority
+                   </label>
+                   <select
+                     value={selectedTicket.priority || 'Medium'}
+                     onChange={async (e) => {
+                       try {
+                         const newPriority = e.target.value;
+                         const response = await ticketsAPI.update(selectedTicket._id, {
+                           priority: newPriority
+                         });
+                         
+                         if (response.data.success) {
+                           const updatedTicket = { ...selectedTicket, priority: newPriority };
+                           const updatedTickets = tickets.map(t => 
+                             t._id === selectedTicket._id ? updatedTicket : t
+                           );
+                           
+                           setTickets(updatedTickets);
+                           setCachedTickets(updatedTickets);
+                           setSelectedTicket(updatedTicket);
+                           toast.success(`Ticket priority updated to ${newPriority}`);
+                         }
+                       } catch (error) {
+                         console.error('Error updating ticket priority:', error);
+                         toast.error('Failed to update ticket priority');
+                       }
+                     }}
+                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                   >
+                     <option value="Low">Low</option>
+                     <option value="Medium">Medium</option>
+                     <option value="High">High</option>
+                     <option value="Critical">Critical</option>
+                   </select>
+                 </div>
+                 
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                     Resolution Notes
+                   </label>
+                   <textarea
+                     value={selectedTicket.resolution_notes || ''}
+                     onChange={async (e) => {
+                       try {
+                         const resolutionNotes = e.target.value;
+                         const response = await ticketsAPI.update(selectedTicket._id, {
+                           resolution_notes: resolutionNotes
+                         });
+                         
+                         if (response.data.success) {
+                           const updatedTicket = { ...selectedTicket, resolution_notes };
+                           const updatedTickets = tickets.map(t => 
+                             t._id === selectedTicket._id ? updatedTicket : t
+                           );
+                           
+                           setTickets(updatedTickets);
+                           setCachedTickets(updatedTickets);
+                           setSelectedTicket(updatedTicket);
+                         }
+                       } catch (error) {
+                         console.error('Error updating resolution notes:', error);
+                         toast.error('Failed to update resolution notes');
+                       }
+                     }}
+                     rows={3}
+                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                     placeholder="Add resolution notes..."
+                   />
+                 </div>
+                 
+                 <div className="grid grid-cols-2 gap-4">
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                       Created
+                     </label>
+                     <p className="text-sm text-gray-900">
+                       {new Date(selectedTicket.created_at).toLocaleString()}
+                     </p>
+                   </div>
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                       Last Updated
+                     </label>
+                     <p className="text-sm text-gray-900">
+                       {new Date(selectedTicket.updated_at).toLocaleString()}
+                     </p>
+                   </div>
+                 </div>
+                 
+                 {selectedTicket.resolved_at && (
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                       Resolved At
+                     </label>
+                     <p className="text-sm text-gray-900">
+                       {new Date(selectedTicket.resolved_at).toLocaleString()}
+                     </p>
+                   </div>
+                 )}
+               </div>
+               
+               <div className="mt-6 flex justify-end space-x-3">
+                 <button
+                   onClick={() => setSelectedTicket(null)}
+                   className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                 >
+                   Close
+                 </button>
+                 <button
+                   onClick={() => {
+                     fetchTickets(true); // Force refresh
+                     setSelectedTicket(null);
+                   }}
+                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                 >
+                   Refresh Data
+                 </button>
+               </div>
+             </div>
+           </div>
+         )}
 
         {/* ML Service Control Panel */}
         <MLServiceControlPanel

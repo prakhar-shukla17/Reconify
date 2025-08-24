@@ -10,6 +10,11 @@ const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [userAssets, setUserAssets] = useState([]);
   const [loadingAssets, setLoadingAssets] = useState(false);
+  
+  // Cache for user assets to prevent unnecessary API calls
+  const [assetsCache, setAssetsCache] = useState(null);
+  const [lastAssetsFetch, setLastAssetsFetch] = useState(0);
+  const ASSETS_CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
   const {
     register,
@@ -38,6 +43,11 @@ const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
     "Other",
   ];
 
+  // Check if assets cache is valid
+  const isAssetsCacheValid = () => {
+    return assetsCache && (Date.now() - lastAssetsFetch < ASSETS_CACHE_DURATION);
+  };
+
   useEffect(() => {
     if (isOpen) {
       fetchUserAssets();
@@ -45,10 +55,20 @@ const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
   }, [isOpen]);
 
   const fetchUserAssets = async () => {
+    // Check cache first
+    if (isAssetsCacheValid()) {
+      setUserAssets(assetsCache);
+      return;
+    }
+
     try {
       setLoadingAssets(true);
       const response = await ticketsAPI.getUserAssets();
-      setUserAssets(response.data.data || []);
+      const assetsData = response.data.data || [];
+      
+      setUserAssets(assetsData);
+      setAssetsCache(assetsData);
+      setLastAssetsFetch(Date.now());
     } catch (error) {
       console.error("Error fetching user assets:", error);
       toast.error("Failed to fetch your assets");

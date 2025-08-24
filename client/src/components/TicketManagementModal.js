@@ -31,6 +31,11 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
   const [showCloseForm, setShowCloseForm] = useState(false);
   const [closeResolution, setCloseResolution] = useState("");
   const modalRef = useRef(null);
+  
+  // Cache for admin users to prevent unnecessary API calls
+  const [usersCache, setUsersCache] = useState(null);
+  const [lastUsersFetch, setLastUsersFetch] = useState(0);
+  const USERS_CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
 
   useEffect(() => {
     fetchAdminUsers();
@@ -46,10 +51,25 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
+  // Check if users cache is valid
+  const isUsersCacheValid = () => {
+    return usersCache && (Date.now() - lastUsersFetch < USERS_CACHE_DURATION);
+  };
+
   const fetchAdminUsers = async () => {
+    // Check cache first
+    if (isUsersCacheValid()) {
+      setAdminUsers(usersCache);
+      return;
+    }
+
     try {
       const response = await ticketsAPI.getAdminUsers();
-      setAdminUsers(response.data.data || []);
+      const usersData = response.data.data || [];
+      
+      setAdminUsers(usersData);
+      setUsersCache(usersData);
+      setLastUsersFetch(Date.now());
     } catch (error) {
       console.error("Error fetching admin users:", error);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import Navbar from "../../components/Navbar";
@@ -16,11 +16,18 @@ import TicketCard from "../../components/TicketCard";
 import TicketManagementModal from "../../components/lazy/TicketManagementModal.lazy";
 import HealthDashboard from "../../components/lazy/HealthDashboard.lazy";
 import MLServiceControlPanel from "../../components/lazy/MLServiceControlPanel.lazy";
-import Pagination from "../../components/Pagination";
+
 import LazyLoader from "../../components/LazyLoader";
 import { hardwareAPI, authAPI, ticketsAPI, softwareAPI, alertsAPI } from "../../lib/api";
 import toast from "react-hot-toast";
-import { throttle } from "../../utils/performance";
+
+import { 
+  exportTicketsToCSV, 
+  exportTicketStatsToCSV, 
+  exportTicketsResolvedToday, 
+  exportTicketsByTimePeriod,
+  exportTicketsBySLACompliance
+} from "../../utils/exportUtils";
 import {
   Users,
   Monitor,
@@ -43,6 +50,7 @@ import {
   Play,
   AlertTriangle,
   Clock,
+  Download,
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -80,29 +88,287 @@ export default function AdminPage() {
     low: 0
   });
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalItems, setTotalItems] = useState(0);
-  const [itemsPerPage, setItemsPerPage] = useState(12);
+
 
   // Cache for asset data to prevent unnecessary API calls
   const [assetCache, setAssetCache] = useState({});
   const [lastFetchTime, setLastFetchTime] = useState({});
 
+  // Enhanced ticket filtering and pagination state
+  const [ticketFilters, setTicketFilters] = useState({
+    status: 'all',
+    priority: 'all',
+    category: 'all',
+    searchTerm: '',
+    dateRange: 'all',
+    assignedTo: 'all'
+  });
+  
+  const [ticketPagination, setTicketPagination] = useState({
+    currentPage: 1,
+    itemsPerPage: 12,
+    totalPages: 1,
+    totalItems: 0
+  });
+
   // Ref for the assets section to scroll to
   const assetsSectionRef = useRef(null);
 
+  // Ticket optimization state
+  const [ticketCache, setTicketCache] = useState(new Map());
+  const [lastTicketFetch, setLastTicketFetch] = useState(0);
+  const [ticketLoading, setTicketLoading] = useState(false);
+  const [ticketError, setTicketError] = useState(null);
+  const TICKET_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
+  // Check if ticket cache is valid
+  const isTicketCacheValid = useCallback(() => {
+    return Date.now() - lastTicketFetch < TICKET_CACHE_DURATION;
+  }, [lastTicketFetch]);
+
+  // Get cached tickets if available
+  const getCachedTickets = useCallback(() => {
+    const cacheKey = `admin-tickets`;
+    const cached = ticketCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < TICKET_CACHE_DURATION) {
+      return cached.data;
+    }
+    return null;
+  }, [ticketCache]);
+
+  // Set cached tickets
+  const setCachedTickets = useCallback((data) => {
+    const cacheKey = `admin-tickets`;
+    setTicketCache(prev => new Map(prev).set(cacheKey, {
+      data,
+      timestamp: Date.now()
+    }));
+  }, []);
+
+  // Optimized ticket fetching with caching
+  const fetchTickets = useCallback(async (forceRefresh = false) => {
+    // Check cache first (unless forcing refresh)
+    if (!forceRefresh) {
+      const cached = getCachedTickets();
+      if (cached) {
+        setTickets(cached);
+        setTicketError(null);
+        return;
+      }
+    }
+
+    try {
+      setTicketLoading(true);
+      setTicketError(null);
+      
+      const response = await ticketsAPI.getAll();
+      const ticketsData = response.data.data || [];
+
+      // Sort tickets: active tickets first, closed tickets last
+      const sortedTickets = ticketsData.sort((a, b) => {
+        const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+        const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+
+        if (aIsClosed && !bIsClosed) return 1; // a goes after b
+        if (!aIsClosed && bIsClosed) return -1; // a goes before b
+        return 0; // keep original order for same status type
+      });
+
+      setTickets(sortedTickets);
+      setCachedTickets(sortedTickets);
+      setLastTicketFetch(Date.now());
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      setTicketError("Failed to load tickets");
+      toast.error("Failed to load tickets");
+    } finally {
+      setTicketLoading(false);
+    }
+  }, [getCachedTickets, setCachedTickets]);
+
+  // Check if any filters are active
+  const hasActiveFilters = useMemo(() => {
+    return ticketFilters.status !== 'all' || 
+           ticketFilters.priority !== 'all' || 
+           ticketFilters.dateRange !== 'all' || 
+           ticketFilters.searchTerm;
+  }, [ticketFilters]);
+
+  // Memoized filtered tickets with advanced filtering
+  const filteredTickets = useMemo(() => {
+    let filtered = [...tickets];
+    
+    // Status filter
+    if (ticketFilters.status !== 'all') {
+      filtered = filtered.filter(ticket => ticket.status === ticketFilters.status);
+    }
+    
+    // Only hide closed tickets if other filters are applied (not by default)
+    if (hasActiveFilters && ticketFilters.status === 'all') {
+      // When filters are applied but status is 'all', exclude closed and rejected tickets
+      filtered = filtered.filter(ticket => 
+        ticket.status !== 'Closed' && ticket.status !== 'Rejected'
+      );
+    }
+    
+    // Priority filter
+    if (ticketFilters.priority !== 'all') {
+      filtered = filtered.filter(ticket => ticket.priority === ticketFilters.priority);
+    }
+    
+    // Category filter
+    if (ticketFilters.category !== 'all') {
+      filtered = filtered.filter(ticket => ticket.category === ticketFilters.category);
+    }
+    
+    // Search term filter
+    if (ticketFilters.searchTerm) {
+      const searchLower = ticketFilters.searchTerm.toLowerCase();
+      filtered = filtered.filter(ticket =>
+        ticket.title?.toLowerCase().includes(searchLower) ||
+        ticket.description?.toLowerCase().includes(searchLower) ||
+        ticket.ticket_id?.toLowerCase().includes(searchLower) ||
+        ticket.created_by_name?.toLowerCase().includes(searchLower) ||
+        ticket.asset_hostname?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Date range filter
+    if (ticketFilters.dateRange !== 'all') {
+      const now = new Date();
+      let startDate;
+      
+      switch (ticketFilters.dateRange) {
+        case 'today':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'week':
+          startDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+          break;
+        case 'month':
+          startDate = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+          break;
+        case 'quarter':
+          startDate = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+          break;
+        default:
+          break;
+      }
+      
+      if (startDate) {
+        filtered = filtered.filter(ticket => new Date(ticket.created_at) >= startDate);
+      }
+    }
+    
+    // Assigned to filter
+    if (ticketFilters.assignedTo !== 'all') {
+      if (ticketFilters.assignedTo === 'unassigned') {
+        filtered = filtered.filter(ticket => !ticket.assigned_to?.username);
+      } else {
+        filtered = filtered.filter(ticket => ticket.assigned_to?.username === ticketFilters.assignedTo);
+      }
+    }
+    
+    return filtered;
+  }, [tickets, ticketFilters, hasActiveFilters]);
+
+  // Memoized paginated tickets
+  const paginatedTickets = useMemo(() => {
+    const startIndex = (ticketPagination.currentPage - 1) * ticketPagination.itemsPerPage;
+    const endIndex = startIndex + ticketPagination.itemsPerPage;
+    return filteredTickets.slice(startIndex, endIndex);
+  }, [filteredTickets, ticketPagination.currentPage, ticketPagination.itemsPerPage]);
+
+  // Update pagination when filters change
+  useEffect(() => {
+    const totalPages = Math.ceil(filteredTickets.length / ticketPagination.itemsPerPage);
+    setTicketPagination(prev => ({
+      ...prev,
+      currentPage: 1, // Reset to first page when filters change
+      totalPages: Math.max(1, totalPages),
+      totalItems: filteredTickets.length
+    }));
+  }, [filteredTickets, ticketPagination.itemsPerPage]);
+
+  // Keyboard navigation for accessibility
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (activeTab === "tickets") {
+        switch (e.key) {
+          case 'ArrowLeft':
+            if (e.ctrlKey) {
+              e.preventDefault();
+              setTicketPagination(prev => ({
+                ...prev,
+                currentPage: Math.max(1, prev.currentPage - 1)
+              }));
+            }
+            break;
+          case 'ArrowRight':
+            if (e.ctrlKey) {
+              e.preventDefault();
+              setTicketPagination(prev => ({
+                ...prev,
+                currentPage: Math.min(prev.totalPages, prev.currentPage + 1)
+              }));
+            }
+            break;
+          case 'Home':
+            if (e.ctrlKey) {
+              e.preventDefault();
+              setTicketPagination(prev => ({ ...prev, currentPage: 1 }));
+            }
+            break;
+          case 'End':
+            if (e.ctrlKey) {
+              e.preventDefault();
+              setTicketPagination(prev => ({ ...prev, currentPage: prev.totalPages }));
+            }
+            break;
+          case 'Escape':
+            setTicketFilters({
+              status: 'all',
+              priority: 'all',
+              category: 'all',
+              searchTerm: '',
+              dateRange: 'all',
+              assignedTo: 'all'
+            });
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab, ticketPagination.totalPages]);
+
+  // Memoized ticket statistics
+  const ticketStats = useMemo(() => {
+    if (!tickets.length) return { total: 0, open: 0, resolved: 0, closed: 0 };
+    
+    return {
+      total: tickets.length,
+      open: tickets.filter((t) => t.status === "Open").length,
+      resolved: tickets.filter((t) => t.status === "Resolved").length,
+      closed: tickets.filter((t) => t.status === "Closed").length,
+    };
+  }, [tickets]);
+
+  // Memoized filtered tickets (only active tickets for display)
+  const activeTickets = useMemo(() => {
+    return tickets.filter(ticket => 
+      ticket.status !== "Closed" && ticket.status !== "Rejected"
+    );
+  }, [tickets]);
 
   useEffect(() => {
     if (activeTab === "assets") {
-      setCurrentPage(1); // Reset to first page when switching to assets tab
       if (assetType === "hardware") {
-        fetchHardware(1);
+        fetchHardware();
         fetchDashboardStats();
       } else {
-        fetchSoftware(1);
+        fetchSoftware();
       }
       // Only fetch users once when needed, not every time
       if (users.length === 0) {
@@ -118,16 +384,26 @@ export default function AdminPage() {
     }
   }, [activeTab, assetType]);
 
+  // Auto-refresh tickets every 30 seconds when on tickets tab
+  useEffect(() => {
+    if (activeTab === "tickets") {
+      const interval = setInterval(() => {
+        fetchTickets(true); // Force refresh every 30 seconds
+      }, 30000); // 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, fetchTickets]);
+
   // Refetch data when search or filter changes
   useEffect(() => {
     if (activeTab === "assets") {
       // Add debounce for search to reduce API calls
       const timeoutId = setTimeout(() => {
-        setCurrentPage(1); // Reset to first page when search/filter changes
         if (assetType === "hardware") {
-          fetchHardware(1);
+          fetchHardware();
         } else {
-          fetchSoftware(1);
+          fetchSoftware();
         }
       }, 300); // 300ms delay
 
@@ -137,7 +413,6 @@ export default function AdminPage() {
 
   const handleAssetTypeChange = (type) => {
     setAssetType(type);
-    setCurrentPage(1);
 
     // Scroll to the top of the assets section when switching asset types
     if (assetsSectionRef.current) {
@@ -148,40 +423,34 @@ export default function AdminPage() {
     }
 
     if (type === "hardware") {
-      fetchHardware(1);
+      fetchHardware();
     } else {
-      fetchSoftware(1);
+      fetchSoftware();
     }
   };
 
-  const fetchHardware = async (page = currentPage, limit = itemsPerPage) => {
+  const fetchHardware = async () => {
     try {
       // Check cache first
-      const cacheKey = `hardware_${page}_${limit}_${searchTerm}_${filterType}`;
+      const cacheKey = `hardware_${searchTerm}_${filterType}`;
       const now = Date.now();
       const cacheAge = now - (lastFetchTime[cacheKey] || 0);
 
       // Use cache if it's less than 30 seconds old and we have the data
       if (assetCache[cacheKey] && cacheAge < 30000) {
         setHardware(assetCache[cacheKey].data);
-        setCurrentPage(assetCache[cacheKey].pagination.currentPage);
-        setTotalPages(assetCache[cacheKey].pagination.totalPages);
-        setTotalItems(assetCache[cacheKey].pagination.totalItems);
         return;
       }
 
       // Use searchLoading for search operations, main loading for initial fetch
-      if (page === 1 && !searchTerm && filterType === "all") {
+      if (!searchTerm && filterType === "all") {
         setLoading(true);
       } else {
         setSearchLoading(true);
       }
 
       // Build query parameters
-      const params = {
-        page: page,
-        limit: limit,
-      };
+      const params = {};
 
       // Add search and filter parameters if we're on the assets tab
       if (activeTab === "assets") {
@@ -198,31 +467,17 @@ export default function AdminPage() {
 
       setHardware(hardwareData);
 
-      // Update pagination info
-      if (response.data.pagination) {
-        setCurrentPage(response.data.pagination.currentPage);
-        setTotalPages(response.data.pagination.totalPages);
-        setTotalItems(response.data.pagination.totalItems);
-
         // Cache the response
         setAssetCache((prev) => ({
           ...prev,
           [cacheKey]: {
             data: hardwareData,
-            pagination: response.data.pagination,
           },
         }));
         setLastFetchTime((prev) => ({
           ...prev,
           [cacheKey]: now,
         }));
-      } else {
-        // Fallback pagination if API doesn't provide it
-        const totalItems = hardwareData.length;
-        setTotalItems(totalItems);
-        setTotalPages(Math.ceil(totalItems / limit));
-        setCurrentPage(page);
-      }
     } catch (error) {
       console.error("Error fetching hardware:", error);
       toast.error("Failed to load hardware data");
@@ -243,34 +498,28 @@ export default function AdminPage() {
 
 
 
-  const fetchSoftware = async (page = currentPage, limit = itemsPerPage) => {
+  const fetchSoftware = async () => {
     try {
       // Check cache first
-      const cacheKey = `software_${page}_${limit}_${searchTerm}_${filterType}`;
+      const cacheKey = `software_${searchTerm}_${filterType}`;
       const now = Date.now();
       const cacheAge = now - (lastFetchTime[cacheKey] || 0);
 
-      // Use cache if it's less than 30 seconds old and we have the data
+      // Use cache if it's less than 30 days old and we have the data
       if (assetCache[cacheKey] && cacheAge < 30000) {
         setSoftware(assetCache[cacheKey].data);
-        setCurrentPage(assetCache[cacheKey].pagination.currentPage);
-        setTotalPages(assetCache[cacheKey].pagination.totalPages);
-        setTotalItems(assetCache[cacheKey].pagination.totalItems);
         return;
       }
 
       // Use searchLoading for search operations, main loading for initial fetch
-      if (page === 1 && !searchTerm && filterType === "all") {
+      if (!searchTerm && filterType === "all") {
         setLoading(true);
       } else {
         setSearchLoading(true);
       }
 
       // Build query parameters
-      const params = {
-        page: page,
-        limit: limit,
-      };
+      const params = {};
 
       // Add search and filter parameters if we're on the assets tab
       if (activeTab === "assets") {
@@ -287,31 +536,17 @@ export default function AdminPage() {
 
       setSoftware(softwareData);
 
-      // Update pagination info
-      if (response.data.pagination) {
-        setCurrentPage(response.data.pagination.currentPage);
-        setTotalPages(response.data.pagination.totalPages);
-        setTotalItems(response.data.pagination.totalItems);
-
         // Cache the response
         setAssetCache((prev) => ({
           ...prev,
           [cacheKey]: {
             data: softwareData,
-            pagination: response.data.pagination,
           },
         }));
         setLastFetchTime((prev) => ({
           ...prev,
           [cacheKey]: now,
         }));
-      } else {
-        // Fallback pagination if API doesn't provide it
-        const totalItems = softwareData.length;
-        setTotalItems(totalItems);
-        setTotalPages(Math.ceil(totalItems / limit));
-        setCurrentPage(page);
-      }
     } catch (error) {
       console.error("Error fetching software:", error);
       toast.error("Failed to load software data");
@@ -334,54 +569,13 @@ export default function AdminPage() {
     }
   };
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
 
-    // Scroll to the top of the assets section when changing pages
-    if (assetsSectionRef.current) {
-      assetsSectionRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }
-
-    if (assetType === "hardware") {
-      fetchHardware(page);
-    } else {
-      fetchSoftware(page);
-    }
-  };
-
-  const fetchTickets = async () => {
-    try {
-      setLoading(true);
-      const response = await ticketsAPI.getAll();
-      const ticketsData = response.data.data || [];
-
-      // Sort tickets: active tickets first, closed tickets last
-      const sortedTickets = ticketsData.sort((a, b) => {
-        const aIsClosed = a.status === "Closed" || a.status === "Rejected";
-        const bIsClosed = b.status === "Closed" || b.status === "Rejected";
-
-        if (aIsClosed && !bIsClosed) return 1; // a goes after b
-        if (!aIsClosed && bIsClosed) return -1; // a goes before b
-        return 0; // keep original order for same status type
-      });
-
-      setTickets(sortedTickets);
-    } catch (error) {
-      console.error("Error fetching tickets:", error);
-      toast.error("Failed to load tickets");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchAlerts = async () => {
     try {
       setLoading(true);
       console.log("Fetching alerts...");
-      const response = await alertsAPI.getWarrantyAlerts(30); // 30 days
+      const response = await alertsAPI.getWarrantyAlerts(30, 1, 1000, "all"); // 30 days, first page, large limit, all severities
       console.log("Alerts response:", response);
       setAlerts(response.data.alerts || []);
       setAlertsSummary(response.data.summary || {});
@@ -582,12 +776,11 @@ export default function AdminPage() {
   // Search function that only triggers when explicitly called
   const handleSearch = useCallback((term) => {
       setSearchTerm(term);
-      setCurrentPage(1);
       if (activeTab === "assets") {
         if (assetType === "hardware") {
-          fetchHardware(1);
+          fetchHardware();
         } else {
-          fetchSoftware(1);
+          fetchSoftware();
         }
       } else if (activeTab === "users") {
         fetchUsers();
@@ -607,12 +800,11 @@ export default function AdminPage() {
   // Clear search and reset to show all items
   const handleClearSearch = () => {
     setSearchTerm("");
-    setCurrentPage(1);
     if (activeTab === "assets") {
       if (assetType === "hardware") {
-        fetchHardware(1);
+        fetchHardware();
       } else {
-        fetchSoftware(1);
+        fetchSoftware();
       }
     } else if (activeTab === "users") {
       fetchUsers();
@@ -1287,27 +1479,7 @@ export default function AdminPage() {
                             </select>
                           </div>
 
-                          <div className="relative">
-                            <select
-                              value={itemsPerPage}
-                              onChange={(e) => {
-                                const newLimit = parseInt(e.target.value);
-                                setItemsPerPage(newLimit);
-                                setCurrentPage(1);
-                                if (assetType === "hardware") {
-                                  fetchHardware(1, newLimit);
-                                } else {
-                                  fetchSoftware(1, newLimit);
-                                }
-                              }}
-                              className="px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
-                            >
-                              <option value={12}>12 per page</option>
-                              <option value={24}>24 per page</option>
-                              <option value={36}>36 per page</option>
-                              <option value={48}>48 per page</option>
-                            </select>
-                          </div>
+
                         </>
                       )}
 
@@ -1315,11 +1487,10 @@ export default function AdminPage() {
                         onClick={
                           activeTab === "assets"
                             ? () => {
-                                setCurrentPage(1);
                                 if (assetType === "hardware") {
-                                  fetchHardware(1);
+                                  fetchHardware();
                                 } else {
-                                  fetchSoftware(1);
+                                  fetchSoftware();
                                 }
                               }
                             : fetchUsers
@@ -1370,6 +1541,8 @@ export default function AdminPage() {
               // Tickets Tab
               <div className="p-4">
                 <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
                   <h2 className="text-lg font-semibold text-slate-800 mb-1 bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
                     Support Tickets Management
                   </h2>
@@ -1377,6 +1550,315 @@ export default function AdminPage() {
                     View and manage all support tickets from users
                   </p>
                 </div>
+                    
+                                         {/* Export Buttons */}
+                     {tickets.length > 0 && (
+                       <div className="flex items-center space-x-2">
+                                                   <button
+                            onClick={() => {
+                              exportTicketsToCSV(tickets, 'admin_all_tickets');
+                              toast.success(`Exported ${tickets.length} tickets to CSV`);
+                            }}
+                            disabled={ticketLoading}
+                            className="text-xs border border-green-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                            title="Export all tickets to CSV"
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            Export All
+                          </button>
+                          <button
+                            onClick={() => {
+                              exportTicketStatsToCSV(tickets, 'admin_ticket_statistics');
+                              toast.success('Exported ticket statistics to CSV');
+                            }}
+                            disabled={ticketLoading}
+                            className="text-xs border border-purple-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-700 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                            title="Export ticket statistics to CSV"
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            Export Stats
+                          </button>
+                          
+                          {/* Export Filtered Tickets Button */}
+                          <button
+                            onClick={() => {
+                              if (filteredTickets.length === 0) {
+                                toast.error('No filtered tickets to export');
+                                return;
+                              }
+                              exportTicketsToCSV(filteredTickets, 'admin_filtered_tickets');
+                              toast.success(`Exported ${filteredTickets.length} filtered tickets to CSV`);
+                            }}
+                            disabled={ticketLoading || filteredTickets.length === 0}
+                            className="text-xs border border-indigo-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                            title="Export currently filtered tickets to CSV"
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            Export Filtered
+                          </button>
+                         
+                         {/* Time-based Export Buttons */}
+                         <div className="flex items-center space-x-1">
+                           <button
+                             onClick={async () => {
+                               // Always fetch fresh data before export
+                               try {
+                                 const response = await ticketsAPI.getAll();
+                                 const freshTickets = response.data.data || [];
+                                 const sortedTickets = freshTickets.sort((a, b) => {
+                                   const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+                                   const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                                   if (aIsClosed && !bIsClosed) return 1;
+                                   if (!aIsClosed && bIsClosed) return -1;
+                                   return 0;
+                                 });
+                                 
+                                 // Update local state with fresh data
+                                 setTickets(sortedTickets);
+                                 setCachedTickets(sortedTickets);
+                                 
+                                 // Export fresh data
+                                 const count = exportTicketsResolvedToday(sortedTickets, 'admin_tickets_resolved_today');
+                                 toast.success(`Exported ${count} tickets resolved today to CSV (fresh data)`);
+                               } catch (error) {
+                                 console.error('Error fetching fresh tickets for export:', error);
+                                 // Fallback to cached data
+                                 const count = exportTicketsResolvedToday(tickets, 'admin_tickets_resolved_today');
+                                 toast.success(`Exported ${count} tickets resolved today to CSV (cached data)`);
+                               }
+                             }}
+                             disabled={ticketLoading}
+                             className="text-xs border border-blue-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                             title="Export tickets resolved today (with fresh data)"
+                           >
+                             <Download className="h-3 w-3 mr-1" />
+                             Today
+                           </button>
+                           <button
+                             onClick={async () => {
+                               // Always fetch fresh data before export
+                               try {
+                                 const response = await ticketsAPI.getAll();
+                                 const freshTickets = response.data.data || [];
+                                 const sortedTickets = freshTickets.sort((a, b) => {
+                                   const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+                                   const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                                   if (aIsClosed && !bIsClosed) return 1;
+                                   if (!aIsClosed && bIsClosed) return -1;
+                                   return 0;
+                                 });
+                                 
+                                 // Update local state with fresh data
+                                 setTickets(sortedTickets);
+                                 setCachedTickets(sortedTickets);
+                                 
+                                 // Export fresh data
+                                 const count = exportTicketsByTimePeriod(sortedTickets, '7d', 'admin_tickets_last_7_days');
+                                 toast.success(`Exported ${count} tickets from last 7 days to CSV (fresh data)`);
+                               } catch (error) {
+                                 console.error('Error fetching fresh tickets for export:', error);
+                                 // Fallback to cached data
+                                 const count = exportTicketsByTimePeriod(tickets, '7d', 'admin_tickets_last_7_days');
+                                 toast.success(`Exported ${count} tickets from last 7 days to CSV (cached data)`);
+                               }
+                             }}
+                             disabled={ticketLoading}
+                             className="text-xs border border-orange-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500 text-orange-700 bg-orange-50 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                             title="Export tickets from last 7 days (with fresh data)"
+                           >
+                             <Download className="h-3 w-3 mr-1" />
+                             7 Days
+                           </button>
+                           <button
+                             onClick={async () => {
+                               // Always fetch fresh data before export
+                               try {
+                                 const response = await ticketsAPI.getAll();
+                                 const freshTickets = response.data.data || [];
+                                 const sortedTickets = freshTickets.sort((a, b) => {
+                                   const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+                                   const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                                   if (aIsClosed && !bIsClosed) return 1;
+                                   if (!aIsClosed && bIsClosed) return -1;
+                                   return 0;
+                                 });
+                                 
+                                 // Update local state with fresh data
+                                 setTickets(sortedTickets);
+                                 setCachedTickets(sortedTickets);
+                                 
+                                 // Export fresh data
+                                 const count = exportTicketsBySLACompliance(sortedTickets, 'compliant', 'admin_sla_compliant_tickets');
+                                 toast.success(`Exported ${count} SLA compliant tickets to CSV (fresh data)`);
+                               } catch (error) {
+                                 console.error('Error fetching fresh tickets for export:', error);
+                                 // Fallback to cached data
+                                 const count = exportTicketsBySLACompliance(tickets, 'compliant', 'admin_sla_compliant_tickets');
+                                 toast.success(`Exported ${count} SLA compliant tickets to CSV (cached data)`);
+                               }
+                             }}
+                             disabled={ticketLoading}
+                             className="text-xs border border-emerald-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                             title="Export SLA compliant tickets (with fresh data)"
+                           >
+                             <Download className="h-3 w-3 mr-1" />
+                             SLA OK
+                           </button>
+                         </div>
+                       </div>
+                     )}
+                  </div>
+                </div>
+
+                {/* Advanced Filter Controls */}
+                {tickets.length > 0 && (
+                  <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                      {/* Search Input */}
+                      <div className="lg:col-span-2">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Search Tickets
+                        </label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search by title, description, ID..."
+                            value={ticketFilters.searchTerm}
+                            onChange={(e) => setTicketFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Status Filter */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Status
+                        </label>
+                                                 <select
+                           value={ticketFilters.status}
+                           onChange={(e) => setTicketFilters(prev => ({ ...prev, status: e.target.value }))}
+                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                         >
+                          <option value="all">All Status</option>
+                          <option value="Open">Open</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Resolved">Resolved</option>
+                          <option value="Closed">Closed</option>
+                          <option value="Rejected">Rejected</option>
+                        </select>
+                      </div>
+
+                      {/* Priority Filter */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Priority
+                        </label>
+                                                 <select
+                           value={ticketFilters.priority}
+                           onChange={(e) => setTicketFilters(prev => ({ ...prev, priority: e.target.value }))}
+                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                         >
+                          <option value="all">All Priority</option>
+                          <option value="Low">Low</option>
+                          <option value="Medium">Medium</option>
+                          <option value="High">High</option>
+                          <option value="Critical">Critical</option>
+                        </select>
+                      </div>
+
+                      {/* Date Range Filter */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Date Range
+                        </label>
+                                                 <select
+                           value={ticketFilters.dateRange}
+                           onChange={(e) => setTicketFilters(prev => ({ ...prev, dateRange: e.target.value }))}
+                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                         >
+                          <option value="all">All Time</option>
+                          <option value="today">Today</option>
+                          <option value="week">Last 7 Days</option>
+                          <option value="month">Last 30 Days</option>
+                          <option value="quarter">Last 90 Days</option>
+                        </select>
+                      </div>
+
+                      {/* Clear Filters Button */}
+                      <div className="flex items-end">
+                        <button
+                          onClick={() => setTicketFilters({
+                            status: 'all',
+                            priority: 'all',
+                            category: 'all',
+                            searchTerm: '',
+                            dateRange: 'all',
+                            assignedTo: 'all'
+                          })}
+                          className="w-full px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        >
+                          Clear Filters
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Filter Summary */}
+                    <div className="mt-3 flex items-center justify-between text-xs text-gray-800">
+                      <span>
+                        Showing {paginatedTickets.length} of {filteredTickets.length} tickets
+                        {ticketFilters.searchTerm && ` matching "${ticketFilters.searchTerm}"`}
+                        {ticketFilters.status !== 'all' && ` with status "${ticketFilters.status}"`}
+                        {hasActiveFilters && ticketFilters.status === 'all' && ` (excluding closed/rejected)`}
+                        {ticketFilters.priority !== 'all' && ` with priority "${ticketFilters.priority}"`}
+                        {ticketFilters.dateRange !== 'all' && ` from ${ticketFilters.dateRange}`}
+                      </span>
+                      <span className="text-green-700 font-medium">
+                        {filteredTickets.length > 0 && (
+                          `${((filteredTickets.length / tickets.length) * 100).toFixed(1)}% of total tickets`
+                        )}
+                      </span>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div className="mt-2 flex items-center space-x-4 text-xs">
+                      <span className="text-gray-800">Quick Actions:</span>
+                      <button
+                        onClick={() => setTicketFilters(prev => ({ ...prev, status: 'Open' }))}
+                        className="text-blue-700 hover:text-blue-900 hover:underline"
+                      >
+                        Show Open Tickets
+                      </button>
+                      <button
+                        onClick={() => setTicketFilters(prev => ({ ...prev, priority: 'Critical' }))}
+                        className="text-red-700 hover:text-red-900 hover:underline"
+                      >
+                        Show Critical Priority
+                      </button>
+                      <button
+                        onClick={() => setTicketFilters(prev => ({ ...prev, dateRange: 'today' }))}
+                        className="text-green-700 hover:text-green-900 hover:underline"
+                      >
+                        Show Today's Tickets
+                      </button>
+                      <button
+                        onClick={() => setTicketFilters(prev => ({ ...prev, status: 'Closed' }))}
+                        className="text-gray-700 hover:text-gray-900 hover:underline"
+                      >
+                        Show Closed Tickets
+                      </button>
+                    </div>
+
+                    {/* Keyboard Shortcuts Help */}
+                    <div className="mt-2 flex items-center space-x-4 text-xs text-gray-700">
+                      <span>Keyboard shortcuts:</span>
+                      <span>Ctrl+←/→ Navigate pages</span>
+                      <span>Ctrl+Home/End First/Last page</span>
+                      <span>Escape Clear filters</span>
+                    </div>
+                  </div>
+                )}
 
                 {tickets.length === 0 ? (
                   <div className="text-center py-8">
@@ -1390,9 +1872,34 @@ export default function AdminPage() {
                       No users have created support tickets yet.
                     </p>
                   </div>
+                ) : filteredTickets.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="h-16 w-16 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Search className="h-8 w-8 text-slate-500" />
+                    </div>
+                    <h3 className="text-base font-medium text-slate-800 mb-1">
+                      No tickets match your filters
+                    </h3>
+                    <p className="text-sm text-slate-500">
+                      Try adjusting your search criteria or clearing some filters.
+                    </p>
+                    <button
+                      onClick={() => setTicketFilters({
+                        status: 'all',
+                        priority: 'all',
+                        category: 'all',
+                        searchTerm: '',
+                        dateRange: 'all',
+                        assignedTo: 'all'
+                      })}
+                      className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    >
+                      Clear All Filters
+                    </button>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {tickets.map((ticket) => (
+                    {paginatedTickets.map((ticket) => (
                       <TicketCard
                         key={ticket._id}
                         ticket={ticket}
@@ -1411,19 +1918,112 @@ export default function AdminPage() {
                     ))}
                   </div>
                 )}
+
+                {/* Pagination Controls */}
+                {filteredTickets.length > 0 && (
+                  <div className="mt-6 flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      {/* Items per page selector */}
+                      <div className="flex items-center space-x-2">
+                        <label className="text-sm text-gray-700">Show:</label>
+                        <select
+                          value={ticketPagination.itemsPerPage}
+                          onChange={(e) => {
+                            const newItemsPerPage = parseInt(e.target.value);
+                            setTicketPagination(prev => ({
+                              ...prev,
+                              itemsPerPage: newItemsPerPage,
+                              currentPage: 1, // Reset to first page
+                              totalPages: Math.ceil(filteredTickets.length / newItemsPerPage)
+                            }));
+                          }}
+                                                     className="px-2 py-1 border border-gray-300 rounded text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value={4}>4</option>
+                          <option value={8}>8</option>
+                          <option value={12}>12</option>
+                          <option value={16}>16</option>
+                          <option value={20}>20</option>
+                        </select>
+                        <span className="text-sm text-gray-800">per page</span>
+                      </div>
+
+                      {/* Page info */}
+                      <div className="text-sm text-gray-800">
+                        Page {ticketPagination.currentPage} of {ticketPagination.totalPages} 
+                        ({ticketPagination.totalItems} total tickets)
+                      </div>
+                    </div>
+
+                    {/* Pagination buttons */}
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setTicketPagination(prev => ({
+                          ...prev,
+                          currentPage: Math.max(1, prev.currentPage - 1)
+                        }))}
+                        disabled={ticketPagination.currentPage === 1}
+                        className="px-3 py-2 text-sm text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500"
+                      >
+                        Previous
+                      </button>
+                      
+                      {/* Page numbers */}
+                      <div className="flex items-center space-x-1">
+                        {Array.from({ length: Math.min(5, ticketPagination.totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (ticketPagination.totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (ticketPagination.currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (ticketPagination.currentPage >= ticketPagination.totalPages - 2) {
+                            pageNum = ticketPagination.totalPages - 4 + i;
+                          } else {
+                            pageNum = ticketPagination.currentPage - 2 + i;
+                          }
+                          
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setTicketPagination(prev => ({
+                                ...prev,
+                                currentPage: pageNum
+                              }))}
+                              className={`px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 ${
+                                pageNum === ticketPagination.currentPage
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      
+                      <button
+                        onClick={() => setTicketPagination(prev => ({
+                          ...prev,
+                          currentPage: Math.min(prev.totalPages, prev.currentPage + 1)
+                        }))}
+                        disabled={ticketPagination.currentPage === ticketPagination.totalPages}
+                        className="px-3 py-2 text-sm text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : activeTab === "assets" ? (
               // Assets Tab
               <div ref={assetsSectionRef}>
-                {/* Page Info */}
-                {totalItems > 0 && (
+                {/* Assets Info */}
+                {currentAssets.length > 0 && (
                   <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
                     <div className="flex items-center justify-between text-sm text-gray-600">
                       <span>
-                        Page {currentPage} of {totalPages} • {totalItems} total{" "}
-                        {assetType === "hardware"
-                          ? "hardware assets"
-                          : "software systems"}
+                        Showing {currentAssets.length} {assetType === "hardware" ? "hardware assets" : "software systems"}
                       </span>
                     </div>
                   </div>
@@ -1702,16 +2302,7 @@ export default function AdminPage() {
                       </>
                     )}
 
-                    {/* Pagination */}
-                    {currentAssets.length > 0 && (
-                      <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        totalItems={totalItems}
-                        itemsPerPage={itemsPerPage}
-                        onPageChange={handlePageChange}
-                      />
-                    )}
+
                   </div>
                 )}
               </div>
@@ -1881,11 +2472,10 @@ export default function AdminPage() {
             isOpen={showManualAssetModal}
             onClose={() => setShowManualAssetModal(false)}
             onSuccess={() => {
-              setCurrentPage(1);
               if (assetType === "hardware") {
-                fetchHardware(1);
+                fetchHardware();
               } else {
-                fetchSoftware(1);
+                fetchSoftware();
               }
               setShowManualAssetModal(false);
             }}
@@ -1933,11 +2523,10 @@ export default function AdminPage() {
               toast.success(
                 `Successfully imported ${results.data.successCount} assets`
               );
-              setCurrentPage(1);
               if (assetType === "hardware") {
-                fetchHardware(1);
+                fetchHardware();
               } else {
-                fetchSoftware(1);
+                fetchSoftware();
             }
             setShowCsvImportModal(false);
           }}

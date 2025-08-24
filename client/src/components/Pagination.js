@@ -11,6 +11,7 @@ const Pagination = ({
   totalItems,
   itemsPerPage,
   onPageChange,
+  onItemsPerPageChange,
   className = "",
 }) => {
   if (totalPages <= 1) return null;
@@ -49,14 +50,37 @@ const Pagination = ({
 
   return (
     <div
-      className={`flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6 ${className}`}
+      className={`flex flex-col sm:flex-row items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6 ${className}`}
     >
-      <div className="flex items-center text-sm text-gray-700">
-        <span>
-          Showing <span className="font-medium">{startItem}</span> to{" "}
-          <span className="font-medium">{endItem}</span> of{" "}
-          <span className="font-medium">{totalItems}</span> results
-        </span>
+      <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 mb-4 sm:mb-0">
+        <div className="flex items-center text-sm text-gray-700">
+          <span>
+            Showing <span className="font-medium">{startItem}</span> to{" "}
+            <span className="font-medium">{endItem}</span> of{" "}
+            <span className="font-medium">{totalItems}</span> results
+          </span>
+        </div>
+        
+        {/* Items per page selector */}
+        {onItemsPerPageChange && (
+          <div className="flex items-center space-x-2">
+            <label htmlFor="itemsPerPage" className="text-sm text-gray-700">
+              Show:
+            </label>
+            <select
+              id="itemsPerPage"
+              value={itemsPerPage}
+              onChange={(e) => onItemsPerPageChange(parseInt(e.target.value))}
+              className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span className="text-sm text-gray-700">per page</span>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center space-x-2">
