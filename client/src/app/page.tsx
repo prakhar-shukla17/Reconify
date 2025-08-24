@@ -53,54 +53,49 @@ export default function HomePage() {
         }}
       />
 
-      {/* Sidebar */}
-      <div className="fixed left-4 top-4 bottom-4 w-64 bg-black rounded-3xl z-40 shadow-2xl border border-gray-800/20">
-        <div className="p-6">
-          {/* App Name with Icon */}
-          <div className="flex items-center justify-center mb-8">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-900">
+              {/* Sidebar */}
+        <div className="fixed left-4 top-4 bottom-4 w-64 bg-black rounded-3xl z-40 shadow-2xl border border-gray-800/20">
+          <div className="p-6 h-full flex flex-col">
+            {/* App Icon */}
+            <div className="flex items-center mb-6">
+              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-black">
                   <circle cx="12" cy="12" r="10"/>
                   <circle cx="12" cy="12" r="6"/>
                   <circle cx="12" cy="12" r="2"/>
                 </svg>
               </div>
-              <span className="text-white font-bold text-lg tracking-wider">RECONIFY</span>
+              <span className="ml-3 text-white font-bold text-lg">RECONIFY</span>
+            </div>
+
+            {/* Navigation */}
+            <div className="space-y-3 flex-1">
+              {/* Asset Monitoring */}
+              <Link href="/" className="block">
+                <div className="flex items-center p-3 rounded-2xl bg-gray-900/80 hover:bg-gray-900 transition-colors duration-200">
+                  <Monitor className="h-6 w-6 text-white" />
+                  <span className="ml-3 text-white font-medium">Asset Monitoring</span>
+                </div>
+              </Link>
+
+              {/* Patch Monitoring */}
+              <Link href="/patches" className="block">
+                <div className="flex items-center p-3 rounded-2xl hover:bg-gray-900/80 transition-colors duration-200">
+                  <Shield className="h-6 w-6 text-gray-400" />
+                  <span className="ml-3 text-gray-400 font-medium">Patch Monitoring</span>
+                </div>
+              </Link>
+
+              {/* Network Monitoring */}
+              <Link href="/network" className="block">
+                <div className="flex items-center p-3 rounded-2xl hover:bg-gray-900/80 transition-colors duration-200">
+                  <Activity className="h-6 w-6 text-gray-400" />
+                  <span className="ml-3 text-gray-400 font-medium">Network Monitoring</span>
+                </div>
+              </Link>
             </div>
           </div>
-
-          {/* Monitoring Tiles */}
-          <div className="space-y-3">
-            <Link
-              href="/"
-              className="group flex items-center space-x-3 p-4 rounded-2xl bg-gray-900/80 cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-gray-900"
-            >
-              <div className="w-1 h-6 bg-blue-500 rounded-full shadow-sm"></div>
-              <Monitor className="h-5 w-5 text-white" />
-              <span className="text-white font-medium text-sm">Asset Monitoring</span>
-            </Link>
-
-            <Link
-              href="/patches"
-              className="group flex items-center space-x-3 p-4 rounded-2xl hover:bg-gray-900/80 cursor-pointer shadow-md hover:shadow-lg transition-all duration-300"
-            >
-              <div className="w-1 h-6 bg-transparent rounded-full"></div>
-              <Shield className="h-5 w-5 text-gray-400 group-hover:text-white" />
-              <span className="text-gray-400 group-hover:text-white font-medium text-sm">Patch Monitoring</span>
-            </Link>
-
-            <Link
-              href="/network"
-              className="group flex items-center space-x-3 p-4 rounded-2xl hover:bg-gray-900/80 cursor-pointer shadow-md hover:shadow-lg transition-all duration-300"
-            >
-              <div className="w-1 h-6 bg-transparent rounded-full"></div>
-              <Activity className="h-5 w-5 text-gray-400 group-hover:text-white" />
-              <span className="text-gray-400 group-hover:text-white font-medium text-sm">Network Monitoring</span>
-            </Link>
-          </div>
         </div>
-      </div>
 
       <header className="fixed top-0 left-72 right-0 bg-white/90 backdrop-blur-xl border-b border-gray-100/50 z-50 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -122,16 +117,18 @@ export default function HomePage() {
               </Link>
               <Link
                 href="/register"
-                className="bg-gray-900 text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-800 transition-all duration-200 hover:scale-105 hover:shadow-lg"
+                className="group relative inline-flex items-center px-6 py-2.5 bg-gradient-to-r from-gray-900 to-black text-white rounded-xl text-sm font-medium hover:from-black hover:to-gray-900 transition-all duration-300 hover:scale-105 hover:shadow-lg overflow-hidden"
               >
-                Get Started
+                <span className="relative z-10">Get Started</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-gray-700 to-gray-800 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
               </Link>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="pt-16 relative ml-72">
+             <main className="pt-16 relative ml-72">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="pt-24 pb-20 text-center relative">
             <div className="fade-in opacity-0 translate-y-8">
@@ -156,10 +153,14 @@ export default function HomePage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <Link
                   href="/register"
-                  className="group inline-flex items-center px-8 py-4 bg-gray-900 text-white rounded-2xl font-medium hover:bg-gray-800 transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                  className="group relative inline-flex items-center px-8 py-4 bg-gradient-to-r from-gray-900 to-black text-white rounded-2xl font-medium hover:from-black hover:to-gray-900 transition-all duration-300 hover:scale-105 hover:shadow-xl overflow-hidden"
                 >
-                  Start Managing Assets
-                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-2 transition-transform duration-300" />
+                  <span className="relative z-10 flex items-center">
+                    Start Managing Assets
+                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-2 transition-transform duration-300" />
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-gray-700 to-gray-800 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
                 </Link>
                 <Link
                   href="/login"
@@ -179,59 +180,51 @@ export default function HomePage() {
                   title: "Hardware Tracking",
                   description:
                     "Automatically discover and track all hardware components including CPU, memory, storage, and network interfaces across your organization.",
-                  color: "from-blue-500 to-blue-600",
                 },
                 {
                   icon: Users,
                   title: "User Management",
                   description:
                     "Manage user accounts, assign assets, and control access with role-based permissions for users and administrators.",
-                  color: "from-green-500 to-green-600",
                 },
                 {
                   icon: Shield,
                   title: "Admin Controls",
                   description:
                     "Comprehensive admin dashboard to manage all assets, assign devices to users, and monitor system-wide statistics and performance.",
-                  color: "from-purple-500 to-purple-600",
                 },
                 {
                   icon: Package,
                   title: "Asset Assignment",
                   description:
                     "Easily assign and track which devices belong to which users, with detailed hardware specifications and usage monitoring.",
-                  color: "from-orange-500 to-orange-600",
                 },
                 {
                   icon: Activity,
                   title: "Real-time Monitoring",
                   description:
                     "Monitor system health, performance metrics, and hardware status in real-time with automated scanning and reporting.",
-                  color: "from-red-500 to-red-600",
                 },
                 {
                   icon: Lock,
                   title: "Secure Access",
                   description:
                     "Role-based authentication ensures users only see their assigned assets while administrators have full system visibility and control.",
-                  color: "from-gray-500 to-gray-600",
                 },
               ].map((feature, index) => (
                 <div
                   key={index}
-                  className="fade-in opacity-0 translate-y-8 group cursor-pointer"
+                  className="fade-in opacity-0 translate-y-8 group cursor-pointer h-full"
                   style={{ transitionDelay: `${index * 150}ms` }}
                 >
-                  <div className="p-8 rounded-3xl border border-gray-100 hover:border-gray-200 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white/50 backdrop-blur-sm">
-                    <div
-                      className={`w-14 h-14 bg-gradient-to-br ${feature.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}
-                    >
+                  <div className="p-8 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 w-full h-full flex flex-col">
+                    <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg group-hover:bg-gray-800">
                       <feature.icon className="h-7 w-7 text-white" />
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-4 group-hover:text-gray-700 transition-colors">
+                    <h3 className="text-xl font-semibold text-gray-900 mb-4 group-hover:text-black transition-colors">
                       {feature.title}
                     </h3>
-                    <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                    <p className="text-gray-600 leading-relaxed group-hover:text-gray-800 flex-1">{feature.description}</p>
                   </div>
                 </div>
               ))}
@@ -249,10 +242,14 @@ export default function HomePage() {
                   </p>
                   <Link
                     href="/register"
-                    className="group inline-flex items-center px-10 py-4 bg-gray-900 text-white rounded-2xl font-medium hover:bg-gray-800 transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                    className="group relative inline-flex items-center px-10 py-4 bg-gradient-to-r from-gray-900 to-black text-white rounded-2xl font-medium hover:from-black hover:to-gray-900 transition-all duration-300 hover:scale-105 hover:shadow-xl overflow-hidden"
                   >
-                    Create Your Account
-                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-2 transition-transform duration-300" />
+                    <span className="relative z-10 flex items-center">
+                      Create Your Account
+                      <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-2 transition-transform duration-300" />
+                    </span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-gray-700 to-gray-800 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
                   </Link>
                 </div>
               </div>
@@ -261,7 +258,7 @@ export default function HomePage() {
         </div>
       </main>
 
-      <footer className="border-t border-gray-100 py-16 bg-gray-50/50 ml-72">
+             <footer className="border-t border-gray-100 py-16 bg-gray-50/50 ml-72">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
           <div className="flex items-center justify-center space-x-3 mb-6">
             <div className="w-8 h-8 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center">
