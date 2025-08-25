@@ -18,21 +18,16 @@ import HealthDashboard from "../../components/lazy/HealthDashboard.lazy";
 import MLServiceControlPanel from "../../components/lazy/MLServiceControlPanel.lazy";
 
 import LazyLoader from "../../components/LazyLoader";
-import {
-  hardwareAPI,
-  authAPI,
-  ticketsAPI,
-  softwareAPI,
-  alertsAPI,
-} from "../../lib/api";
+import Pagination from "../../components/Pagination";
+import { hardwareAPI, authAPI, ticketsAPI, softwareAPI, alertsAPI } from "../../lib/api";
 import toast from "react-hot-toast";
 
-import {
-  exportTicketsToCSV,
-  exportTicketStatsToCSV,
-  exportTicketsResolvedToday,
+import { 
+  exportTicketsToCSV, 
+  exportTicketStatsToCSV, 
+  exportTicketsResolvedToday, 
   exportTicketsByTimePeriod,
-  exportTicketsBySLACompliance,
+  exportTicketsBySLACompliance
 } from "../../utils/exportUtils";
 import {
   Users,
@@ -92,28 +87,28 @@ export default function AdminPage() {
     critical: 0,
     high: 0,
     medium: 0,
-    low: 0,
+    low: 0
   });
 
-  // Cache for asset data to prevent unnecessary API calls
-  const [assetCache, setAssetCache] = useState({});
-  const [lastFetchTime, setLastFetchTime] = useState({});
+
+
+
 
   // Enhanced ticket filtering and pagination state
   const [ticketFilters, setTicketFilters] = useState({
-    status: "all",
-    priority: "all",
-    category: "all",
-    searchTerm: "",
-    dateRange: "all",
-    assignedTo: "all",
+    status: 'all',
+    priority: 'all',
+    category: 'all',
+    searchTerm: '',
+    dateRange: 'all',
+    assignedTo: 'all'
   });
-
+  
   const [ticketPagination, setTicketPagination] = useState({
     currentPage: 1,
     itemsPerPage: 12,
     totalPages: 1,
-    totalItems: 0,
+    totalItems: 0
   });
 
   // Ref for the assets section to scroll to
@@ -155,183 +150,154 @@ export default function AdminPage() {
   // Set cached tickets
   const setCachedTickets = useCallback((data) => {
     const cacheKey = `admin-tickets`;
-    setTicketCache((prev) =>
-      new Map(prev).set(cacheKey, {
-        data,
-        timestamp: Date.now(),
-      })
-    );
+    setTicketCache(prev => new Map(prev).set(cacheKey, {
+      data,
+      timestamp: Date.now()
+    }));
   }, []);
 
   // Optimized ticket fetching with caching
-  const fetchTickets = useCallback(
-    async (forceRefresh = false) => {
-      // Check cache first (unless forcing refresh)
-      if (!forceRefresh) {
-        const cached = getCachedTickets();
-        if (cached) {
-          setTickets(cached);
-          setTicketError(null);
-          return;
-        }
-      }
-
-      try {
-        setTicketLoading(true);
+  const fetchTickets = useCallback(async (forceRefresh = false) => {
+    // Check cache first (unless forcing refresh)
+    if (!forceRefresh) {
+      const cached = getCachedTickets();
+      if (cached) {
+        setTickets(cached);
         setTicketError(null);
-
-        const response = await ticketsAPI.getAll();
-        const ticketsData = response.data.data || [];
-
-        // Sort tickets: active tickets first, closed tickets last
-        const sortedTickets = ticketsData.sort((a, b) => {
-          const aIsClosed = a.status === "Closed" || a.status === "Rejected";
-          const bIsClosed = b.status === "Closed" || b.status === "Rejected";
-
-          if (aIsClosed && !bIsClosed) return 1; // a goes after b
-          if (!aIsClosed && bIsClosed) return -1; // a goes before b
-          return 0; // keep original order for same status type
-        });
-
-        setTickets(sortedTickets);
-        setCachedTickets(sortedTickets);
-        setLastTicketFetch(Date.now());
-      } catch (error) {
-        console.error("Error fetching tickets:", error);
-        setTicketError("Failed to load tickets");
-        toast.error("Failed to load tickets");
-      } finally {
-        setTicketLoading(false);
+        return;
       }
-    },
-    [getCachedTickets, setCachedTickets]
-  );
+    }
+
+    try {
+      setTicketLoading(true);
+      setTicketError(null);
+      
+      const response = await ticketsAPI.getAll();
+      const ticketsData = response.data.data || [];
+
+      // Sort tickets: active tickets first, closed tickets last
+      const sortedTickets = ticketsData.sort((a, b) => {
+        const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+        const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+
+        if (aIsClosed && !bIsClosed) return 1; // a goes after b
+        if (!aIsClosed && bIsClosed) return -1; // a goes before b
+        return 0; // keep original order for same status type
+      });
+
+      setTickets(sortedTickets);
+      setCachedTickets(sortedTickets);
+      setLastTicketFetch(Date.now());
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      setTicketError("Failed to load tickets");
+      toast.error("Failed to load tickets");
+    } finally {
+      setTicketLoading(false);
+    }
+  }, [getCachedTickets, setCachedTickets]);
 
   // Check if any filters are active
   const hasActiveFilters = useMemo(() => {
-    return (
-      ticketFilters.status !== "all" ||
-      ticketFilters.priority !== "all" ||
-      ticketFilters.dateRange !== "all" ||
-      ticketFilters.searchTerm
-    );
+    return ticketFilters.status !== 'all' || 
+           ticketFilters.priority !== 'all' || 
+           ticketFilters.dateRange !== 'all' || 
+           ticketFilters.searchTerm;
   }, [ticketFilters]);
 
   // Memoized filtered tickets with advanced filtering
   const filteredTickets = useMemo(() => {
     let filtered = [...tickets];
-
+    
     // Status filter
-    if (ticketFilters.status !== "all") {
-      filtered = filtered.filter(
-        (ticket) => ticket.status === ticketFilters.status
-      );
+    if (ticketFilters.status !== 'all') {
+      filtered = filtered.filter(ticket => ticket.status === ticketFilters.status);
     }
-
+    
     // Only hide closed tickets if other filters are applied (not by default)
-    if (hasActiveFilters && ticketFilters.status === "all") {
+    if (hasActiveFilters && ticketFilters.status === 'all') {
       // When filters are applied but status is 'all', exclude closed and rejected tickets
-      filtered = filtered.filter(
-        (ticket) => ticket.status !== "Closed" && ticket.status !== "Rejected"
+      filtered = filtered.filter(ticket => 
+        ticket.status !== 'Closed' && ticket.status !== 'Rejected'
       );
     }
-
+    
     // Priority filter
-    if (ticketFilters.priority !== "all") {
-      filtered = filtered.filter(
-        (ticket) => ticket.priority === ticketFilters.priority
-      );
+    if (ticketFilters.priority !== 'all') {
+      filtered = filtered.filter(ticket => ticket.priority === ticketFilters.priority);
     }
-
+    
     // Category filter
-    if (ticketFilters.category !== "all") {
-      filtered = filtered.filter(
-        (ticket) => ticket.category === ticketFilters.category
-      );
+    if (ticketFilters.category !== 'all') {
+      filtered = filtered.filter(ticket => ticket.category === ticketFilters.category);
     }
-
+    
     // Search term filter
     if (ticketFilters.searchTerm) {
       const searchLower = ticketFilters.searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (ticket) =>
-          ticket.title?.toLowerCase().includes(searchLower) ||
-          ticket.description?.toLowerCase().includes(searchLower) ||
-          ticket.ticket_id?.toLowerCase().includes(searchLower) ||
-          ticket.created_by_name?.toLowerCase().includes(searchLower) ||
-          ticket.asset_hostname?.toLowerCase().includes(searchLower)
+      filtered = filtered.filter(ticket =>
+        ticket.title?.toLowerCase().includes(searchLower) ||
+        ticket.description?.toLowerCase().includes(searchLower) ||
+        ticket.ticket_id?.toLowerCase().includes(searchLower) ||
+        ticket.created_by_name?.toLowerCase().includes(searchLower) ||
+        ticket.asset_hostname?.toLowerCase().includes(searchLower)
       );
     }
-
+    
     // Date range filter
-    if (ticketFilters.dateRange !== "all") {
+    if (ticketFilters.dateRange !== 'all') {
       const now = new Date();
       let startDate;
-
+      
       switch (ticketFilters.dateRange) {
-        case "today":
-          startDate = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate()
-          );
+        case 'today':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           break;
-        case "week":
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        case 'week':
+          startDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
           break;
-        case "month":
-          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        case 'month':
+          startDate = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
           break;
-        case "quarter":
-          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        case 'quarter':
+          startDate = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
           break;
         default:
           break;
       }
-
+      
       if (startDate) {
-        filtered = filtered.filter(
-          (ticket) => new Date(ticket.created_at) >= startDate
-        );
+        filtered = filtered.filter(ticket => new Date(ticket.created_at) >= startDate);
       }
     }
-
+    
     // Assigned to filter
-    if (ticketFilters.assignedTo !== "all") {
-      if (ticketFilters.assignedTo === "unassigned") {
-        filtered = filtered.filter((ticket) => !ticket.assigned_to?.username);
+    if (ticketFilters.assignedTo !== 'all') {
+      if (ticketFilters.assignedTo === 'unassigned') {
+        filtered = filtered.filter(ticket => !ticket.assigned_to?.username);
       } else {
-        filtered = filtered.filter(
-          (ticket) => ticket.assigned_to?.username === ticketFilters.assignedTo
-        );
+        filtered = filtered.filter(ticket => ticket.assigned_to?.username === ticketFilters.assignedTo);
       }
     }
-
+    
     return filtered;
   }, [tickets, ticketFilters, hasActiveFilters]);
 
   // Memoized paginated tickets
   const paginatedTickets = useMemo(() => {
-    const startIndex =
-      (ticketPagination.currentPage - 1) * ticketPagination.itemsPerPage;
+    const startIndex = (ticketPagination.currentPage - 1) * ticketPagination.itemsPerPage;
     const endIndex = startIndex + ticketPagination.itemsPerPage;
     return filteredTickets.slice(startIndex, endIndex);
-  }, [
-    filteredTickets,
-    ticketPagination.currentPage,
-    ticketPagination.itemsPerPage,
-  ]);
+  }, [filteredTickets, ticketPagination.currentPage, ticketPagination.itemsPerPage]);
 
   // Update pagination when filters change
   useEffect(() => {
-    const totalPages = Math.ceil(
-      filteredTickets.length / ticketPagination.itemsPerPage
-    );
-    setTicketPagination((prev) => ({
+    const totalPages = Math.ceil(filteredTickets.length / ticketPagination.itemsPerPage);
+    setTicketPagination(prev => ({
       ...prev,
       currentPage: 1, // Reset to first page when filters change
       totalPages: Math.max(1, totalPages),
-      totalItems: filteredTickets.length,
+      totalItems: filteredTickets.length
     }));
   }, [filteredTickets, ticketPagination.itemsPerPage]);
 
@@ -340,61 +306,58 @@ export default function AdminPage() {
     const handleKeyDown = (e) => {
       if (activeTab === "tickets") {
         switch (e.key) {
-          case "ArrowLeft":
+          case 'ArrowLeft':
             if (e.ctrlKey) {
               e.preventDefault();
-              setTicketPagination((prev) => ({
+              setTicketPagination(prev => ({
                 ...prev,
-                currentPage: Math.max(1, prev.currentPage - 1),
+                currentPage: Math.max(1, prev.currentPage - 1)
               }));
             }
             break;
-          case "ArrowRight":
+          case 'ArrowRight':
             if (e.ctrlKey) {
               e.preventDefault();
-              setTicketPagination((prev) => ({
+              setTicketPagination(prev => ({
                 ...prev,
-                currentPage: Math.min(prev.totalPages, prev.currentPage + 1),
+                currentPage: Math.min(prev.totalPages, prev.currentPage + 1)
               }));
             }
             break;
-          case "Home":
+          case 'Home':
             if (e.ctrlKey) {
               e.preventDefault();
-              setTicketPagination((prev) => ({ ...prev, currentPage: 1 }));
+              setTicketPagination(prev => ({ ...prev, currentPage: 1 }));
             }
             break;
-          case "End":
+          case 'End':
             if (e.ctrlKey) {
               e.preventDefault();
-              setTicketPagination((prev) => ({
-                ...prev,
-                currentPage: prev.totalPages,
-              }));
+              setTicketPagination(prev => ({ ...prev, currentPage: prev.totalPages }));
             }
             break;
-          case "Escape":
+          case 'Escape':
             setTicketFilters({
-              status: "all",
-              priority: "all",
-              category: "all",
-              searchTerm: "",
-              dateRange: "all",
-              assignedTo: "all",
+              status: 'all',
+              priority: 'all',
+              category: 'all',
+              searchTerm: '',
+              dateRange: 'all',
+              assignedTo: 'all'
             });
             break;
         }
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, [activeTab, ticketPagination.totalPages]);
 
   // Memoized ticket statistics
   const ticketStats = useMemo(() => {
     if (!tickets.length) return { total: 0, open: 0, resolved: 0, closed: 0 };
-
+    
     return {
       total: tickets.length,
       open: tickets.filter((t) => t.status === "Open").length,
@@ -405,8 +368,8 @@ export default function AdminPage() {
 
   // Memoized filtered tickets (only active tickets for display)
   const activeTickets = useMemo(() => {
-    return tickets.filter(
-      (ticket) => ticket.status !== "Closed" && ticket.status !== "Rejected"
+    return tickets.filter(ticket => 
+      ticket.status !== "Closed" && ticket.status !== "Rejected"
     );
   }, [tickets]);
 
@@ -424,7 +387,7 @@ export default function AdminPage() {
     } else if (activeTab === "alerts") {
       fetchAlerts();
     }
-  }, [activeTab, assetType]);
+  }, [activeTab, assetType, assetPagination.itemsPerPage]);
 
   // Auto-refresh tickets every 30 seconds when on tickets tab
   useEffect(() => {
@@ -538,17 +501,23 @@ export default function AdminPage() {
 
       setHardware(hardwareData);
 
-      // Cache the response
-      setAssetCache((prev) => ({
-        ...prev,
-        [cacheKey]: {
+      // Update pagination state from server response
+      if (response.data.pagination) {
+        setAssetPagination(prev => ({
+          ...prev,
+          currentPage: response.data.pagination.currentPage,
+          totalPages: response.data.pagination.totalPages,
+          totalItems: response.data.pagination.totalItems,
+          itemsPerPage: response.data.pagination.itemsPerPage
+        }));
+
+        // Cache the response with pagination data
+        setAssetCache(prev => new Map(prev).set(cacheKey, {
           data: hardwareData,
-        },
-      }));
-      setLastFetchTime((prev) => ({
-        ...prev,
-        [cacheKey]: now,
-      }));
+          pagination: response.data.pagination,
+          timestamp: Date.now()
+        }));
+      }
     } catch (error) {
       console.error("Error fetching hardware:", error);
       toast.error("Failed to load hardware data");
@@ -568,7 +537,9 @@ export default function AdminPage() {
     }
   };
 
-  const fetchSoftware = async () => {
+
+
+  const fetchSoftware = async (page = 1, limit = assetPagination.itemsPerPage) => {
     try {
       // Check cache first
       const cacheKey = `software_${page}_${limit}_${searchTerm}_${filterType}`;
@@ -616,17 +587,23 @@ export default function AdminPage() {
 
       setSoftware(softwareData);
 
-      // Cache the response
-      setAssetCache((prev) => ({
-        ...prev,
-        [cacheKey]: {
+      // Update pagination state from server response
+      if (response.data.pagination) {
+        setAssetPagination(prev => ({
+          ...prev,
+          currentPage: response.data.pagination.currentPage,
+          totalPages: response.data.pagination.totalPages,
+          totalItems: response.data.pagination.totalItems,
+          itemsPerPage: response.data.pagination.itemsPerPage
+        }));
+
+        // Cache the response with pagination data
+        setAssetCache(prev => new Map(prev).set(cacheKey, {
           data: softwareData,
-        },
-      }));
-      setLastFetchTime((prev) => ({
-        ...prev,
-        [cacheKey]: now,
-      }));
+          pagination: response.data.pagination,
+          timestamp: Date.now()
+        }));
+      }
     } catch (error) {
       console.error("Error fetching software:", error);
       toast.error("Failed to load software data");
@@ -649,6 +626,8 @@ export default function AdminPage() {
       setLoading(false);
     }
   };
+
+
 
   const fetchAlerts = async () => {
     try {
@@ -810,20 +789,11 @@ export default function AdminPage() {
       const totalUsers = users.length;
       const activeUsers = users.filter((u) => u.isActive).length;
       const inactiveUsers = totalUsers - activeUsers;
-      const usersWithAssets = users.filter(
-        (u) => u.assignedAssets?.length > 0
-      ).length;
+      const usersWithAssets = users.filter((u) => u.assignedAssets?.length > 0).length;
       const usersWithoutAssets = totalUsers - usersWithAssets;
-      const totalAssignedAssets = users.reduce(
-        (sum, u) => sum + (u.assignedAssets?.length || 0),
-        0
-      );
-      const averageAssetsPerUser =
-        totalUsers > 0 ? (totalAssignedAssets / totalUsers).toFixed(1) : 0;
-      const maxAssetsPerUser = Math.max(
-        ...users.map((u) => u.assignedAssets?.length || 0),
-        0
-      );
+      const totalAssignedAssets = users.reduce((sum, u) => sum + (u.assignedAssets?.length || 0), 0);
+      const averageAssetsPerUser = totalUsers > 0 ? (totalAssignedAssets / totalUsers).toFixed(1) : 0;
+      const maxAssetsPerUser = Math.max(...users.map((u) => u.assignedAssets?.length || 0), 0);
 
       return {
         totalUsers,
@@ -862,8 +832,7 @@ export default function AdminPage() {
   const stats = getSystemStats();
 
   // Search function that only triggers when explicitly called
-  const handleSearch = useCallback(
-    (term) => {
+  const handleSearch = useCallback((term) => {
       setSearchTerm(term);
       if (activeTab === "assets") {
         if (assetType === "hardware") {
@@ -874,9 +843,7 @@ export default function AdminPage() {
       } else if (activeTab === "users") {
         fetchUsers();
       }
-    },
-    [activeTab, assetType, fetchHardware, fetchSoftware, fetchUsers]
-  );
+  }, [activeTab, assetType, fetchHardware, fetchSoftware, fetchUsers]);
 
   // Handle search input change without triggering search
   const handleSearchInputChange = (value) => {
@@ -904,7 +871,7 @@ export default function AdminPage() {
 
   // Handle Enter key press in search input
   const handleSearchKeyPress = (e) => {
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       handleSearchSubmit();
     }
   };
@@ -944,6 +911,18 @@ export default function AdminPage() {
     }, 100); // Small delay to ensure state update completes
   };
 
+  // Handle URL query parameters for tab navigation
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      
+      if (tabParam && ['assets', 'users', 'tickets', 'alerts', 'health', 'ml'].includes(tabParam)) {
+        setActiveTab(tabParam);
+      }
+    }
+  }, []);
+
   if (selectedHardware) {
     return (
       <ProtectedRoute requireAdmin>
@@ -958,22 +937,19 @@ export default function AdminPage() {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Admin Panel
               </button>
-              <HardwareDetails
-                hardware={selectedHardware}
-                onHardwareUpdate={(updatedHardware) => {
-                  console.log(
-                    "Admin page received onHardwareUpdate:",
-                    updatedHardware
-                  );
-                  setSelectedHardware(updatedHardware);
-                  // Also update the hardware in the main list
-                  setHardware((prevHardware) =>
-                    prevHardware.map((h) =>
-                      h._id === updatedHardware._id ? updatedHardware : h
-                    )
-                  );
-                }}
-              />
+                             <HardwareDetails 
+                 hardware={selectedHardware} 
+                 onHardwareUpdate={(updatedHardware) => {
+                   console.log('Admin page received onHardwareUpdate:', updatedHardware);
+                   setSelectedHardware(updatedHardware);
+                   // Also update the hardware in the main list
+                   setHardware(prevHardware => 
+                     prevHardware.map(h => 
+                       h._id === updatedHardware._id ? updatedHardware : h
+                     )
+                   );
+                 }}
+               />
             </div>
           </div>
         </div>
@@ -986,9 +962,9 @@ export default function AdminPage() {
       <ProtectedRoute requireAdmin>
         <div className="min-h-screen bg-gray-50">
           <Navbar />
-          <SoftwareDetails
-            software={selectedSoftware}
-            onBack={() => setSelectedSoftware(null)}
+          <SoftwareDetails 
+            software={selectedSoftware} 
+            onBack={() => setSelectedSoftware(null)} 
           />
         </div>
       </ProtectedRoute>
@@ -1003,323 +979,449 @@ export default function AdminPage() {
         <div className="py-6">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Header */}
-            <div className="mb-6">
-              <div className="flex items-center space-x-3 mb-3">
-                <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm">
-                  <Shield className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    Admin Dashboard
-                  </h1>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Manage users, assets, and system configuration
-                  </p>
-                </div>
+            <div className="mb-8">
+              <div className="flex items-center space-x-3 mb-4">
+                <Shield className="h-8 w-8 text-blue-600" />
+                <h1 className="text-3xl font-bold text-gray-900">
+                  Admin Dashboard
+                </h1>
               </div>
+              <p className="text-gray-600">
+                Manage users, assets, and system configuration
+              </p>
             </div>
 
             {/* Stats Cards */}
-            {/* Stats Cards - Hidden for alerts tab */}
-            {activeTab !== "alerts" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-                {activeTab === "tickets" ? (
-                  <>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                            Total Tickets
-                          </p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {stats.totalTickets}
-                          </p>
-                        </div>
-                        <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                          <Ticket className="h-5 w-5 text-white" />
-                        </div>
-                      </div>
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-xs text-gray-500">
-                          All support requests
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+              {activeTab === "tickets" ? (
+                <>
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-md shadow-sm border border-blue-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-blue-700 mb-1">
+                          Total Tickets
+                        </p>
+                        <p className="text-xl font-bold text-blue-900">
+                          {stats.totalTickets}
                         </p>
                       </div>
-                    </div>
-
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                            Open
-                          </p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {stats.openTickets}
-                          </p>
-                        </div>
-                        <div className="h-10 w-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center shadow-sm">
-                          <AlertCircle className="h-5 w-5 text-white" />
-                        </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Ticket className="h-4 w-4 text-white" />
                       </div>
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-xs text-gray-500">
-                          Awaiting response
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <p className="text-xs text-blue-600">
+                        All support requests
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-md shadow-sm border border-red-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-red-700 mb-1">
+                          Open
+                        </p>
+                        <p className="text-xl font-bold text-red-900">
+                          {stats.openTickets}
                         </p>
                       </div>
-                    </div>
-
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                            In Progress
-                          </p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {stats.inProgressTickets}
-                          </p>
-                        </div>
-                        <div className="h-10 w-10 bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg flex items-center justify-center shadow-sm">
-                          <Settings className="h-5 w-5 text-white" />
-                        </div>
-                      </div>
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-xs text-gray-500">Being worked on</p>
+                      <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center shadow-sm">
+                        <AlertCircle className="h-4 w-4 text-white" />
                       </div>
                     </div>
+                    <div className="mt-2 pt-2 border-t border-red-200">
+                      <p className="text-xs text-red-600">Awaiting response</p>
+                    </div>
+                  </div>
 
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                            Resolved
-                          </p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {stats.resolvedTickets}
-                          </p>
-                        </div>
-                        <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center shadow-sm">
-                          <Check className="h-5 w-5 text-white" />
-                        </div>
-                      </div>
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-xs text-gray-500">
-                          Successfully completed
+                  <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-md shadow-sm border border-amber-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-amber-700 mb-1">
+                          In Progress
+                        </p>
+                        <p className="text-xl font-bold text-amber-900">
+                          {stats.inProgressTickets}
                         </p>
                       </div>
-                    </div>
-
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                            Closed
-                          </p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {stats.closedTickets}
-                          </p>
-                        </div>
-                        <div className="h-10 w-10 bg-gradient-to-br from-gray-500 to-gray-600 rounded-lg flex items-center justify-center shadow-sm">
-                          <X className="h-5 w-5 text-white" />
-                        </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-amber-500 to-amber-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Settings className="h-4 w-4 text-white" />
                       </div>
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-xs text-gray-500">
-                          Archived tickets
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-amber-200">
+                      <p className="text-xs text-amber-600">Being worked on</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-green-700 mb-1">
+                          Resolved
+                        </p>
+                        <p className="text-xl font-bold text-green-900">
+                          {stats.resolvedTickets}
                         </p>
                       </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                            {assetType === "hardware"
-                              ? "Total Assets"
-                              : "Total Systems"}
-                          </p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {assetType === "hardware"
-                              ? stats.totalAssets
-                              : stats.totalSystems}
-                          </p>
-                        </div>
-                        <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                          <Package className="h-5 w-5 text-white" />
-                        </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Check className="h-4 w-4 text-white" />
                       </div>
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-xs text-gray-500">
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-green-200">
+                      <p className="text-xs text-green-600">
+                        Successfully completed
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-md shadow-sm border border-gray-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-gray-700 mb-1">
+                          Closed
+                        </p>
+                        <p className="text-xl font-bold text-gray-900">
+                          {stats.closedTickets}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-gray-500 to-gray-600 rounded-md flex items-center justify-center shadow-sm">
+                        <X className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-gray-200">
+                      <p className="text-xs text-gray-600">Archived tickets</p>
+                    </div>
+                  </div>
+                </>
+              ) : activeTab === "users" ? (
+                <>
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-md shadow-sm border border-blue-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-blue-700 mb-1">
+                          Total Users
+                        </p>
+                        <p className="text-xl font-bold text-blue-900">
+                          {stats.totalUsers}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Users className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <p className="text-xs text-blue-600">
+                        All registered accounts
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-green-700 mb-1">
+                          Active Users
+                        </p>
+                        <p className="text-xl font-bold text-green-900">
+                          {stats.activeUsers}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
+                        <UserPlus className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-green-200">
+                      <p className="text-xs text-green-600">
+                        Currently active accounts
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-md shadow-sm border border-red-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-red-700 mb-1">
+                          Inactive Users
+                        </p>
+                        <p className="text-xl font-bold text-red-900">
+                          {stats.inactiveUsers}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center shadow-sm">
+                        <X className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-red-200">
+                      <p className="text-xs text-red-600">
+                        Disabled accounts
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-md shadow-sm border border-purple-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-purple-700 mb-1">
+                          Users with Assets
+                        </p>
+                        <p className="text-xl font-bold text-purple-900">
+                          {stats.usersWithAssets}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Package className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-purple-200">
+                      <p className="text-xs text-purple-600">
+                        Have assigned devices
+                      </p>
+                    </div>
+                  </div>
+
+
+                </>
+              ) : activeTab === "alerts" ? (
+                <>
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-md shadow-sm border border-red-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-red-700 mb-1">
+                          Total Alerts
+                        </p>
+                        <p className="text-xl font-bold text-red-900">
+                          {stats.totalAlerts}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Bell className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-red-200">
+                      <p className="text-xs text-red-600">
+                        All active alerts
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-red-600 to-red-700 rounded-md shadow-sm border border-red-300 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-red-100 mb-1">
+                          Critical
+                        </p>
+                        <p className="text-xl font-bold text-white">
+                          {stats.criticalAlerts}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-red-800 to-red-900 rounded-md flex items-center justify-center shadow-sm">
+                        <AlertCircle className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-red-300">
+                      <p className="text-xs text-red-200">
+                        Immediate attention required
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-md shadow-sm border border-orange-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-orange-700 mb-1">
+                          High Priority
+                        </p>
+                        <p className="text-xl font-bold text-orange-900">
+                          {stats.highAlerts}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-md flex items-center justify-center shadow-sm">
+                        <AlertTriangle className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-orange-200">
+                      <p className="text-xs text-orange-600">
+                        High priority issues
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-md shadow-sm border border-yellow-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-yellow-700 mb-1">
+                          Medium Priority
+                        </p>
+                        <p className="text-xl font-bold text-yellow-900">
+                          {stats.mediumAlerts}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Clock className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-yellow-200">
+                      <p className="text-xs text-yellow-600">
+                        Monitor closely
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-md shadow-sm border border-blue-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-blue-700 mb-1">
+                          Low Priority
+                        </p>
+                        <p className="text-xl font-bold text-blue-900">
+                          {stats.lowAlerts}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Shield className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <p className="text-xs text-blue-600">
+                        Low risk alerts
+                      </p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-md shadow-sm border border-blue-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-blue-700 mb-1">
                           {assetType === "hardware"
-                            ? "All registered devices"
-                            : "All scanned systems"}
+                            ? "Total Assets"
+                            : "Total Systems"}
                         </p>
-                      </div>
-                    </div>
-
-                    {assetType === "hardware" ? (
-                      <>
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                                Assigned
-                              </p>
-                              <p className="text-2xl font-bold text-gray-900">
-                                {stats.assignedAssets}
-                              </p>
-                            </div>
-                            <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center shadow-sm">
-                              <Check className="h-5 w-5 text-white" />
-                            </div>
-                          </div>
-                          <div className="mt-3 pt-3 border-t border-gray-100">
-                            <p className="text-xs text-gray-500">
-                              User assigned
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                                Unassigned
-                              </p>
-                              <p className="text-2xl font-bold text-gray-900">
-                                {stats.unassignedAssets}
-                              </p>
-                            </div>
-                            <div className="h-10 w-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center shadow-sm">
-                              <X className="h-5 w-5 text-white" />
-                            </div>
-                          </div>
-                          <div className="mt-3 pt-3 border-t border-gray-100">
-                            <p className="text-xs text-gray-500">
-                              Available for assignment
-                            </p>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                                Software Packages
-                              </p>
-                              <p className="text-2xl font-bold text-gray-900">
-                                {stats.totalPackages}
-                              </p>
-                            </div>
-                            <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center shadow-sm">
-                              <Package className="h-5 w-5 text-white" />
-                            </div>
-                          </div>
-                          <div className="mt-3 pt-3 border-t border-gray-100">
-                            <p className="text-xs text-gray-500">
-                              Installed software
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                                Services
-                              </p>
-                              <p className="text-2xl font-bold text-gray-900">
-                                {stats.totalServices}
-                              </p>
-                            </div>
-                            <div className="h-10 w-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
-                              <Settings className="h-5 w-5 text-white" />
-                            </div>
-                          </div>
-                          <div className="mt-3 pt-3 border-t border-gray-100">
-                            <p className="text-xs text-gray-500">
-                              System services
-                            </p>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                            {assetType === "hardware"
-                              ? "Total Users"
-                              : "Startup Programs"}
-                          </p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {assetType === "hardware"
-                              ? stats.totalUsers
-                              : stats.totalStartupPrograms}
-                          </p>
-                        </div>
-                        <div className="h-10 w-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
-                          {assetType === "hardware" ? (
-                            <Users className="h-5 w-5 text-white" />
-                          ) : (
-                            <Play className="h-5 w-5 text-white" />
-                          )}
-                        </div>
-                      </div>
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xl font-bold text-blue-900">
                           {assetType === "hardware"
-                            ? "Registered accounts"
-                            : "Auto-start programs"}
+                            ? stats.totalAssets
+                            : stats.totalSystems}
                         </p>
                       </div>
+                      <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center shadow-sm">
+                        <Package className="h-4 w-4 text-white" />
+                      </div>
                     </div>
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <p className="text-xs text-blue-600">
+                        {assetType === "hardware"
+                          ? "All registered devices"
+                          : "All scanned systems"}
+                      </p>
+                    </div>
+                  </div>
 
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all duration-300">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                            {assetType === "hardware"
-                              ? "Active Users"
-                              : "Active Services"}
-                          </p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {assetType === "hardware"
-                              ? stats.activeUsers
-                              : stats.totalServices}
+                  {assetType === "hardware" ? (
+                    <>
+                      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-green-700 mb-1">
+                              Assigned
+                            </p>
+                            <p className="text-xl font-bold text-green-900">
+                              {stats.assignedAssets}
+                            </p>
+                          </div>
+                          <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
+                            <Check className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-green-200">
+                          <p className="text-xs text-green-600">
+                            User assigned
                           </p>
                         </div>
-                        <div className="h-10 w-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-sm">
-                          {assetType === "hardware" ? (
-                            <UserPlus className="h-5 w-5 text-white" />
-                          ) : (
-                            <Settings className="h-5 w-5 text-white" />
-                          )}
+                      </div>
+
+                      <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-md shadow-sm border border-red-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-red-700 mb-1">
+                              Unassigned
+                            </p>
+                            <p className="text-xl font-bold text-red-900">
+                              {stats.unassignedAssets}
+                            </p>
+                          </div>
+                          <div className="h-8 w-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center shadow-sm">
+                            <X className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-red-200">
+                          <p className="text-xs text-red-600">
+                            Available for assignment
+                          </p>
                         </div>
                       </div>
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-xs text-gray-500">
-                          {assetType === "hardware"
-                            ? "Currently active"
-                            : "Running services"}
-                        </p>
+
+
+                    </>
+                  ) : (
+                    <>
+                      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-md shadow-sm border border-green-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-green-700 mb-1">
+                              Software Packages
+                            </p>
+                            <p className="text-xl font-bold text-green-900">
+                              {stats.totalPackages}
+                            </p>
+                          </div>
+                          <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-md flex items-center justify-center shadow-sm">
+                            <Package className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-green-200">
+                          <p className="text-xs text-green-600">
+                            Installed software
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+
+                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-md shadow-sm border border-purple-200 p-3 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-purple-700 mb-1">
+                              Services
+                            </p>
+                            <p className="text-xl font-bold text-purple-900">
+                              {stats.totalServices}
+                            </p>
+                          </div>
+                          <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-md flex items-center justify-center shadow-sm">
+                            <Settings className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-purple-200">
+                          <p className="text-xs text-purple-600">
+                            System services
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+
+                </>
+              )}
+            </div>
 
             {/* Tab Navigation */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
-              <div className="border-b border-gray-100">
-                <nav className="flex space-x-1 px-6 py-1" aria-label="Tabs">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="border-b border-gray-200">
+                <nav className="flex space-x-1 px-4" aria-label="Tabs">
                   <button
                     onClick={() => setActiveTab("assets")}
-                    className={`py-3 px-4 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
+                    className={`py-3 px-3 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
                       activeTab === "assets"
                         ? "border-blue-500 text-blue-600 bg-blue-50"
                         : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
@@ -1330,7 +1432,7 @@ export default function AdminPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab("users")}
-                    className={`py-3 px-4 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
+                    className={`py-3 px-3 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
                       activeTab === "users"
                         ? "border-blue-500 text-blue-600 bg-blue-50"
                         : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
@@ -1341,7 +1443,7 @@ export default function AdminPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab("alerts")}
-                    className={`py-3 px-4 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
+                    className={`py-3 px-3 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
                       activeTab === "alerts"
                         ? "border-blue-500 text-blue-600 bg-blue-50"
                         : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
@@ -1352,7 +1454,7 @@ export default function AdminPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab("tickets")}
-                    className={`py-3 px-4 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
+                    className={`py-3 px-3 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
                       activeTab === "tickets"
                         ? "border-blue-500 text-blue-600 bg-blue-50"
                         : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
@@ -1363,7 +1465,7 @@ export default function AdminPage() {
                   </button>
                   <button
                     onClick={() => setShowHealthDashboard(true)}
-                    className="py-3 px-4 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 rounded-t-lg"
+                    className="py-3 px-3 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 rounded-t-lg"
                   >
                     <Activity className="h-4 w-4 inline mr-2" />
                     Health
@@ -1373,7 +1475,7 @@ export default function AdminPage() {
 
               {/* Search and Filter Bar */}
               {activeTab !== "alerts" && activeTab !== "tickets" && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
+                <div className="bg-white rounded border border-gray-200 p-3">
                   {/* Asset Type Toggle */}
                   {activeTab === "assets" && (
                     <div className="mb-3">
@@ -1408,9 +1510,9 @@ export default function AdminPage() {
                     </div>
                   )}
 
-                  <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <div className="flex-1 relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                       {searchLoading && (
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
@@ -1426,45 +1528,44 @@ export default function AdminPage() {
                             : "Search users..."
                         }
                         value={searchTerm}
-                        onChange={(e) =>
-                          handleSearchInputChange(e.target.value)
-                        }
+                        onChange={(e) => handleSearchInputChange(e.target.value)}
                         onKeyPress={handleSearchKeyPress}
-                        className={`w-full pl-10 pr-24 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 transition-all duration-200 ${
-                          searchTerm ? "border-blue-300 bg-blue-50" : "bg-white"
+                        className={`w-full pl-7 pr-24 py-1.5 border rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 transition-colors ${
+                          searchTerm ? 'border-blue-300 bg-blue-50' : 'border-gray-300 bg-white'
                         }`}
                       />
                       <button
                         onClick={handleSearchSubmit}
                         disabled={searchLoading}
-                        className="absolute right-1 top-1/2 transform -translate-y-1/2 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="absolute right-1 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 focus:ring-1 focus:ring-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {searchLoading ? (
                           <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
                         ) : (
-                          "Search"
+                          'Search'
                         )}
                       </button>
-                      {searchTerm && (
-                        <button
-                          onClick={handleClearSearch}
-                          className="absolute right-16 top-1/2 transform -translate-y-1/2 px-2 py-1 bg-gray-500 text-white text-xs rounded-md hover:bg-gray-600 focus:ring-2 focus:ring-gray-500 transition-all duration-200"
-                          title="Clear search"
-                        >
-                          ×
-                        </button>
-                      )}
+                                             {searchTerm && (
+                         <button
+                           onClick={handleClearSearch}
+                           className="absolute right-16 top-1/2 transform -translate-y-1/2 px-2 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 focus:ring-1 focus:ring-gray-400 transition-colors"
+                           title="Clear search"
+                         >
+                           ×
+                         </button>
+                       )}
                     </div>
 
-                    <div className="flex items-center space-x-3">
+
+                    <div className="flex items-center space-x-2">
                       {activeTab === "assets" && (
                         <>
                           <div className="relative">
-                            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <Filter className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <select
                               value={filterType}
                               onChange={(e) => setFilterType(e.target.value)}
-                              className="pl-10 pr-8 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 bg-white transition-all duration-200"
+                              className="pl-7 pr-5 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
                             >
                               {assetType === "hardware" ? (
                                 <>
@@ -1483,27 +1584,7 @@ export default function AdminPage() {
                             </select>
                           </div>
 
-                          <div className="relative">
-                            <select
-                              value={itemsPerPage}
-                              onChange={(e) => {
-                                const newLimit = parseInt(e.target.value);
-                                setItemsPerPage(newLimit);
-                                setCurrentPage(1);
-                                if (assetType === "hardware") {
-                                  fetchHardware(1, newLimit);
-                                } else {
-                                  fetchSoftware(1, newLimit);
-                                }
-                              }}
-                              className="px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 bg-white transition-all duration-200"
-                            >
-                              <option value={12}>12 per page</option>
-                              <option value={24}>24 per page</option>
-                              <option value={36}>36 per page</option>
-                              <option value={48}>48 per page</option>
-                            </select>
-                          </div>
+
                         </>
                       )}
 
@@ -1520,10 +1601,10 @@ export default function AdminPage() {
                             : fetchUsers
                         }
                         disabled={loading}
-                        className="flex items-center px-3 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 disabled:opacity-50 text-sm transition-all duration-200"
+                        className="flex items-center px-2 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 focus:ring-1 focus:ring-gray-400 disabled:opacity-50 text-sm"
                       >
                         <RefreshCw
-                          className={`h-4 w-4 mr-1.5 ${
+                          className={`h-3.5 w-3.5 mr-1 ${
                             loading ? "animate-spin" : ""
                           }`}
                         />
@@ -1534,16 +1615,16 @@ export default function AdminPage() {
                         <>
                           <button
                             onClick={() => setShowCsvImportModal(true)}
-                            className="flex items-center px-3 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 text-sm transition-all duration-200"
+                            className="flex items-center px-2 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 focus:ring-1 focus:ring-gray-400 text-sm"
                           >
-                            <FileText className="h-4 w-4 mr-1.5" />
+                            <FileText className="h-3.5 w-3.5 mr-1" />
                             Import CSV
                           </button>
                           <button
                             onClick={() => setShowManualAssetModal(true)}
-                            className="flex items-center px-3 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 text-sm transition-all duration-200"
+                            className="flex items-center px-2 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 focus:ring-1 focus:ring-gray-400 text-sm"
                           >
-                            <Package className="h-4 w-4 mr-1.5" />
+                            <Package className="h-3.5 w-3.5 mr-1" />
                             Add Asset
                           </button>
                         </>
@@ -1567,242 +1648,170 @@ export default function AdminPage() {
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <div>
-                      <h2 className="text-lg font-semibold text-slate-800 mb-1 bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-                        Support Tickets Management
-                      </h2>
-                      <p className="text-sm text-slate-600">
-                        View and manage all support tickets from users
-                      </p>
-                    </div>
-
-                    {/* Export Buttons */}
-                    {tickets.length > 0 && (
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => {
-                            exportTicketsToCSV(tickets, "admin_all_tickets");
-                            toast.success(
-                              `Exported ${tickets.length} tickets to CSV`
-                            );
-                          }}
-                          disabled={ticketLoading}
-                          className="text-xs border border-green-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
-                          title="Export all tickets to CSV"
-                        >
-                          <Download className="h-3 w-3 mr-1" />
-                          Export All
-                        </button>
-                        <button
-                          onClick={() => {
-                            exportTicketStatsToCSV(
-                              tickets,
-                              "admin_ticket_statistics"
-                            );
-                            toast.success("Exported ticket statistics to CSV");
-                          }}
-                          disabled={ticketLoading}
-                          className="text-xs border border-purple-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-700 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
-                          title="Export ticket statistics to CSV"
-                        >
-                          <Download className="h-3 w-3 mr-1" />
-                          Export Stats
-                        </button>
-
-                        {/* Export Filtered Tickets Button */}
-                        <button
-                          onClick={() => {
-                            if (filteredTickets.length === 0) {
-                              toast.error("No filtered tickets to export");
-                              return;
-                            }
-                            exportTicketsToCSV(
-                              filteredTickets,
-                              "admin_filtered_tickets"
-                            );
-                            toast.success(
-                              `Exported ${filteredTickets.length} filtered tickets to CSV`
-                            );
-                          }}
-                          disabled={
-                            ticketLoading || filteredTickets.length === 0
-                          }
-                          className="text-xs border border-indigo-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
-                          title="Export currently filtered tickets to CSV"
-                        >
-                          <Download className="h-3 w-3 mr-1" />
-                          Export Filtered
-                        </button>
-
-                        {/* Time-based Export Buttons */}
-                        <div className="flex items-center space-x-1">
-                          <button
-                            onClick={async () => {
-                              // Always fetch fresh data before export
-                              try {
-                                const response = await ticketsAPI.getAll();
-                                const freshTickets = response.data.data || [];
-                                const sortedTickets = freshTickets.sort(
-                                  (a, b) => {
-                                    const aIsClosed =
-                                      a.status === "Closed" ||
-                                      a.status === "Rejected";
-                                    const bIsClosed =
-                                      b.status === "Closed" ||
-                                      b.status === "Rejected";
-                                    if (aIsClosed && !bIsClosed) return 1;
-                                    if (!aIsClosed && bIsClosed) return -1;
-                                    return 0;
-                                  }
-                                );
-
-                                // Update local state with fresh data
-                                setTickets(sortedTickets);
-                                setCachedTickets(sortedTickets);
-
-                                // Export fresh data
-                                const count = exportTicketsResolvedToday(
-                                  sortedTickets,
-                                  "admin_tickets_resolved_today"
-                                );
-                                toast.success(
-                                  `Exported ${count} tickets resolved today to CSV (fresh data)`
-                                );
-                              } catch (error) {
-                                console.error(
-                                  "Error fetching fresh tickets for export:",
-                                  error
-                                );
-                                // Fallback to cached data
-                                const count = exportTicketsResolvedToday(
-                                  tickets,
-                                  "admin_tickets_resolved_today"
-                                );
-                                toast.success(
-                                  `Exported ${count} tickets resolved today to CSV (cached data)`
-                                );
-                              }
+                  <h2 className="text-lg font-semibold text-slate-800 mb-1 bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                    Support Tickets Management
+                  </h2>
+                  <p className="text-sm text-slate-600">
+                    View and manage all support tickets from users
+                  </p>
+                </div>
+                    
+                                         {/* Export Buttons */}
+                     {tickets.length > 0 && (
+                       <div className="flex items-center space-x-2">
+                                                   <button
+                            onClick={() => {
+                              exportTicketsToCSV(tickets, 'admin_all_tickets');
+                              toast.success(`Exported ${tickets.length} tickets to CSV`);
                             }}
                             disabled={ticketLoading}
-                            className="text-xs border border-blue-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
-                            title="Export tickets resolved today (with fresh data)"
+                            className="text-xs border border-green-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                            title="Export all tickets to CSV"
                           >
                             <Download className="h-3 w-3 mr-1" />
-                            Today
+                            Export All
                           </button>
                           <button
-                            onClick={async () => {
-                              // Always fetch fresh data before export
-                              try {
-                                const response = await ticketsAPI.getAll();
-                                const freshTickets = response.data.data || [];
-                                const sortedTickets = freshTickets.sort(
-                                  (a, b) => {
-                                    const aIsClosed =
-                                      a.status === "Closed" ||
-                                      a.status === "Rejected";
-                                    const bIsClosed =
-                                      b.status === "Closed" ||
-                                      b.status === "Rejected";
-                                    if (aIsClosed && !bIsClosed) return 1;
-                                    if (!aIsClosed && bIsClosed) return -1;
-                                    return 0;
-                                  }
-                                );
-
-                                // Update local state with fresh data
-                                setTickets(sortedTickets);
-                                setCachedTickets(sortedTickets);
-
-                                // Export fresh data
-                                const count = exportTicketsByTimePeriod(
-                                  sortedTickets,
-                                  "7d",
-                                  "admin_tickets_last_7_days"
-                                );
-                                toast.success(
-                                  `Exported ${count} tickets from last 7 days to CSV (fresh data)`
-                                );
-                              } catch (error) {
-                                console.error(
-                                  "Error fetching fresh tickets for export:",
-                                  error
-                                );
-                                // Fallback to cached data
-                                const count = exportTicketsByTimePeriod(
-                                  tickets,
-                                  "7d",
-                                  "admin_tickets_last_7_days"
-                                );
-                                toast.success(
-                                  `Exported ${count} tickets from last 7 days to CSV (cached data)`
-                                );
-                              }
+                            onClick={() => {
+                              exportTicketStatsToCSV(tickets, 'admin_ticket_statistics');
+                              toast.success('Exported ticket statistics to CSV');
                             }}
                             disabled={ticketLoading}
-                            className="text-xs border border-orange-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500 text-orange-700 bg-orange-50 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
-                            title="Export tickets from last 7 days (with fresh data)"
-                          >
-                            <Download className="h-3 w-3 mr-1" />7 Days
-                          </button>
-                          <button
-                            onClick={async () => {
-                              // Always fetch fresh data before export
-                              try {
-                                const response = await ticketsAPI.getAll();
-                                const freshTickets = response.data.data || [];
-                                const sortedTickets = freshTickets.sort(
-                                  (a, b) => {
-                                    const aIsClosed =
-                                      a.status === "Closed" ||
-                                      a.status === "Rejected";
-                                    const bIsClosed =
-                                      b.status === "Closed" ||
-                                      b.status === "Rejected";
-                                    if (aIsClosed && !bIsClosed) return 1;
-                                    if (!aIsClosed && bIsClosed) return -1;
-                                    return 0;
-                                  }
-                                );
-
-                                // Update local state with fresh data
-                                setTickets(sortedTickets);
-                                setCachedTickets(sortedTickets);
-
-                                // Export fresh data
-                                const count = exportTicketsBySLACompliance(
-                                  sortedTickets,
-                                  "compliant",
-                                  "admin_sla_compliant_tickets"
-                                );
-                                toast.success(
-                                  `Exported ${count} SLA compliant tickets to CSV (fresh data)`
-                                );
-                              } catch (error) {
-                                console.error(
-                                  "Error fetching fresh tickets for export:",
-                                  error
-                                );
-                                // Fallback to cached data
-                                const count = exportTicketsBySLACompliance(
-                                  tickets,
-                                  "compliant",
-                                  "admin_sla_compliant_tickets"
-                                );
-                                toast.success(
-                                  `Exported ${count} SLA compliant tickets to CSV (cached data)`
-                                );
-                              }
-                            }}
-                            disabled={ticketLoading}
-                            className="text-xs border border-emerald-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
-                            title="Export SLA compliant tickets (with fresh data)"
+                            className="text-xs border border-purple-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-700 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                            title="Export ticket statistics to CSV"
                           >
                             <Download className="h-3 w-3 mr-1" />
-                            SLA OK
+                            Export Stats
                           </button>
-                        </div>
-                      </div>
-                    )}
+                          
+                          {/* Export Filtered Tickets Button */}
+                          <button
+                            onClick={() => {
+                              if (filteredTickets.length === 0) {
+                                toast.error('No filtered tickets to export');
+                                return;
+                              }
+                              exportTicketsToCSV(filteredTickets, 'admin_filtered_tickets');
+                              toast.success(`Exported ${filteredTickets.length} filtered tickets to CSV`);
+                            }}
+                            disabled={ticketLoading || filteredTickets.length === 0}
+                            className="text-xs border border-indigo-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                            title="Export currently filtered tickets to CSV"
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            Export Filtered
+                          </button>
+                         
+                         {/* Time-based Export Buttons */}
+                         <div className="flex items-center space-x-1">
+                           <button
+                             onClick={async () => {
+                               // Always fetch fresh data before export
+                               try {
+                                 const response = await ticketsAPI.getAll();
+                                 const freshTickets = response.data.data || [];
+                                 const sortedTickets = freshTickets.sort((a, b) => {
+                                   const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+                                   const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                                   if (aIsClosed && !bIsClosed) return 1;
+                                   if (!aIsClosed && bIsClosed) return -1;
+                                   return 0;
+                                 });
+                                 
+                                 // Update local state with fresh data
+                                 setTickets(sortedTickets);
+                                 setCachedTickets(sortedTickets);
+                                 
+                                 // Export fresh data
+                                 const count = exportTicketsResolvedToday(sortedTickets, 'admin_tickets_resolved_today');
+                                 toast.success(`Exported ${count} tickets resolved today to CSV (fresh data)`);
+                               } catch (error) {
+                                 console.error('Error fetching fresh tickets for export:', error);
+                                 // Fallback to cached data
+                                 const count = exportTicketsResolvedToday(tickets, 'admin_tickets_resolved_today');
+                                 toast.success(`Exported ${count} tickets resolved today to CSV (cached data)`);
+                               }
+                             }}
+                             disabled={ticketLoading}
+                             className="text-xs border border-blue-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                             title="Export tickets resolved today (with fresh data)"
+                           >
+                             <Download className="h-3 w-3 mr-1" />
+                             Today
+                           </button>
+                           <button
+                             onClick={async () => {
+                               // Always fetch fresh data before export
+                               try {
+                                 const response = await ticketsAPI.getAll();
+                                 const freshTickets = response.data.data || [];
+                                 const sortedTickets = freshTickets.sort((a, b) => {
+                                   const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+                                   const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                                   if (aIsClosed && !bIsClosed) return 1;
+                                   if (!aIsClosed && bIsClosed) return -1;
+                                   return 0;
+                                 });
+                                 
+                                 // Update local state with fresh data
+                                 setTickets(sortedTickets);
+                                 setCachedTickets(sortedTickets);
+                                 
+                                 // Export fresh data
+                                 const count = exportTicketsByTimePeriod(sortedTickets, '7d', 'admin_tickets_last_7_days');
+                                 toast.success(`Exported ${count} tickets from last 7 days to CSV (fresh data)`);
+                               } catch (error) {
+                                 console.error('Error fetching fresh tickets for export:', error);
+                                 // Fallback to cached data
+                                 const count = exportTicketsByTimePeriod(tickets, '7d', 'admin_tickets_last_7_days');
+                                 toast.success(`Exported ${count} tickets from last 7 days to CSV (cached data)`);
+                               }
+                             }}
+                             disabled={ticketLoading}
+                             className="text-xs border border-orange-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500 text-orange-700 bg-orange-50 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                             title="Export tickets from last 7 days (with fresh data)"
+                           >
+                             <Download className="h-3 w-3 mr-1" />
+                             7 Days
+                           </button>
+                           <button
+                             onClick={async () => {
+                               // Always fetch fresh data before export
+                               try {
+                                 const response = await ticketsAPI.getAll();
+                                 const freshTickets = response.data.data || [];
+                                 const sortedTickets = freshTickets.sort((a, b) => {
+                                   const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+                                   const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                                   if (aIsClosed && !bIsClosed) return 1;
+                                   if (!aIsClosed && bIsClosed) return -1;
+                                   return 0;
+                                 });
+                                 
+                                 // Update local state with fresh data
+                                 setTickets(sortedTickets);
+                                 setCachedTickets(sortedTickets);
+                                 
+                                 // Export fresh data
+                                 const count = exportTicketsBySLACompliance(sortedTickets, 'compliant', 'admin_sla_compliant_tickets');
+                                 toast.success(`Exported ${count} SLA compliant tickets to CSV (fresh data)`);
+                               } catch (error) {
+                                 console.error('Error fetching fresh tickets for export:', error);
+                                 // Fallback to cached data
+                                 const count = exportTicketsBySLACompliance(tickets, 'compliant', 'admin_sla_compliant_tickets');
+                                 toast.success(`Exported ${count} SLA compliant tickets to CSV (cached data)`);
+                               }
+                             }}
+                             disabled={ticketLoading}
+                             className="text-xs border border-emerald-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                             title="Export SLA compliant tickets (with fresh data)"
+                           >
+                             <Download className="h-3 w-3 mr-1" />
+                             SLA OK
+                           </button>
+                         </div>
+                       </div>
+                     )}
                   </div>
                 </div>
 
@@ -1821,12 +1830,7 @@ export default function AdminPage() {
                             type="text"
                             placeholder="Search by title, description, ID..."
                             value={ticketFilters.searchTerm}
-                            onChange={(e) =>
-                              setTicketFilters((prev) => ({
-                                ...prev,
-                                searchTerm: e.target.value,
-                              }))
-                            }
+                            onChange={(e) => setTicketFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
                             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           />
                         </div>
@@ -1837,16 +1841,11 @@ export default function AdminPage() {
                         <label className="block text-xs font-medium text-gray-700 mb-1">
                           Status
                         </label>
-                        <select
-                          value={ticketFilters.status}
-                          onChange={(e) =>
-                            setTicketFilters((prev) => ({
-                              ...prev,
-                              status: e.target.value,
-                            }))
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
+                                                 <select
+                           value={ticketFilters.status}
+                           onChange={(e) => setTicketFilters(prev => ({ ...prev, status: e.target.value }))}
+                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                         >
                           <option value="all">All Status</option>
                           <option value="Open">Open</option>
                           <option value="In Progress">In Progress</option>
@@ -1861,16 +1860,11 @@ export default function AdminPage() {
                         <label className="block text-xs font-medium text-gray-700 mb-1">
                           Priority
                         </label>
-                        <select
-                          value={ticketFilters.priority}
-                          onChange={(e) =>
-                            setTicketFilters((prev) => ({
-                              ...prev,
-                              priority: e.target.value,
-                            }))
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
+                                                 <select
+                           value={ticketFilters.priority}
+                           onChange={(e) => setTicketFilters(prev => ({ ...prev, priority: e.target.value }))}
+                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                         >
                           <option value="all">All Priority</option>
                           <option value="Low">Low</option>
                           <option value="Medium">Medium</option>
@@ -1884,16 +1878,11 @@ export default function AdminPage() {
                         <label className="block text-xs font-medium text-gray-700 mb-1">
                           Date Range
                         </label>
-                        <select
-                          value={ticketFilters.dateRange}
-                          onChange={(e) =>
-                            setTicketFilters((prev) => ({
-                              ...prev,
-                              dateRange: e.target.value,
-                            }))
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
+                                                 <select
+                           value={ticketFilters.dateRange}
+                           onChange={(e) => setTicketFilters(prev => ({ ...prev, dateRange: e.target.value }))}
+                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                         >
                           <option value="all">All Time</option>
                           <option value="today">Today</option>
                           <option value="week">Last 7 Days</option>
@@ -1905,16 +1894,14 @@ export default function AdminPage() {
                       {/* Clear Filters Button */}
                       <div className="flex items-end">
                         <button
-                          onClick={() =>
-                            setTicketFilters({
-                              status: "all",
-                              priority: "all",
-                              category: "all",
-                              searchTerm: "",
-                              dateRange: "all",
-                              assignedTo: "all",
-                            })
-                          }
+                          onClick={() => setTicketFilters({
+                            status: 'all',
+                            priority: 'all',
+                            category: 'all',
+                            searchTerm: '',
+                            dateRange: 'all',
+                            assignedTo: 'all'
+                          })}
                           className="w-full px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         >
                           Clear Filters
@@ -1925,26 +1912,17 @@ export default function AdminPage() {
                     {/* Filter Summary */}
                     <div className="mt-3 flex items-center justify-between text-xs text-gray-800">
                       <span>
-                        Showing {paginatedTickets.length} of{" "}
-                        {filteredTickets.length} tickets
-                        {ticketFilters.searchTerm &&
-                          ` matching "${ticketFilters.searchTerm}"`}
-                        {ticketFilters.status !== "all" &&
-                          ` with status "${ticketFilters.status}"`}
-                        {hasActiveFilters &&
-                          ticketFilters.status === "all" &&
-                          ` (excluding closed/rejected)`}
-                        {ticketFilters.priority !== "all" &&
-                          ` with priority "${ticketFilters.priority}"`}
-                        {ticketFilters.dateRange !== "all" &&
-                          ` from ${ticketFilters.dateRange}`}
+                        Showing {paginatedTickets.length} of {filteredTickets.length} tickets
+                        {ticketFilters.searchTerm && ` matching "${ticketFilters.searchTerm}"`}
+                        {ticketFilters.status !== 'all' && ` with status "${ticketFilters.status}"`}
+                        {hasActiveFilters && ticketFilters.status === 'all' && ` (excluding closed/rejected)`}
+                        {ticketFilters.priority !== 'all' && ` with priority "${ticketFilters.priority}"`}
+                        {ticketFilters.dateRange !== 'all' && ` from ${ticketFilters.dateRange}`}
                       </span>
                       <span className="text-green-700 font-medium">
-                        {filteredTickets.length > 0 &&
-                          `${(
-                            (filteredTickets.length / tickets.length) *
-                            100
-                          ).toFixed(1)}% of total tickets`}
+                        {filteredTickets.length > 0 && (
+                          `${((filteredTickets.length / tickets.length) * 100).toFixed(1)}% of total tickets`
+                        )}
                       </span>
                     </div>
 
@@ -1952,45 +1930,25 @@ export default function AdminPage() {
                     <div className="mt-2 flex items-center space-x-4 text-xs">
                       <span className="text-gray-800">Quick Actions:</span>
                       <button
-                        onClick={() =>
-                          setTicketFilters((prev) => ({
-                            ...prev,
-                            status: "Open",
-                          }))
-                        }
+                        onClick={() => setTicketFilters(prev => ({ ...prev, status: 'Open' }))}
                         className="text-blue-700 hover:text-blue-900 hover:underline"
                       >
                         Show Open Tickets
                       </button>
                       <button
-                        onClick={() =>
-                          setTicketFilters((prev) => ({
-                            ...prev,
-                            priority: "Critical",
-                          }))
-                        }
+                        onClick={() => setTicketFilters(prev => ({ ...prev, priority: 'Critical' }))}
                         className="text-red-700 hover:text-red-900 hover:underline"
                       >
                         Show Critical Priority
                       </button>
                       <button
-                        onClick={() =>
-                          setTicketFilters((prev) => ({
-                            ...prev,
-                            dateRange: "today",
-                          }))
-                        }
+                        onClick={() => setTicketFilters(prev => ({ ...prev, dateRange: 'today' }))}
                         className="text-green-700 hover:text-green-900 hover:underline"
                       >
                         Show Today's Tickets
                       </button>
                       <button
-                        onClick={() =>
-                          setTicketFilters((prev) => ({
-                            ...prev,
-                            status: "Closed",
-                          }))
-                        }
+                        onClick={() => setTicketFilters(prev => ({ ...prev, status: 'Closed' }))}
                         className="text-gray-700 hover:text-gray-900 hover:underline"
                       >
                         Show Closed Tickets
@@ -2028,20 +1986,17 @@ export default function AdminPage() {
                       No tickets match your filters
                     </h3>
                     <p className="text-sm text-slate-500">
-                      Try adjusting your search criteria or clearing some
-                      filters.
+                      Try adjusting your search criteria or clearing some filters.
                     </p>
                     <button
-                      onClick={() =>
-                        setTicketFilters({
-                          status: "all",
-                          priority: "all",
-                          category: "all",
-                          searchTerm: "",
-                          dateRange: "all",
-                          assignedTo: "all",
-                        })
-                      }
+                      onClick={() => setTicketFilters({
+                        status: 'all',
+                        priority: 'all',
+                        category: 'all',
+                        searchTerm: '',
+                        dateRange: 'all',
+                        assignedTo: 'all'
+                      })}
                       className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                     >
                       Clear All Filters
@@ -2080,16 +2035,14 @@ export default function AdminPage() {
                           value={ticketPagination.itemsPerPage}
                           onChange={(e) => {
                             const newItemsPerPage = parseInt(e.target.value);
-                            setTicketPagination((prev) => ({
+                            setTicketPagination(prev => ({
                               ...prev,
                               itemsPerPage: newItemsPerPage,
                               currentPage: 1, // Reset to first page
-                              totalPages: Math.ceil(
-                                filteredTickets.length / newItemsPerPage
-                              ),
+                              totalPages: Math.ceil(filteredTickets.length / newItemsPerPage)
                             }));
                           }}
-                          className="px-2 py-1 border border-gray-300 rounded text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                     className="px-2 py-1 border border-gray-300 rounded text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
                           <option value={4}>4</option>
                           <option value={8}>8</option>
@@ -2102,82 +2055,63 @@ export default function AdminPage() {
 
                       {/* Page info */}
                       <div className="text-sm text-gray-800">
-                        Page {ticketPagination.currentPage} of{" "}
-                        {ticketPagination.totalPages}(
-                        {ticketPagination.totalItems} total tickets)
+                        Page {ticketPagination.currentPage} of {ticketPagination.totalPages} 
+                        ({ticketPagination.totalItems} total tickets)
                       </div>
                     </div>
 
                     {/* Pagination buttons */}
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() =>
-                          setTicketPagination((prev) => ({
-                            ...prev,
-                            currentPage: Math.max(1, prev.currentPage - 1),
-                          }))
-                        }
+                        onClick={() => setTicketPagination(prev => ({
+                          ...prev,
+                          currentPage: Math.max(1, prev.currentPage - 1)
+                        }))}
                         disabled={ticketPagination.currentPage === 1}
                         className="px-3 py-2 text-sm text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500"
                       >
                         Previous
                       </button>
-
+                      
                       {/* Page numbers */}
                       <div className="flex items-center space-x-1">
-                        {Array.from(
-                          { length: Math.min(5, ticketPagination.totalPages) },
-                          (_, i) => {
-                            let pageNum;
-                            if (ticketPagination.totalPages <= 5) {
-                              pageNum = i + 1;
-                            } else if (ticketPagination.currentPage <= 3) {
-                              pageNum = i + 1;
-                            } else if (
-                              ticketPagination.currentPage >=
-                              ticketPagination.totalPages - 2
-                            ) {
-                              pageNum = ticketPagination.totalPages - 4 + i;
-                            } else {
-                              pageNum = ticketPagination.currentPage - 2 + i;
-                            }
-
-                            return (
-                              <button
-                                key={pageNum}
-                                onClick={() =>
-                                  setTicketPagination((prev) => ({
-                                    ...prev,
-                                    currentPage: pageNum,
-                                  }))
-                                }
-                                className={`px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 ${
-                                  pageNum === ticketPagination.currentPage
-                                    ? "bg-blue-600 text-white border-blue-600"
-                                    : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                                }`}
-                              >
-                                {pageNum}
-                              </button>
-                            );
+                        {Array.from({ length: Math.min(5, ticketPagination.totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (ticketPagination.totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (ticketPagination.currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (ticketPagination.currentPage >= ticketPagination.totalPages - 2) {
+                            pageNum = ticketPagination.totalPages - 4 + i;
+                          } else {
+                            pageNum = ticketPagination.currentPage - 2 + i;
                           }
-                        )}
+                          
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setTicketPagination(prev => ({
+                                ...prev,
+                                currentPage: pageNum
+                              }))}
+                              className={`px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 ${
+                                pageNum === ticketPagination.currentPage
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
                       </div>
-
+                      
                       <button
-                        onClick={() =>
-                          setTicketPagination((prev) => ({
-                            ...prev,
-                            currentPage: Math.min(
-                              prev.totalPages,
-                              prev.currentPage + 1
-                            ),
-                          }))
-                        }
-                        disabled={
-                          ticketPagination.currentPage ===
-                          ticketPagination.totalPages
-                        }
+                        onClick={() => setTicketPagination(prev => ({
+                          ...prev,
+                          currentPage: Math.min(prev.totalPages, prev.currentPage + 1)
+                        }))}
+                        disabled={ticketPagination.currentPage === ticketPagination.totalPages}
                         className="px-3 py-2 text-sm text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500"
                       >
                         Next
@@ -2194,10 +2128,7 @@ export default function AdminPage() {
                   <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
                     <div className="flex items-center justify-between text-sm text-gray-600">
                       <span>
-                        Showing {currentAssets.length}{" "}
-                        {assetType === "hardware"
-                          ? "hardware assets"
-                          : "software systems"}
+                        Showing {currentAssets.length} of {assetPagination.totalItems} {assetType === "hardware" ? "hardware assets" : "software systems"} (Page {assetPagination.currentPage} of {assetPagination.totalPages})
                       </span>
                     </div>
                   </div>
@@ -2380,8 +2311,7 @@ export default function AdminPage() {
                                         </div>
                                         <div>
                                           <h3 className="text-lg font-semibold text-gray-900">
-                                            {item.system?.hostname ||
-                                              "Unknown System"}
+                                            {item.system?.hostname || "Unknown System"}
                                           </h3>
                                           <p className="text-sm text-gray-500">
                                             {item.system?.platform} Software
@@ -2389,12 +2319,9 @@ export default function AdminPage() {
                                         </div>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-xs text-gray-500">
-                                          MAC Address
-                                        </p>
+                                        <p className="text-xs text-gray-500">MAC Address</p>
                                         <p className="text-sm font-mono text-gray-700">
-                                          {item.system?.mac_address ||
-                                            "Unknown"}
+                                          {item.system?.mac_address || "Unknown"}
                                         </p>
                                       </div>
                                     </div>
@@ -2403,62 +2330,44 @@ export default function AdminPage() {
                                       <div className="flex items-center space-x-2">
                                         <Package className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">
-                                            Installed
-                                          </p>
+                                          <p className="text-xs text-gray-500">Installed</p>
                                           <p className="text-sm font-medium text-gray-900">
-                                            {item.installed_software?.length ||
-                                              0}
+                                            {item.installed_software?.length || 0}
                                           </p>
-                                          <p className="text-xs text-gray-500">
-                                            packages
-                                          </p>
+                                          <p className="text-xs text-gray-500">packages</p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center space-x-2">
                                         <Settings className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">
-                                            Services
-                                          </p>
+                                          <p className="text-xs text-gray-500">Services</p>
                                           <p className="text-sm font-medium text-gray-900">
                                             {item.services?.length || 0}
                                           </p>
-                                          <p className="text-xs text-gray-500">
-                                            running
-                                          </p>
+                                          <p className="text-xs text-gray-500">running</p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center space-x-2">
                                         <Play className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">
-                                            Startup
-                                          </p>
+                                          <p className="text-xs text-gray-500">Startup</p>
                                           <p className="text-sm font-medium text-gray-900">
                                             {item.startup_programs?.length || 0}
                                           </p>
-                                          <p className="text-xs text-gray-500">
-                                            programs
-                                          </p>
+                                          <p className="text-xs text-gray-500">programs</p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center space-x-2">
                                         <Monitor className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">
-                                            Total
-                                          </p>
+                                          <p className="text-xs text-gray-500">Total</p>
                                           <p className="text-sm font-medium text-gray-900">
-                                            {item.scan_metadata
-                                              ?.total_software_count || 0}
+                                            {item.scan_metadata?.total_software_count || 0}
                                           </p>
-                                          <p className="text-xs text-gray-500">
-                                            items
-                                          </p>
+                                          <p className="text-xs text-gray-500">items</p>
                                         </div>
                                       </div>
                                     </div>
@@ -2467,15 +2376,12 @@ export default function AdminPage() {
                                       <div className="text-xs text-gray-500">
                                         Last scan:{" "}
                                         {new Date(
-                                          item.scan_metadata?.last_updated ||
-                                            item.updatedAt
+                                          item.scan_metadata?.last_updated || item.updatedAt
                                         ).toLocaleDateString()}
                                       </div>
                                       <div className="flex items-center space-x-1">
                                         <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                                        <span className="text-xs text-gray-600">
-                                          Scanned
-                                        </span>
+                                        <span className="text-xs text-gray-600">Scanned</span>
                                       </div>
                                     </div>
                                   </div>
@@ -2516,28 +2422,107 @@ export default function AdminPage() {
                         </div>
                       </>
                     )}
+
+                    {/* Assets Pagination */}
+                    {assetPagination.totalPages > 1 && (
+                      <div className="mt-8">
+                        <Pagination
+                          currentPage={assetPagination.currentPage}
+                          totalPages={assetPagination.totalPages}
+                          totalItems={assetPagination.totalItems}
+                          itemsPerPage={assetPagination.itemsPerPage}
+                          onPageChange={handleAssetPageChange}
+                          onItemsPerPageChange={handleAssetItemsPerPageChange}
+                        />
+                        
+                        {/* Mobile-friendly load more option */}
+                        <div className="mt-4 text-center sm:hidden">
+                          <button
+                            onClick={() => handleAssetPageChange(assetPagination.currentPage + 1)}
+                            disabled={assetPagination.currentPage >= assetPagination.totalPages}
+                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Load More
+                          </button>
+                        </div>
+                        
+                        {/* Quick jump for large datasets */}
+                        {assetPagination.totalPages > 10 && (
+                          <div className="mt-4 text-center">
+                            <div className="inline-flex items-center space-x-2 bg-gray-100 rounded-lg px-4 py-2">
+                              <span className="text-sm text-gray-800 font-medium">Quick Jump:</span>
+                              <input
+                                type="text"
+                                placeholder="Page #"
+                                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900 text-center"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const page = parseInt(e.target.value);
+                                    if (page >= 1 && page <= assetPagination.totalPages) {
+                                      handleAssetPageChange(page);
+                                      e.target.value = '';
+                                    } else {
+                                      toast.error(`Please enter a page number between 1 and ${assetPagination.totalPages}`);
+                                    }
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  const page = parseInt(e.target.value);
+                                  if (page >= 1 && page <= assetPagination.totalPages) {
+                                    handleAssetPageChange(page);
+                                    e.target.value = '';
+                                  }
+                                }}
+                              />
+                              <span className="text-xs text-gray-700 font-medium">of {assetPagination.totalPages}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Results Info */}
+                    {!loading && (
+                      <div className="mt-8 text-center text-sm text-gray-500">
+                        Showing {currentAssets.length} of {assetPagination.totalItems} {assetType === "hardware" ? "hardware assets" : "software systems"} (Page {assetPagination.currentPage} of {assetPagination.totalPages})
+                        
+                        {assetPagination.totalItems > 1000 && (
+                          <div className="mt-2 text-xs text-blue-600">
+                            💡 Tip: Use search and filters to quickly find specific assets
+                          </div>
+                        )}
+                        
+                        {/* Cache indicator */}
+                        {assetCache.size > 0 && (
+                          <div className="mt-2 text-xs text-green-600">
+                            🚀 {assetCache.size} pages cached for faster loading
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                   </div>
                 )}
               </div>
             ) : activeTab === "users" ? (
               // Users Tab
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded-lg shadow overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         User
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Role
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Department
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Assigned Assets
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
                     </tr>
@@ -2740,10 +2725,10 @@ export default function AdminPage() {
                 fetchHardware();
               } else {
                 fetchSoftware();
-              }
-              setShowCsvImportModal(false);
-            }}
-          />
+            }
+            setShowCsvImportModal(false);
+          }}
+        />
         </LazyLoader>
       </div>
     </ProtectedRoute>
