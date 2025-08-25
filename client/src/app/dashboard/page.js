@@ -686,7 +686,7 @@ export default function DashboardPage() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
                   <Download className="h-5 w-5 text-blue-600 mr-2" />
-                  Export Options - Banking Compliance
+                  Export Options
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
