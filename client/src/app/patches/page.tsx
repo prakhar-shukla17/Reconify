@@ -54,7 +54,7 @@ export default function PatchMonitoringPage() {
       />
 
       {/* Sidebar */}
-      <div className="fixed left-4 top-4 bottom-4 w-64 bg-black rounded-3xl z-40 shadow-2xl border border-gray-800/20">
+      <div className="fixed left-4 top-4 bottom-4 w-64 bg-blue-800 rounded-3xl z-40 shadow-2xl border border-blue-700/20">
         <div className="p-6 h-full flex flex-col">
           {/* App Icon */}
           <div className="flex items-center mb-6">
@@ -78,13 +78,13 @@ export default function PatchMonitoringPage() {
               </div>
             </Link>
 
-            {/* Patch Monitoring */}
-            <Link href="/patches" className="block">
-              <div className="flex items-center p-3 rounded-2xl bg-gray-900/80 hover:bg-gray-900 transition-colors duration-200">
-                <Shield className="h-6 w-6 text-white" />
-                <span className="ml-3 text-white font-medium">Patch Monitoring</span>
-              </div>
-            </Link>
+                         {/* Patch Monitoring */}
+             <Link href="/patches" className="block">
+               <div className="flex items-center p-3 rounded-2xl bg-blue-700/90 hover:bg-blue-700 transition-colors duration-200">
+                 <Shield className="h-6 w-6 text-white" />
+                 <span className="ml-3 text-white font-medium">Patch Monitoring</span>
+               </div>
+             </Link>
 
             {/* Network Monitoring */}
             <Link href="/network" className="block">
@@ -109,20 +109,20 @@ export default function PatchMonitoringPage() {
               </span>
             </div>
             <div className="flex items-center space-x-6">
-              <Link
-                href="/login"
+              <button
+                onClick={() => window.location.href = 'http://localhost:5001/auth/login'}
                 className="text-gray-600 hover:text-gray-900 text-sm font-medium transition-all duration-200 hover:scale-105"
               >
                 Sign In
-              </Link>
-              <Link
-                href="/register"
+              </button>
+              <button
+                onClick={() => window.location.href = 'http://localhost:5001/auth/register'}
                 className="group relative inline-flex items-center px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl text-sm font-medium hover:from-blue-700 hover:to-blue-900 transition-all duration-300 hover:scale-105 hover:shadow-lg overflow-hidden"
               >
                 <span className="relative z-10">Get Started</span>
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-blue-900 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -151,8 +151,8 @@ export default function PatchMonitoringPage() {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <Link
-                  href="/register"
+                <button
+                  onClick={() => window.location.href = 'http://localhost:5001/auth/register'}
                   className="group relative inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-2xl font-medium hover:from-blue-700 hover:to-blue-900 transition-all duration-300 hover:scale-105 hover:shadow-xl overflow-hidden"
                 >
                   <span className="relative z-10 flex items-center">
@@ -161,13 +161,13 @@ export default function PatchMonitoringPage() {
                   </span>
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-blue-900 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-                </Link>
-                <Link
-                  href="/login"
+                </button>
+                <button
+                  onClick={() => window.location.href = 'http://localhost:5001/auth/login'}
                   className="inline-flex items-center px-8 py-4 border border-gray-200 text-gray-900 rounded-2xl font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 hover:scale-105"
                 >
                   Sign In to Dashboard
-                </Link>
+                </button>
               </div>
             </div>
           </div>
@@ -240,8 +240,8 @@ export default function PatchMonitoringPage() {
                   <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto leading-relaxed">
                     Join organizations already using our Patch Management system to keep their infrastructure secure and up-to-date.
                   </p>
-                  <Link
-                    href="/register"
+                  <button
+                    onClick={() => window.location.href = 'http://localhost:5001/auth/register'}
                     className="group relative inline-flex items-center px-10 py-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-2xl font-medium hover:from-blue-700 hover:to-blue-900 transition-all duration-300 hover:scale-105 hover:shadow-xl overflow-hidden"
                   >
                     <span className="relative z-10 flex items-center">
@@ -250,7 +250,7 @@ export default function PatchMonitoringPage() {
                     </span>
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-blue-900 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-                  </Link>
+                  </button>
                 </div>
               </div>
             </div>
