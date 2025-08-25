@@ -16,7 +16,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
       }
 
       if (requireAdmin && user?.role !== "admin") {
-        router.push("/dashboard");
+        router.push("/my-assets");
         return;
       }
     }

@@ -10,7 +10,7 @@ import { Eye, EyeOff, LogIn } from "lucide-react";
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const { login, isAuthenticated, loading } = useAuth();
+  const { login, isAuthenticated, loading, user } = useAuth();
   const router = useRouter();
   const {
     register,
@@ -28,14 +28,24 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated && !loading) {
-      router.push("/dashboard");
+      // Redirect based on user role
+      if (user?.role === "admin") {
+        router.push("/dashboard");
+      } else {
+        router.push("/my-assets");
+      }
     }
-  }, [isAuthenticated, loading, router]);
+  }, [isAuthenticated, loading, router, user]);
 
   const onSubmit = async (data) => {
     const result = await login(data);
     if (result.success) {
-      router.push("/dashboard");
+      // Redirect based on user role
+      if (result.user?.role === "admin") {
+        router.push("/dashboard");
+      } else {
+        router.push("/my-assets");
+      }
     }
   };
 

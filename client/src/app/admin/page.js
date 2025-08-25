@@ -373,6 +373,39 @@ export default function AdminPage() {
     );
   }, [tickets]);
 
+  // Initial data loading when component mounts
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        setLoading(true);
+        // Load initial data based on active tab
+        if (activeTab === "assets") {
+          if (assetType === "hardware") {
+            await fetchHardware(1, assetPagination.itemsPerPage);
+          } else {
+            await fetchSoftware(1, assetPagination.itemsPerPage);
+          }
+        } else if (activeTab === "users") {
+          await fetchUsers();
+        } else if (activeTab === "tickets") {
+          await fetchTickets();
+        } else if (activeTab === "alerts") {
+          await fetchAlerts();
+        }
+        
+        // Always load users for assignment functionality
+        await fetchUsers();
+      } catch (error) {
+        console.error("Error loading initial data:", error);
+        toast.error("Failed to load initial data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitialData();
+  }, []); // Empty dependency array - runs only once on mount
+
   useEffect(() => {
     if (activeTab === "assets") {
       if (assetType === "hardware") {
@@ -618,7 +651,25 @@ export default function AdminPage() {
     try {
       setLoading(true);
       const response = await authAPI.getAllUsers();
-      setUsers(response.data.users || []);
+      console.log("Users API response:", response);
+      const usersData = response.data.users || [];
+      console.log("Users data:", usersData);
+      
+      // Ensure user objects have the expected structure
+      const normalizedUsers = usersData.map(user => ({
+        id: user._id || user.id,
+        username: user.username || user.email,
+        email: user.email,
+        firstName: user.firstName || user.first_name || user.name?.split(' ')[0] || 'Unknown',
+        lastName: user.lastName || user.last_name || user.name?.split(' ').slice(1).join(' ') || 'Unknown',
+        role: user.role || 'user',
+        department: user.department || 'Not specified',
+        assignedAssets: user.assignedAssets || user.assigned_assets || [],
+        isActive: user.isActive !== undefined ? user.isActive : true
+      }));
+      
+      console.log("Normalized users:", normalizedUsers);
+      setUsers(normalizedUsers);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to load users data");
@@ -2507,102 +2558,179 @@ export default function AdminPage() {
             ) : activeTab === "users" ? (
               // Users Tab
               <div className="bg-white rounded-lg shadow overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        User
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Role
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Department
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Assigned Assets
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredUsers.map((user) => (
-                      <tr key={user.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="h-10 w-10 bg-gray-300 rounded-full flex items-center justify-center">
-                              <span className="text-sm font-medium text-gray-700">
-                                {user.firstName?.[0]}
-                                {user.lastName?.[0]}
-                              </span>
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-xs font-medium text-gray-900">
-                                {user.firstName} {user.lastName}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {user.email}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              user.role === "admin"
-                                ? "bg-purple-100 text-purple-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}
+                {loading ? (
+                  <div className="p-8 text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading users...</p>
+                  </div>
+                ) : users.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No users found</p>
+                    <p className="text-sm text-gray-500 mt-2">Users will appear here once they are registered</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-medium text-gray-900">
+                          User Management ({users.length} users)
+                        </h3>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => fetchUsers()}
+                            className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+                            title="Refresh users"
                           >
-                            {user.role}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {user.department || "Not specified"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <div className="flex items-center space-x-2">
-                            <span>
-                              {user.assignedAssets?.length || 0} assets
-                            </span>
-                            {user.assignedAssets?.length > 0 && (
-                              <div className="flex flex-wrap gap-1">
-                                {user.assignedAssets.slice(0, 2).map((mac) => (
-                                  <span
-                                    key={mac}
-                                    className="text-xs bg-gray-100 px-2 py-1 rounded"
-                                  >
-                                    {mac.slice(-6)}
+                            <RefreshCw className="h-4 w-4" />
+                          </button>
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <input
+                              type="text"
+                              placeholder="Search users..."
+                              value={searchTerm}
+                              onChange={(e) => handleSearchInputChange(e.target.value)}
+                              onKeyPress={handleSearchKeyPress}
+                              className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          <button
+                            onClick={handleSearchSubmit}
+                            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+                          >
+                            Search
+                          </button>
+                          {searchTerm && (
+                            <button
+                              onClick={handleClearSearch}
+                              className="px-3 py-2 text-gray-600 text-sm hover:text-gray-800 transition-colors"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            User
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Role
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Department
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Assigned Assets
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredUsers.map((user) => (
+                          <tr key={user.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="h-10 w-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center">
+                                  <span className="text-sm font-medium text-blue-700">
+                                    {user.firstName?.[0]}
+                                    {user.lastName?.[0]}
                                   </span>
-                                ))}
-                                {user.assignedAssets.length > 2 && (
-                                  <span className="text-xs text-gray-500">
-                                    +{user.assignedAssets.length - 2} more
-                                  </span>
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {user.firstName} {user.lastName}
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    {user.email}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span
+                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                  user.role === "admin"
+                                    ? "bg-purple-100 text-purple-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
+                                {user.role}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {user.department || "Not specified"}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium">
+                                  {user.assignedAssets?.length || 0} assets
+                                </span>
+                                {user.assignedAssets?.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {user.assignedAssets.slice(0, 2).map((mac) => (
+                                      <span
+                                        key={mac}
+                                        className="text-xs bg-gray-100 px-2 py-1 rounded"
+                                      >
+                                        {mac.slice(-6)}
+                                      </span>
+                                    ))}
+                                    {user.assignedAssets.length > 2 && (
+                                      <span className="text-xs text-gray-500">
+                                        +{user.assignedAssets.length - 2} more
+                                      </span>
+                                    )}
+                                  </div>
                                 )}
                               </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              user.isActive
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {user.isActive ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span
+                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                  user.isActive
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                {user.isActive ? "Active" : "Inactive"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    
+                    {filteredUsers.length === 0 && searchTerm && (
+                      <div className="p-8 text-center">
+                        <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600">No users found matching "{searchTerm}"</p>
+                        <button
+                          onClick={handleClearSearch}
+                          className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          Clear search
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-            ) : null}
+            ) : activeTab === "alerts" ? (
+              <AlertsPanel />
+            ) : (
+              <HealthDashboard
+                isOpen={showHealthDashboard}
+                onClose={() => setShowHealthDashboard(false)}
+              />
+            )}
           </div>
         </div>
 

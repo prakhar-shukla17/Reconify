@@ -59,7 +59,7 @@ const exportToCSV = (data, filename) => {
 };
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [exportLoading, setExportLoading] = useState(false);
@@ -304,27 +304,31 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    const fetchAllStats = async () => {
-      setLoading(true);
-      try {
-        await Promise.all([
-          fetchDashboardStats(),
-          fetchAssignmentStats(),
-          fetchTicketStats(),
-          fetchSoftwareStats()
-        ]);
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-        toast.error("Failed to load dashboard data");
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Only fetch data when user is loaded and not in auth loading state
+    if (!authLoading && user) {
+      const fetchAllStats = async () => {
+        setLoading(true);
+        try {
+          await Promise.all([
+            fetchDashboardStats(),
+            fetchAssignmentStats(),
+            fetchTicketStats(),
+            fetchSoftwareStats()
+          ]);
+        } catch (error) {
+          console.error("Error fetching dashboard data:", error);
+          toast.error("Failed to load dashboard data");
+        } finally {
+          setLoading(false);
+        }
+      };
 
-    fetchAllStats();
-  }, []);
+      fetchAllStats();
+    }
+  }, [authLoading, user]);
 
-  if (loading) {
+  // Show loading state while auth is loading or dashboard data is loading
+  if (authLoading || loading) {
     return (
       <ProtectedRoute>
         <div className="min-h-screen bg-gray-50">
@@ -334,7 +338,9 @@ export default function DashboardPage() {
               <div className="flex items-center justify-center py-12">
                   <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Loading dashboard...</p>
+                  <p className="text-gray-600">
+                    {authLoading ? "Loading user..." : "Loading dashboard..."}
+                  </p>
                   </div>
                   </div>
             </div>
@@ -344,22 +350,47 @@ export default function DashboardPage() {
     );
   }
 
-  return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
+  // Don't render if user is not loaded
+  if (!user) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gray-50">
+          <Navbar />
+          <div className="py-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">User not loaded. Please refresh the page.</p>
+                  </div>
+                  </div>
+            </div>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
-        <div className="py-6">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {/* Header */}
+  // Redirect regular users to My Assets page
+  if (user?.role !== "admin") {
+    router.push("/my-assets");
+    return null;
+  }
+
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gray-50">
+          <Navbar />
+
+          <div className="py-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                {/* Header */}
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900">
-                {user?.role === "admin" ? "IT Asset Dashboard" : "My Assets Dashboard"}
+                IT Asset Dashboard
               </h1>
               <p className="mt-2 text-gray-600">
-                {user?.role === "admin"
-                  ? "Overview of all IT assets and system status"
-                  : "Overview of your assigned IT assets and system status"}
+                Overview of all IT assets and system status
               </p>
             </div>
 
@@ -368,7 +399,7 @@ export default function DashboardPage() {
               <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
                 <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mr-3 shadow-sm">
                   <Monitor className="h-4 w-4 text-white" />
-                  </div>
+                    </div>
                 Hardware Assets
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -384,8 +415,8 @@ export default function DashboardPage() {
                       <p className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                         {dashboardStats?.total || 0}
                         </p>
-                      </div>
-                      </div>
+                  </div>
+                  </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-900 mb-2">
                       Total Assets
@@ -393,8 +424,8 @@ export default function DashboardPage() {
                     <p className="text-xs text-gray-500 leading-relaxed">
                       All registered devices
                     </p>
-                    </div>
                   </div>
+                </div>
 
                 <div 
                   onClick={handleViewHardware}
@@ -403,21 +434,21 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="h-12 w-12 bg-gradient-to-br from-green-50 to-green-100 rounded-xl flex items-center justify-center group-hover:from-green-100 group-hover:to-green-200 transition-all duration-300 shadow-sm">
                       <CheckCircle className="h-6 w-6 text-green-600" />
-                      </div>
+                                    </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-gray-900 group-hover:text-green-600 transition-colors">
                         {dashboardStats?.activeAssets || 0}
                       </p>
+                                  </div>
                     </div>
-                  </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-900 mb-2">
                       Active Assets
                     </p>
                     <p className="text-xs text-gray-500 leading-relaxed">
                       Currently active devices
-                        </p>
-                      </div>
+                      </p>
+                    </div>
                       </div>
 
                 <div 
@@ -427,12 +458,12 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="h-12 w-12 bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl flex items-center justify-center group-hover:from-amber-100 group-hover:to-amber-200 transition-all duration-300 shadow-sm">
                       <CheckCircle className="h-6 w-6 text-amber-600" />
-                    </div>
+                              </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-gray-900 group-hover:text-amber-600 transition-colors">
                         {assignmentStats?.totalAssignedAssets || 0}
-                        </p>
-                      </div>
+                              </p>
+                            </div>
                       </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-900 mb-2">
@@ -440,9 +471,9 @@ export default function DashboardPage() {
                     </p>
                     <p className="text-xs text-gray-500 leading-relaxed">
                       Currently assigned to users
-                      </p>
-                    </div>
-                  </div>
+                            </p>
+                          </div>
+                      </div>
 
                 <div 
                   onClick={handleViewHardware}
@@ -451,14 +482,14 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="h-12 w-12 bg-gradient-to-br from-red-50 to-red-100 rounded-xl flex items-center justify-center group-hover:from-red-100 group-hover:to-red-200 transition-all duration-300 shadow-sm">
                       <AlertCircle className="h-6 w-6 text-red-600" />
-                      </div>
+                                    </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-gray-900 group-hover:text-red-600 transition-colors">
                         {dashboardStats?.expiringWarranties || 0}
-                      </p>
-                    </div>
-                  </div>
-                  <div>
+                            </p>
+                          </div>
+                      </div>
+                      <div>
                     <p className="text-sm font-semibold text-gray-900 mb-2">
                       Expiring Warranties
                     </p>
@@ -475,7 +506,7 @@ export default function DashboardPage() {
               <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
                 <div className="h-8 w-8 bg-gradient-to-br from-gray-600 to-gray-700 rounded-lg flex items-center justify-center mr-3 shadow-sm">
                             <Package className="h-4 w-4 text-white" />
-                          </div>
+            </div>
                 Software Inventory
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -486,20 +517,20 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="h-12 w-12 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300 shadow-sm">
                       <Monitor className="h-6 w-6 text-blue-600" />
-                        </div>
+                  </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                         {softwareStats.total}
-                      </p>
-                        </div>
+                        </p>
+                      </div>
                       </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-900 mb-2">
                       Total Systems
                     </p>
                     <p className="text-xs text-gray-500 leading-relaxed">Scanned systems</p>
-                        </div>
-                      </div>
+                    </div>
+                  </div>
 
                 <div 
                   onClick={handleViewSoftware}
@@ -521,9 +552,9 @@ export default function DashboardPage() {
                         </p>
                     <p className="text-xs text-gray-500 leading-relaxed">
                       Installed software
-                        </p>
-                      </div>
-                      </div>
+                      </p>
+                    </div>
+                  </div>
 
                 <div 
                   onClick={handleViewSoftware}
@@ -532,20 +563,20 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="h-12 w-12 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl flex items-center justify-center group-hover:from-purple-100 group-hover:to-purple-200 transition-all duration-300 shadow-sm">
                       <Settings className="h-6 w-6 text-purple-600" />
-                    </div>
+                      </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors">
                         {softwareStats.services}
-                      </p>
-                    </div>
-                  </div>
+                        </p>
+                      </div>
+                      </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-900 mb-2">
                           Services
                         </p>
                     <p className="text-xs text-gray-500 leading-relaxed">System services</p>
-                      </div>
-                      </div>
+                    </div>
+                  </div>
 
                 <div 
                   onClick={handleViewSoftware}
@@ -554,7 +585,7 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="h-12 w-12 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl flex items-center justify-center group-hover:from-orange-100 group-hover:to-orange-200 transition-all duration-300 shadow-sm">
                       <Play className="h-6 w-6 text-orange-600" />
-                    </div>
+                      </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors">
                         {softwareStats.startupPrograms}
@@ -567,18 +598,18 @@ export default function DashboardPage() {
                         </p>
                     <p className="text-xs text-gray-500 leading-relaxed">
                         Auto-start programs
-                      </p>
+                        </p>
+                      </div>
+                      </div>
                     </div>
                   </div>
-            </div>
-              </div>
 
             {/* Stats Cards - Tickets */}
             <div className="mb-10">
               <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
                 <div className="h-8 w-8 bg-gradient-to-br from-gray-600 to-gray-700 rounded-lg flex items-center justify-center mr-3 shadow-sm">
                   <Ticket className="h-4 w-4 text-white" />
-                </div>
+                      </div>
                 Support Tickets
                     </h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -589,13 +620,13 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="h-12 w-12 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300 shadow-sm">
                       <Ticket className="h-6 w-6 text-blue-600" />
-                            </div>
+                      </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                         {ticketStats.total}
-                      </p>
-                            </div>
-                            </div>
+                            </p>
+                          </div>
+                          </div>
                       <div>
                     <p className="text-sm font-semibold text-gray-900 mb-2">
                       Total Tickets
@@ -603,7 +634,7 @@ export default function DashboardPage() {
                     <p className="text-xs text-gray-500 leading-relaxed">
                       All support requests
                     </p>
-                      </div>
+                        </div>
                       </div>
 
                 <div 
@@ -617,16 +648,16 @@ export default function DashboardPage() {
                     <div className="text-right">
                       <p className="text-2xl font-bold text-gray-900 group-hover:text-red-600 transition-colors">
                         {ticketStats.open}
-                      </p>
-                    </div>
-                      </div>
+                            </p>
+                          </div>
+                          </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-900 mb-2">
                       Open
                     </p>
                     <p className="text-xs text-gray-500 leading-relaxed">Awaiting response</p>
-                </div>
-                </div>
+                    </div>
+                  </div>
 
                       <div
                   onClick={handleViewTickets}
@@ -635,13 +666,13 @@ export default function DashboardPage() {
                       <div className="flex items-center justify-between mb-4">
                     <div className="h-12 w-12 bg-gradient-to-br from-green-50 to-green-100 rounded-xl flex items-center justify-center group-hover:from-green-100 group-hover:to-green-200 transition-all duration-300 shadow-sm">
                       <CheckCircle className="h-6 w-6 text-green-600" />
-                        </div>
+                      </div>
                         <div className="text-right">
                       <p className="text-2xl font-bold text-gray-900 group-hover:text-green-600 transition-colors">
                         {ticketStats.resolved}
-                          </p>
-                        </div>
-                      </div>
+                      </p>
+                    </div>
+                  </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-900 mb-2">
                       Resolved
@@ -649,8 +680,8 @@ export default function DashboardPage() {
                     <p className="text-xs text-gray-500 leading-relaxed">
                       Successfully completed
                     </p>
-                          </div>
-                        </div>
+                    </div>
+                  </div>
 
                 <div 
                   onClick={handleViewTickets}
@@ -663,23 +694,23 @@ export default function DashboardPage() {
                     <div className="text-right">
                       <p className="text-2xl font-bold text-gray-900 group-hover:text-gray-600 transition-colors">
                         {ticketStats.closed}
-                      </p>
-                 </div>
-                 </div>
+                        </p>
+                      </div>
+                      </div>
                  <div>
                     <p className="text-sm font-semibold text-gray-900 mb-2">
                       Closed
                     </p>
                     <p className="text-xs text-gray-500 leading-relaxed">Archived tickets</p>
-                   </div>
-                   </div>
+                    </div>
+                  </div>
                  </div>
-               </div>
-               
-            {/* Warranty Alerts Widget */}
-            <div className="mb-8">
-              <AlertsWidget onViewAll={handleViewAllAlerts} />
             </div>
+
+            {/* Warranty Alerts Widget */}
+              <div className="mb-8">
+              <AlertsWidget onViewAll={handleViewAllAlerts} />
+              </div>
 
             {/* Export Options Panel */}
             <div className="mb-8">
@@ -691,13 +722,13 @@ export default function DashboardPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Hardware Exports */}
-                  <div>
+                <div>
                     <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center">
                       <Monitor className="h-4 w-4 text-blue-600 mr-2" />
                       Hardware Assets
                     </h4>
                     <div className="space-y-3">
-                      <button 
+                        <button
                         onClick={() => handleHardwareExport('compliance')}
                         disabled={exportLoading}
                         className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:text-gray-900 hover:bg-blue-50 rounded-lg transition-colors border border-gray-200 hover:border-blue-300"
@@ -706,23 +737,23 @@ export default function DashboardPage() {
                           <div>
                             <div className="font-medium">🛡️ Compliance Report</div>
                             <div className="text-xs text-gray-500 mt-1">Full asset details for regulatory compliance</div>
-                          </div>
+                            </div>
                           <FileText className="h-4 w-4 text-blue-600" />
-                        </div>
-                      </button>
-                      
-                      <button 
+                            </div>
+                        </button>
+                        
+                          <button
                         onClick={() => handleHardwareExport('security')}
                         disabled={exportLoading}
                         className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:text-gray-900 hover:bg-green-50 rounded-lg transition-colors border border-gray-200 hover:border-green-300"
                       >
                         <div className="flex items-center justify-between">
-                          <div>
+                      <div>
                             <div className="font-medium">🔒 Security Assessment</div>
                             <div className="text-xs text-gray-500 mt-1">Security status and vulnerability analysis</div>
-                          </div>
+                      </div>
                           <Shield className="h-4 w-4 text-green-600" />
-                        </div>
+                      </div>
                       </button>
                       
                       <button 
@@ -731,15 +762,15 @@ export default function DashboardPage() {
                         className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:text-gray-900 hover:bg-purple-50 rounded-lg transition-colors border border-gray-200 hover:border-purple-300"
                       >
                         <div className="flex items-center justify-between">
-                          <div>
+                      <div>
                             <div className="font-medium">📋 Basic Inventory</div>
                             <div className="text-xs text-gray-500 mt-1">Essential asset information</div>
-                          </div>
+                      </div>
                           <Download className="h-4 w-4 text-purple-600" />
-                        </div>
+                      </div>
                       </button>
+                      </div>
                     </div>
-                  </div>
 
                   {/* Software Exports */}
                   <div>
@@ -748,7 +779,7 @@ export default function DashboardPage() {
                       Software Inventory
                     </h4>
                     <div className="space-y-3">
-                      <button 
+                        <button
                         onClick={() => handleSoftwareExport('compliance')}
                         disabled={exportLoading}
                         className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:text-gray-900 hover:bg-blue-50 rounded-lg transition-colors border border-gray-200 hover:border-blue-300"
@@ -757,26 +788,26 @@ export default function DashboardPage() {
                           <div>
                             <div className="font-medium">📊 License Compliance</div>
                             <div className="text-xs text-gray-500 mt-1">Software licensing and compliance status</div>
-                          </div>
+                      </div>
                           <FileText className="h-4 w-4 text-blue-600" />
-                        </div>
+                  </div>
                       </button>
                       
-                      <button 
+                      <button
                         onClick={() => handleSoftwareExport('security')}
                         disabled={exportLoading}
                         className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:text-gray-900 hover:bg-green-50 rounded-lg transition-colors border border-gray-200 hover:border-green-300"
                       >
                         <div className="flex items-center justify-between">
-                          <div>
+                    <div>
                             <div className="font-medium">🔍 Security Analysis</div>
                             <div className="text-xs text-gray-500 mt-1">Security updates and vulnerability status</div>
-                          </div>
+                      </div>
                           <Shield className="h-4 w-4 text-green-600" />
-                        </div>
-                      </button>
-                      
-                      <button 
+                      </div>
+                              </button>
+                              
+                              <button
                         onClick={() => handleSoftwareExport('inventory')}
                         disabled={exportLoading}
                         className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:text-gray-900 hover:bg-purple-50 rounded-lg transition-colors border border-gray-200 hover:border-purple-300"
@@ -788,10 +819,10 @@ export default function DashboardPage() {
                           </div>
                           <Download className="h-4 w-4 text-purple-600" />
                         </div>
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                        </button>
+                      </div>
+                          </div>
+            </div>
 
                 {exportLoading && (
                   <div className="mt-6 text-center">
@@ -799,17 +830,17 @@ export default function DashboardPage() {
                     <p className="text-sm text-gray-600">Preparing export...</p>
                   </div>
                 )}
-
+                
                 <div className="mt-6 pt-4 border-t border-gray-200">
                   <p className="text-xs text-gray-500 text-center">
                     All exports include comprehensive data required for banking compliance, 
                     regulatory audits, and security assessments.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+                     </p>
+                   </div>
+                   </div>
+                 </div>
+                   </div>
+               </div>
       </div>
     </ProtectedRoute>
   );

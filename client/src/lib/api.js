@@ -67,8 +67,16 @@ export const hardwareAPI = {
   create: (hardwareData) => api.post("/hardware", hardwareData),
   updateAssetInfo: (id, assetInfo) =>
     api.put(`/hardware/${id}/asset-info`, assetInfo),
+  updateUserAssetInfo: (id, assetInfo) =>
+    api.put(`/hardware/${id}/user-asset-info`, assetInfo),
   updateComponentWarranty: (id, componentType, componentIndex, warrantyInfo) =>
     api.put(`/hardware/${id}/component-warranty`, {
+      componentType,
+      componentIndex,
+      warrantyInfo,
+    }),
+  updateUserComponentWarranty: (id, componentType, componentIndex, warrantyInfo) =>
+    api.put(`/hardware/${id}/user-component-warranty`, {
       componentType,
       componentIndex,
       warrantyInfo,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import {
   Monitor,
   Cpu,
@@ -30,6 +31,7 @@ import toast from "react-hot-toast";
 import MLPredictionsPanel from "./MLPredictionsPanel";
 
 const HardwareDetails = ({ hardware, onHardwareUpdate }) => {
+  const { user } = useAuth();
   const [expandedSections, setExpandedSections] = useState({
     system: true,
     asset_info: true,
@@ -252,7 +254,12 @@ const HardwareDetails = ({ hardware, onHardwareUpdate }) => {
         cost: parseFloat(assetInfoForm.cost) || 0,
       };
 
-      const response = await hardwareAPI.updateAssetInfo(hardware._id, assetInfoData);
+      // Use appropriate API based on user role
+      const apiFunction = user?.role === 'admin' 
+        ? hardwareAPI.updateAssetInfo 
+        : hardwareAPI.updateUserAssetInfo;
+      
+      const response = await apiFunction(hardware._id, assetInfoData);
       toast.success("Asset information updated successfully");
       setEditingAssetInfo(false);
 
@@ -278,7 +285,12 @@ const HardwareDetails = ({ hardware, onHardwareUpdate }) => {
 
   const saveComponentWarranty = async () => {
     try {
-      const response = await hardwareAPI.updateComponentWarranty(
+      // Use appropriate API based on user role
+      const apiFunction = user?.role === 'admin' 
+        ? hardwareAPI.updateComponentWarranty 
+        : hardwareAPI.updateUserComponentWarranty;
+      
+      const response = await apiFunction(
         hardware._id,
         editingComponent.type,
         editingComponent.index,

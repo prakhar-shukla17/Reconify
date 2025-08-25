@@ -313,6 +313,79 @@ export const updateAssetInfo = async (req, res) => {
   }
 };
 
+// Update asset information for user's own assets
+export const updateUserAssetInfo = async (req, res) => {
+  try {
+    const { id } = req.params; // MAC address
+    const assetInfoData = req.body;
+
+    // Check if the asset is assigned to the current user
+    if (!req.user.assignedAssets.includes(id)) {
+      return res
+        .status(403)
+        .json({ error: "Access denied. Asset not assigned to you." });
+    }
+
+    // Validate required fields
+    if (!assetInfoData) {
+      return res
+        .status(400)
+        .json({ error: "Asset information data is required" });
+    }
+
+    // Validate dates if provided
+    if (assetInfoData.purchase_date) {
+      const purchaseDate = new Date(assetInfoData.purchase_date);
+      if (isNaN(purchaseDate.getTime())) {
+        return res.status(400).json({ error: "Invalid purchase date format" });
+      }
+    }
+
+    if (assetInfoData.warranty_expiry) {
+      const warrantyDate = new Date(assetInfoData.warranty_expiry);
+      if (isNaN(warrantyDate.getTime())) {
+        return res
+          .status(400)
+          .json({ error: "Invalid warranty expiry date format" });
+      }
+    }
+
+    // Prepare the update data
+    const updateData = {
+      ...assetInfoData,
+      purchase_date: assetInfoData.purchase_date
+        ? new Date(assetInfoData.purchase_date)
+        : null,
+      warranty_expiry: assetInfoData.warranty_expiry
+        ? new Date(assetInfoData.warranty_expiry)
+        : null,
+      cost: parseFloat(assetInfoData.cost) || 0,
+    };
+
+    // Update the hardware document
+    const updatedHardware = await Hardware.findByIdAndUpdate(
+      id,
+      { $set: { asset_info: updateData } },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedHardware) {
+      return res.status(404).json({ error: "Hardware not found" });
+    }
+
+    return res.status(200).json({
+      message: "Asset information updated successfully",
+      data: updatedHardware,
+    });
+  } catch (error) {
+    console.error("Error updating user asset information:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
 // Get assets with expiring warranties
 export const getExpiringWarranties = async (req, res) => {
   try {
@@ -547,6 +620,126 @@ export const updateComponentWarranty = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating component warranty:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+// Update component warranty information for user's own assets
+export const updateUserComponentWarranty = async (req, res) => {
+  try {
+    const { id } = req.params; // MAC address
+    const { componentType, componentIndex, warrantyInfo } = req.body;
+    const userId = req.user._id;
+
+    // Validate required fields
+    if (!componentType || !warrantyInfo) {
+      return res
+        .status(400)
+        .json({ error: "Component type and warranty info are required" });
+    }
+
+    // Check if the asset is assigned to the current user
+    if (!req.user.assignedAssets.includes(id)) {
+      return res
+        .status(403)
+        .json({ error: "Access denied. Asset not assigned to you." });
+    }
+
+    // Validate dates if provided
+    if (warrantyInfo.purchase_date) {
+      const purchaseDate = new Date(warrantyInfo.purchase_date);
+      if (isNaN(purchaseDate.getTime())) {
+        return res.status(400).json({ error: "Invalid purchase date format" });
+      }
+    }
+
+    if (warrantyInfo.warranty_expiry) {
+      const warrantyDate = new Date(warrantyInfo.warranty_expiry);
+      if (isNaN(warrantyDate.getTime())) {
+        return res
+          .status(400)
+          .json({ error: "Invalid warranty expiry date format" });
+      }
+    }
+
+    // Build the update query based on component type
+    let updateQuery = {};
+    const componentInfoData = {
+      ...warrantyInfo,
+      purchase_date: warrantyInfo.purchase_date
+        ? new Date(warrantyInfo.purchase_date)
+        : null,
+      warranty_expiry: warrantyInfo.warranty_expiry
+        ? new Date(warrantyInfo.warranty_expiry)
+        : null,
+    };
+
+    switch (componentType) {
+      case "cpu":
+        updateQuery = { $set: { "cpu.component_info": componentInfoData } };
+        break;
+      case "memory":
+        if (componentIndex === undefined) {
+          return res
+            .status(400)
+            .json({ error: "Component index is required for memory slots" });
+        }
+        updateQuery = {
+          $set: {
+            [`memory.slots.${componentIndex}.component_info`]:
+              componentInfoData,
+          },
+        };
+        break;
+      case "storage":
+        if (componentIndex === undefined) {
+          return res
+            .status(400)
+            .json({ error: "Component index is required for storage drives" });
+        }
+        updateQuery = {
+          $set: {
+            [`storage.drives.${componentIndex}.component_info`]:
+              componentInfoData,
+          },
+        };
+        break;
+      case "gpu":
+        if (componentIndex === undefined) {
+          return res
+            .status(400)
+            .json({ error: "Component index is required for GPUs" });
+        }
+        updateQuery = {
+          $set: {
+            [`graphics.gpus.${componentIndex}.component_info`]:
+              componentInfoData,
+          },
+        };
+        break;
+      default:
+        return res.status(400).json({ error: "Invalid component type" });
+    }
+
+    // Update the hardware document
+    const updatedHardware = await Hardware.findByIdAndUpdate(id, updateQuery, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updatedHardware) {
+      return res.status(404).json({ error: "Hardware not found" });
+    }
+
+    return res.status(200).json({
+      message: "Component warranty information updated successfully",
+      data: updatedHardware,
+    });
+  } catch (error) {
+    console.error("Error updating user component warranty:", error);
     return res.status(500).json({
       success: false,
       error: error.message,

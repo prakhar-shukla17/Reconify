@@ -5,9 +5,11 @@ import {
   getById,
   createHardware,
   updateAssetInfo,
+  updateUserAssetInfo,
   getExpiringWarranties,
   getWarrantyStats,
   updateComponentWarranty,
+  updateUserComponentWarranty,
   createManualAsset,
   getManualEntries,
   getUnassignedAssets,
@@ -91,12 +93,23 @@ router.get("/:id", verifyToken, canAccessAsset, getById);
 // PUT route to update asset information (admin only)
 router.put("/:id/asset-info", verifyToken, requireAdmin, updateAssetInfo);
 
+// PUT route to update asset information for user's own assets
+router.put("/:id/user-asset-info", verifyToken, canAccessAsset, updateUserAssetInfo);
+
 // PUT route to update component warranty information (admin only)
 router.put(
   "/:id/component-warranty",
   verifyToken,
   requireAdmin,
   updateComponentWarranty
+);
+
+// PUT route to update component warranty information for user's own assets
+router.put(
+  "/:id/user-component-warranty",
+  verifyToken,
+  canAccessAsset,
+  updateUserComponentWarranty
 );
 
 export default router;

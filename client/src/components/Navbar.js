@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
-import { LogOut, User, Settings, Shield } from "lucide-react";
+import { LogOut, User, Settings, Shield, Menu, X } from "lucide-react";
 import { useState } from "react";
 
 const Navbar = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   if (!isAuthenticated) {
     return null;
@@ -18,7 +19,10 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center min-w-0">
-            <Link href="/dashboard" className="flex-shrink-0 flex items-center">
+            <Link 
+              href="/" 
+              className="flex-shrink-0 flex items-center"
+            >
               <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">IT</span>
               </div>
@@ -29,9 +33,26 @@ const Navbar = () => {
                 ITAM
               </span>
             </Link>
+            
+            {/* Main Navigation Links */}
+            <div className="hidden md:flex items-center space-x-6 ml-8">
+              {/* Navigation links can be added here in the future */}
+            </div>
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-4">
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+            >
+              {isMobileMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
+            </button>
+
             <div className="hidden sm:flex items-center space-x-2 min-w-0 max-w-xs lg:max-w-sm">
               <span className="text-sm text-gray-700 truncate">
                 Welcome, {user?.firstName || user?.username}
@@ -104,6 +125,15 @@ const Navbar = () => {
             </div>
           </div>
         </div>
+
+                 {/* Mobile Navigation Menu */}
+         {isMobileMenuOpen && (
+           <div className="md:hidden">
+             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200">
+               {/* Mobile navigation links can be added here in the future */}
+             </div>
+           </div>
+         )}
       </div>
     </nav>
   );
