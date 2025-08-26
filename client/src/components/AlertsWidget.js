@@ -65,28 +65,28 @@ const AlertsWidget = ({ onViewAll }) => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border p-4">
-        <div className="flex items-center justify-center h-24">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+      <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-6">
+        <div className="flex items-center justify-center h-32">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border">
+    <div className="bg-white rounded-3xl shadow-lg border border-gray-200">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200">
+      <div className="px-6 py-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             {summary.total > 0 ? (
-              <BellRing className="h-4 w-4 text-red-600" />
+              <BellRing className="h-6 w-6 text-red-600" />
             ) : (
-              <Bell className="h-4 w-4 text-gray-400" />
+              <Bell className="h-6 w-6 text-gray-400" />
             )}
-            <h4 className="font-medium text-gray-900">Warranty Alerts</h4>
+            <h4 className="text-xl font-semibold text-gray-900">Warranty Alerts</h4>
             {summary.total > 0 && (
-              <span className="bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded-full">
+              <span className="bg-red-100 text-red-800 text-sm font-medium px-3 py-1 rounded-full">
                 {summary.total}
               </span>
             )}
@@ -95,50 +95,50 @@ const AlertsWidget = ({ onViewAll }) => {
           {summary.total > 0 && (
             <button
               onClick={onViewAll}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center space-x-1"
+              className="text-blue-600 hover:text-blue-800 text-base font-medium flex items-center space-x-2 hover:scale-105 transition-all duration-300"
             >
               <span>View All</span>
-              <ChevronRight className="h-3 w-3" />
+              <ChevronRight className="h-4 w-4" />
             </button>
           )}
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4">
+      <div className="p-6">
         {summary.total === 0 ? (
-          <div className="text-center py-4">
-            <Shield className="h-8 w-8 text-green-500 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">
+          <div className="text-center py-6">
+            <Shield className="h-12 w-12 text-green-500 mx-auto mb-3" />
+            <p className="text-base text-gray-600 font-medium">
               All warranties are up to date
             </p>
           </div>
         ) : (
           <div className="space-y-3">
             {/* Quick Stats */}
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              <div className="text-center p-2 bg-red-50 rounded">
-                <div className="text-sm font-semibold text-red-600">
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="text-center p-4 bg-red-50 rounded-2xl border border-red-100">
+                <div className="text-lg font-bold text-red-600">
                   {summary.critical}
                 </div>
-                <div className="text-xs text-red-500">Critical</div>
+                <div className="text-sm text-red-500 font-medium">Critical</div>
               </div>
-              <div className="text-center p-2 bg-orange-50 rounded">
-                <div className="text-sm font-semibold text-orange-600">
+              <div className="text-center p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                <div className="text-lg font-bold text-orange-600">
                   {summary.high}
                 </div>
-                <div className="text-xs text-orange-500">High</div>
+                <div className="text-sm text-orange-500 font-medium">High</div>
               </div>
-              <div className="text-center p-2 bg-yellow-50 rounded">
-                <div className="text-sm font-semibold text-yellow-600">
+              <div className="text-center p-4 bg-yellow-50 rounded-2xl border border-yellow-100">
+                <div className="text-lg font-bold text-yellow-600">
                   {summary.medium}
                 </div>
-                <div className="text-xs text-yellow-500">Medium</div>
+                <div className="text-sm text-yellow-500 font-medium">Medium</div>
               </div>
             </div>
 
             {/* Top Alerts */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               {alerts.map((alert) => {
                 const severityConfig = getSeverityConfig(alert.severity);
                 const SeverityIcon = severityConfig.icon;
@@ -146,23 +146,23 @@ const AlertsWidget = ({ onViewAll }) => {
                 return (
                   <div
                     key={alert.id}
-                    className={`${severityConfig.bgColor} rounded-lg p-3 border border-gray-100`}
+                    className={`${severityConfig.bgColor} rounded-2xl p-4 border border-gray-200 hover:shadow-md transition-all duration-300`}
                   >
-                    <div className="flex items-start space-x-2">
+                    <div className="flex items-start space-x-3">
                       <SeverityIcon
-                        className={`h-4 w-4 ${severityConfig.color} mt-0.5 flex-shrink-0`}
+                        className={`h-5 w-5 ${severityConfig.color} mt-0.5 flex-shrink-0`}
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
+                        <p className="text-base font-semibold text-gray-900 truncate">
                           {alert.hostname || "Unknown Device"}
                         </p>
-                        <p className="text-xs text-gray-600 truncate">
+                        <p className="text-sm text-gray-600 truncate">
                           {alert.component ? alert.component.name : "Asset"}{" "}
                           expires in {alert.daysUntilExpiry} days
                         </p>
                       </div>
                       <span
-                        className={`text-xs font-medium ${severityConfig.color}`}
+                        className={`text-sm font-bold ${severityConfig.color}`}
                       >
                         {alert.daysUntilExpiry}d
                       </span>
@@ -175,7 +175,7 @@ const AlertsWidget = ({ onViewAll }) => {
             {summary.total > 3 && (
               <button
                 onClick={onViewAll}
-                className="w-full text-center py-2 text-sm text-blue-600 hover:text-blue-800 font-medium border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                className="w-full text-center py-3 text-base text-blue-600 hover:text-blue-800 font-medium border border-blue-200 rounded-2xl hover:bg-blue-50 hover:shadow-md transition-all duration-300"
               >
                 View {summary.total - 3} more alerts
               </button>

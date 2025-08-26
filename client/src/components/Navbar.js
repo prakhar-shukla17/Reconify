@@ -23,7 +23,7 @@ const Navbar = () => {
               href="/" 
               className="flex-shrink-0 flex items-center"
             >
-              <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <div className="h-8 w-8 bg-gray-900 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">IT</span>
               </div>
               <span className="ml-2 text-lg sm:text-xl font-semibold text-gray-900 hidden sm:block">

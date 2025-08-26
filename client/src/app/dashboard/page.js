@@ -396,313 +396,288 @@ export default function DashboardPage() {
 
             {/* Stats Cards - Hardware */}
             <div className="mb-10">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mr-3 shadow-sm">
-                  <Monitor className="h-4 w-4 text-white" />
-                    </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">
                 Hardware Assets
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div 
                   onClick={handleViewHardware}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:shadow-blue-50 hover:border-blue-200 transition-all duration-300 cursor-pointer group transform hover:-translate-y-1"
+                  className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:scale-105 bg-white hover:bg-gray-50 cursor-pointer group"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <div className="h-12 w-12 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300 shadow-sm">
-                      <Package className="h-6 w-6 text-blue-600" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Package className="h-6 w-6 text-white" />
                   </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                      <p className="text-2xl font-bold text-gray-900">
                         {dashboardStats?.total || 0}
                         </p>
+                      <p className="text-sm text-gray-600 font-medium">
+                        Total Assets
+                      </p>
                   </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 mb-2">
-                      Total Assets
-                    </p>
-                    <p className="text-xs text-gray-500 leading-relaxed">
+                  <p className="text-xs text-gray-500">
                       All registered devices
                     </p>
-                  </div>
                 </div>
 
                 <div 
                   onClick={handleViewHardware}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:shadow-green-50 hover:border-green-200 transition-all duration-300 cursor-pointer group transform hover:-translate-y-1"
+                  className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer group"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <div className="h-12 w-12 bg-gradient-to-br from-green-50 to-green-100 rounded-xl flex items-center justify-center group-hover:from-green-100 group-hover:to-green-200 transition-all duration-300 shadow-sm">
-                      <CheckCircle className="h-6 w-6 text-green-600" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <CheckCircle className="h-6 w-6 text-white" />
                                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900 group-hover:text-green-600 transition-colors">
+                      <p className="text-2xl font-bold text-gray-900">
                         {dashboardStats?.activeAssets || 0}
                       </p>
-                                  </div>
-                    </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 mb-2">
+                      <p className="text-sm text-gray-600 font-medium">
                       Active Assets
-                    </p>
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      Currently active devices
                       </p>
                     </div>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Currently active devices
+                  </p>
                       </div>
 
                 <div 
                   onClick={handleViewHardware}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:shadow-amber-50 hover:border-amber-200 transition-all duration-300 cursor-pointer group transform hover:-translate-y-1"
+                  className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer group"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <div className="h-12 w-12 bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl flex items-center justify-center group-hover:from-amber-100 group-hover:to-amber-200 transition-all duration-300 shadow-sm">
-                      <CheckCircle className="h-6 w-6 text-amber-600" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <CheckCircle className="h-6 w-6 text-white" />
                               </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900 group-hover:text-amber-600 transition-colors">
+                      <p className="text-2xl font-bold text-gray-900">
                         {assignmentStats?.totalAssignedAssets || 0}
                               </p>
+                      <p className="text-sm text-gray-600 font-medium">
+                        Assigned Assets
+                      </p>
                             </div>
                       </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 mb-2">
-                      Assigned Assets
-                    </p>
-                    <p className="text-xs text-gray-500 leading-relaxed">
+                  <p className="text-xs text-gray-500">
                       Currently assigned to users
                             </p>
-                          </div>
                       </div>
 
                 <div 
                   onClick={handleViewHardware}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:shadow-red-50 hover:border-red-200 transition-all duration-300 cursor-pointer group transform hover:-translate-y-1"
+                  className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer group"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <div className="h-12 w-12 bg-gradient-to-br from-red-50 to-red-100 rounded-xl flex items-center justify-center group-hover:from-red-100 group-hover:to-red-200 transition-all duration-300 shadow-sm">
-                      <AlertCircle className="h-6 w-6 text-red-600" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <AlertCircle className="h-6 w-6 text-white" />
                                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900 group-hover:text-red-600 transition-colors">
+                      <p className="text-2xl font-bold text-gray-900">
                         {dashboardStats?.expiringWarranties || 0}
                             </p>
+                      <p className="text-sm text-gray-600 font-medium">
+                        Expiring Warranties
+                      </p>
                           </div>
                       </div>
-                      <div>
-                    <p className="text-sm font-semibold text-gray-900 mb-2">
-                      Expiring Warranties
-                    </p>
-                    <p className="text-xs text-gray-500 leading-relaxed">
+                  <p className="text-xs text-gray-500">
                       Warranties expiring soon
                         </p>
-                      </div>
                       </div>
                     </div>
                   </div>
 
             {/* Stats Cards - Software */}
             <div className="mb-10">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                <div className="h-8 w-8 bg-gradient-to-br from-gray-600 to-gray-700 rounded-lg flex items-center justify-center mr-3 shadow-sm">
-                            <Package className="h-4 w-4 text-white" />
-            </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">
                 Software Inventory
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div 
                   onClick={handleViewSoftware}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:shadow-blue-50 hover:border-blue-200 transition-all duration-300 cursor-pointer group transform hover:-translate-y-1"
+                  className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:scale-105 bg-white hover:bg-gray-50 cursor-pointer group"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <div className="h-12 w-12 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300 shadow-sm">
-                      <Monitor className="h-6 w-6 text-blue-600" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Monitor className="h-6 w-6 text-white" />
                   </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                      <p className="text-2xl font-bold text-gray-900">
                         {softwareStats.total}
                         </p>
-                      </div>
-                      </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 mb-2">
+                      <p className="text-sm text-gray-600 font-medium">
                       Total Systems
                     </p>
-                    <p className="text-xs text-gray-500 leading-relaxed">Scanned systems</p>
                     </div>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Scanned systems
+                  </p>
                   </div>
 
                 <div 
                   onClick={handleViewSoftware}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:shadow-green-50 hover:border-green-200 transition-all duration-300 cursor-pointer group transform hover:-translate-y-1"
+                  className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer group"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <div className="h-12 w-12 bg-gradient-to-br from-green-50 to-green-100 rounded-xl flex items-center justify-center group-hover:from-green-100 group-hover:to-green-200 transition-all duration-300 shadow-sm">
-                      <Package className="h-6 w-6 text-green-600" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Package className="h-6 w-6 text-white" />
                           </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900 group-hover:text-green-600 transition-colors">
+                      <p className="text-2xl font-bold text-gray-900">
                         {softwareStats.totalPackages}
                         </p>
-                      </div>
-                      </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 mb-2">
+                      <p className="text-sm text-gray-600 font-medium">
                           Software Packages
-                        </p>
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      Installed software
                       </p>
                     </div>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Installed software
+                  </p>
                   </div>
 
                 <div 
                   onClick={handleViewSoftware}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:shadow-purple-50 hover:border-purple-200 transition-all duration-300 cursor-pointer group transform hover:-translate-y-1"
+                  className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer group"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <div className="h-12 w-12 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl flex items-center justify-center group-hover:from-purple-100 group-hover:to-purple-200 transition-all duration-300 shadow-sm">
-                      <Settings className="h-6 w-6 text-purple-600" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Settings className="h-6 w-6 text-white" />
                       </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors">
+                      <p className="text-2xl font-bold text-gray-900">
                         {softwareStats.services}
                         </p>
-                      </div>
-                      </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 mb-2">
+                      <p className="text-sm text-gray-600 font-medium">
                           Services
                         </p>
-                    <p className="text-xs text-gray-500 leading-relaxed">System services</p>
                     </div>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    System services
+                  </p>
                   </div>
 
                 <div 
                   onClick={handleViewSoftware}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:shadow-orange-50 hover:border-orange-200 transition-all duration-300 cursor-pointer group transform hover:-translate-y-1"
+                  className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer group"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <div className="h-12 w-12 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl flex items-center justify-center group-hover:from-orange-100 group-hover:to-orange-200 transition-all duration-300 shadow-sm">
-                      <Play className="h-6 w-6 text-orange-600" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Play className="h-6 w-6 text-white" />
                       </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors">
+                      <p className="text-2xl font-bold text-gray-900">
                         {softwareStats.startupPrograms}
+                      </p>
+                      <p className="text-sm text-gray-600 font-medium">
+                        Startup Programs
                       </p>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 mb-2">
-                          Startup Programs
-                        </p>
-                    <p className="text-xs text-gray-500 leading-relaxed">
+                  <p className="text-xs text-gray-500">
                         Auto-start programs
                         </p>
-                      </div>
                       </div>
                     </div>
                   </div>
 
             {/* Stats Cards - Tickets */}
             <div className="mb-10">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                <div className="h-8 w-8 bg-gradient-to-br from-gray-600 to-gray-700 rounded-lg flex items-center justify-center mr-3 shadow-sm">
-                  <Ticket className="h-4 w-4 text-white" />
-                      </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">
                 Support Tickets
                     </h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div 
                   onClick={handleViewTickets}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:shadow-blue-50 hover:border-blue-200 transition-all duration-300 cursor-pointer group transform hover:-translate-y-1"
+                  className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:scale-105 bg-white hover:bg-gray-50 cursor-pointer group"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <div className="h-12 w-12 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300 shadow-sm">
-                      <Ticket className="h-6 w-6 text-blue-600" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Ticket className="h-6 w-6 text-white" />
                       </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                      <p className="text-2xl font-bold text-gray-900">
                         {ticketStats.total}
                             </p>
+                      <p className="text-sm text-gray-600 font-medium">
+                        Total Tickets
+                      </p>
                           </div>
                           </div>
-                      <div>
-                    <p className="text-sm font-semibold text-gray-900 mb-2">
-                      Total Tickets
-                    </p>
-                    <p className="text-xs text-gray-500 leading-relaxed">
+                  <p className="text-xs text-gray-500">
                       All support requests
                     </p>
-                        </div>
                       </div>
 
                 <div 
                   onClick={handleViewTickets}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:shadow-red-50 hover:border-red-200 transition-all duration-300 cursor-pointer group transform hover:-translate-y-1"
+                  className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer group"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <div className="h-12 w-12 bg-gradient-to-br from-red-50 to-red-100 rounded-xl flex items-center justify-center group-hover:from-red-100 group-hover:to-red-200 transition-all duration-300 shadow-sm">
-                      <AlertCircle className="h-6 w-6 text-red-600" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <AlertCircle className="h-6 w-6 text-white" />
                       </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900 group-hover:text-red-600 transition-colors">
+                      <p className="text-2xl font-bold text-gray-900">
                         {ticketStats.open}
                             </p>
-                          </div>
-                          </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 mb-2">
+                      <p className="text-sm text-gray-600 font-medium">
                       Open
                     </p>
-                    <p className="text-xs text-gray-500 leading-relaxed">Awaiting response</p>
                     </div>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Awaiting response
+                  </p>
                   </div>
 
                       <div
                   onClick={handleViewTickets}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:shadow-green-50 hover:border-green-200 transition-all duration-300 cursor-pointer group transform hover:-translate-y-1"
+                  className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer group"
                       >
                       <div className="flex items-center justify-between mb-4">
-                    <div className="h-12 w-12 bg-gradient-to-br from-green-50 to-green-100 rounded-xl flex items-center justify-center group-hover:from-green-100 group-hover:to-green-200 transition-all duration-300 shadow-sm">
-                      <CheckCircle className="h-6 w-6 text-green-600" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <CheckCircle className="h-6 w-6 text-white" />
                       </div>
                         <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900 group-hover:text-green-600 transition-colors">
+                      <p className="text-2xl font-bold text-gray-900">
                         {ticketStats.resolved}
+                      </p>
+                      <p className="text-sm text-gray-600 font-medium">
+                        Resolved
                       </p>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 mb-2">
-                      Resolved
-                    </p>
-                    <p className="text-xs text-gray-500 leading-relaxed">
+                  <p className="text-xs text-gray-500">
                       Successfully completed
                     </p>
-                    </div>
                   </div>
 
                 <div 
                   onClick={handleViewTickets}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:shadow-gray-50 hover:border-gray-300 transition-all duration-300 cursor-pointer group transform hover:-translate-y-1"
+                  className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer group"
                 >
                <div className="flex items-center justify-between mb-4">
-                    <div className="h-12 w-12 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl flex items-center justify-center group-hover:from-gray-100 group-hover:to-gray-200 transition-all duration-300 shadow-sm">
-                      <XCircle className="h-6 w-6 text-gray-600" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-gray-500 to-gray-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <XCircle className="h-6 w-6 text-white" />
                </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900 group-hover:text-gray-600 transition-colors">
+                      <p className="text-2xl font-bold text-gray-900">
                         {ticketStats.closed}
                         </p>
-                      </div>
-                      </div>
-                 <div>
-                    <p className="text-sm font-semibold text-gray-900 mb-2">
+                      <p className="text-sm text-gray-600 font-medium">
                       Closed
                     </p>
-                    <p className="text-xs text-gray-500 leading-relaxed">Archived tickets</p>
                     </div>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Archived tickets
+                  </p>
                   </div>
                  </div>
             </div>

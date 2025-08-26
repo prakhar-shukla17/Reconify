@@ -26,6 +26,8 @@ import {
   Plus,
   Ticket,
   X,
+  User,
+  Star,
 } from "lucide-react";
 
 export default function MyAssetsPage() {
@@ -39,6 +41,7 @@ export default function MyAssetsPage() {
   const [selectedSoftware, setSelectedSoftware] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
+  const [showPersonalOnly, setShowPersonalOnly] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [ticketForm, setTicketForm] = useState({
     title: "",
@@ -48,6 +51,38 @@ export default function MyAssetsPage() {
     assetId: "",
   });
   const [ticketLoading, setTicketLoading] = useState(false);
+  
+  // Personal assets state - store in localStorage for persistence
+  const [personalAssets, setPersonalAssets] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`personalAssets_${user?.username}`);
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+
+  // Toggle personal asset status
+  const togglePersonalAsset = (assetId, assetType) => {
+    const newPersonalAssets = personalAssets.includes(assetId) 
+      ? personalAssets.filter(id => id !== assetId)
+      : [...personalAssets, assetId];
+    
+    setPersonalAssets(newPersonalAssets);
+    
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`personalAssets_${user?.username}`, JSON.stringify(newPersonalAssets));
+    }
+    
+    toast.success(
+      personalAssets.includes(assetId) 
+        ? "Asset removed from personal devices" 
+        : "Asset marked as personal device"
+    );
+  };
+
+  // Check if an asset is personal
+  const isPersonalAsset = (assetId) => personalAssets.includes(assetId);
 
   // Fetch user's hardware assets
   const fetchHardware = async () => {
@@ -59,19 +94,7 @@ export default function MyAssetsPage() {
         search: searchTerm || undefined,
         filter: filterType !== "all" ? filterType : undefined
       });
-      const hardwareData = response.data.data || [];
-      setHardware(hardwareData);
-      
-      // Debug: Log warranty information for troubleshooting
-      if (hardwareData.length > 0) {
-        console.log("Hardware data sample:", hardwareData[0]);
-        console.log("Warranty fields available:", hardwareData.map(item => ({
-          id: item._id,
-          hostname: item.system?.hostname,
-          warranty: item.asset_info?.warranty_expiry,
-          hasAssetInfo: !!item.asset_info
-        })));
-      }
+      setHardware(response.data.data || []);
     } catch (error) {
       console.error("Error fetching hardware:", error);
       toast.error("Failed to load hardware data");
@@ -123,7 +146,7 @@ export default function MyAssetsPage() {
     } else {
       fetchSoftware();
     }
-  }, [searchTerm, filterType, activeTab]);
+  }, [searchTerm, filterType, activeTab, showPersonalOnly]);
 
   // Handle search
   const handleSearch = () => {
@@ -142,6 +165,14 @@ export default function MyAssetsPage() {
     } else {
       fetchSoftware();
     }
+  };
+
+  // Get filtered assets based on personal filter
+  const getFilteredAssets = (assets) => {
+    if (showPersonalOnly) {
+      return assets.filter(asset => isPersonalAsset(asset._id));
+    }
+    return assets;
   };
 
   // Export assets to CSV
@@ -220,8 +251,8 @@ export default function MyAssetsPage() {
   };
 
   const handleExport = () => {
-    const data = activeTab === "hardware" ? hardware : software;
-    const filename = `my_${activeTab}_assets_${new Date().toISOString().split('T')[0]}`;
+    const data = activeTab === "hardware" ? getFilteredAssets(hardware) : getFilteredAssets(software);
+    const filename = `my_${activeTab}_assets_${showPersonalOnly ? 'personal_' : ''}${new Date().toISOString().split('T')[0]}`;
     exportToCSV(data, filename);
   };
 
@@ -394,8 +425,20 @@ export default function MyAssetsPage() {
               <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-blue-700 mb-1">Hardware Devices</p>
-                    <p className="text-2xl font-bold text-blue-900">{hardware.length}</p>
+                    <p className="text-sm font-medium text-blue-700 mb-1">
+                      Hardware Devices
+                      {showPersonalOnly && (
+                        <span className="text-xs text-blue-600 ml-2">(Personal Only)</span>
+                      )}
+                    </p>
+                    <p className="text-2xl font-bold text-blue-900">
+                      {getFilteredAssets(hardware).length}
+                      {showPersonalOnly && hardware.length > 0 && (
+                        <span className="text-sm text-blue-600 ml-2">
+                          of {hardware.length}
+                        </span>
+                      )}
+                    </p>
                   </div>
                   <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                     <Monitor className="h-5 w-5 text-white" />
@@ -406,8 +449,20 @@ export default function MyAssetsPage() {
               <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-green-700 mb-1">Software Systems</p>
-                    <p className="text-2xl font-bold text-green-900">{software.length}</p>
+                    <p className="text-sm font-medium text-green-700 mb-1">
+                      Software Systems
+                      {showPersonalOnly && (
+                        <span className="text-xs text-green-600 ml-2">(Personal Only)</span>
+                      )}
+                    </p>
+                    <p className="text-2xl font-bold text-green-900">
+                      {getFilteredAssets(software).length}
+                      {showPersonalOnly && software.length > 0 && (
+                        <span className="text-sm text-green-600 ml-2">
+                          of {software.length}
+                        </span>
+                      )}
+                    </p>
                   </div>
                   <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
                     <Package className="h-5 w-5 text-white" />
@@ -429,7 +484,12 @@ export default function MyAssetsPage() {
                     }`}
                   >
                     <Monitor className="h-4 w-4 inline mr-2" />
-                    Hardware ({hardware.length})
+                    Hardware ({getFilteredAssets(hardware).length})
+                    {showPersonalOnly && hardware.length > 0 && (
+                      <span className="text-xs text-blue-600 ml-1">
+                        of {hardware.length}
+                      </span>
+                    )}
                   </button>
                   <button
                     onClick={() => setActiveTab("software")}
@@ -440,7 +500,12 @@ export default function MyAssetsPage() {
                     }`}
                   >
                     <Package className="h-4 w-4 inline mr-2" />
-                    Software ({software.length})
+                    Software ({getFilteredAssets(software).length})
+                    {showPersonalOnly && software.length > 0 && (
+                      <span className="text-xs text-green-600 ml-1">
+                        of {software.length}
+                      </span>
+                    )}
                   </button>
                 </nav>
               </div>
@@ -530,8 +595,21 @@ export default function MyAssetsPage() {
                     </button>
 
                     <button
+                      onClick={() => setShowPersonalOnly(!showPersonalOnly)}
+                      className={`flex items-center px-3 py-1.5 rounded text-sm transition-colors ${
+                        showPersonalOnly 
+                          ? 'bg-yellow-600 text-white hover:bg-yellow-700' 
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                      title={showPersonalOnly ? "Show all assets" : "Show only personal assets"}
+                    >
+                      <Star className={`h-3.5 w-3.5 mr-1 ${showPersonalOnly ? 'text-yellow-200' : ''}`} />
+                      {showPersonalOnly ? 'All Assets' : 'Personal Only'}
+                    </button>
+
+                    <button
                       onClick={handleExport}
-                      disabled={loading || (activeTab === "hardware" ? hardware.length === 0 : software.length === 0)}
+                      disabled={loading || (activeTab === "hardware" ? getFilteredAssets(hardware).length === 0 : getFilteredAssets(software).length === 0)}
                       className="flex items-center px-2 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 focus:ring-1 focus:ring-green-400 disabled:opacity-50 text-sm"
                     >
                       <Download className="h-3.5 w-3.5 mr-1" />
@@ -564,7 +642,7 @@ export default function MyAssetsPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {hardware.map((item) => (
+                    {getFilteredAssets(hardware).map((item) => (
                       <div key={item._id} className="relative">
                         <HardwareCard
                           hardware={item}
@@ -573,6 +651,14 @@ export default function MyAssetsPage() {
                         
                         {/* Asset Status Badge */}
                         <div className="absolute top-2 right-2 flex space-x-2">
+                          {/* Personal Asset Indicator */}
+                          {isPersonalAsset(item._id) && (
+                            <div className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full flex items-center">
+                              <Star className="h-3 w-3 mr-1" />
+                              Personal
+                            </div>
+                          )}
+                          
                           {item.status === "Active" ? (
                             <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
                               Active
@@ -582,41 +668,36 @@ export default function MyAssetsPage() {
                               {item.status || "Unknown"}
                             </div>
                           )}
-                          
-                          {/* Warranty Warning */}
-                          {item.asset_info?.warranty_expiry ? (() => {
-                            const expiryDate = new Date(item.asset_info.warranty_expiry);
-                            const now = new Date();
-                            const daysUntilExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
-                            
-                            if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) {
-                              return (
-                                <div className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full">
-                                  Warranty: {daysUntilExpiry}d
-                                </div>
-                              );
-                            } else if (daysUntilExpiry <= 0) {
-                              return (
-                                <div className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
-                                  Warranty Expired
-                                </div>
-                              );
-                            } else {
-                              return (
-                                <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                                  Warranty: {daysUntilExpiry}d
-                                </div>
-                              );
-                            }
-                          })() : (
-                            <div className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
-                              No Warranty Info
-                            </div>
-                          )}
                         </div>
 
                         {/* Quick Action Buttons */}
-                        <div className="absolute bottom-2 right-2">
+                        <div className="absolute bottom-2 right-2 flex space-x-2">
+                          {/* Personal Asset Toggle */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              togglePersonalAsset(item._id, 'hardware');
+                            }}
+                            className={`text-xs px-2 py-1 rounded-full transition-colors ${
+                              isPersonalAsset(item._id)
+                                ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                            title={isPersonalAsset(item._id) ? "Remove from personal devices" : "Mark as personal device"}
+                          >
+                            {isPersonalAsset(item._id) ? (
+                              <>
+                                <Star className="h-3 w-3 inline mr-1" />
+                                Personal
+                              </>
+                            ) : (
+                              <>
+                                <User className="h-3 w-3 inline mr-1" />
+                                Mark Personal
+                              </>
+                            )}
+                          </button>
+                          
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -658,12 +739,19 @@ export default function MyAssetsPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {software.map((item) => (
-                      <div
-                        key={item._id}
-                        className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border cursor-pointer"
-                        onClick={() => setSelectedSoftware(item)}
-                      >
+                    {getFilteredAssets(software).map((item) => (
+                                              <div
+                          key={item._id}
+                          className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border cursor-pointer relative"
+                          onClick={() => setSelectedSoftware(item)}
+                        >
+                          {/* Personal Asset Indicator */}
+                          {isPersonalAsset(item._id) && (
+                            <div className="absolute top-2 right-2 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full flex items-center">
+                              <Star className="h-3 w-3 mr-1" />
+                              Personal
+                            </div>
+                          )}
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center space-x-3">
                             <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
@@ -746,7 +834,33 @@ export default function MyAssetsPage() {
                         </div>
 
                         {/* Quick Action Button */}
-                        <div className="absolute bottom-2 right-2">
+                        <div className="absolute bottom-2 right-2 flex space-x-2">
+                          {/* Personal Asset Toggle */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              togglePersonalAsset(item._id, 'software');
+                            }}
+                            className={`text-xs px-2 py-1 rounded-full transition-colors ${
+                              isPersonalAsset(item._id)
+                                ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                            title={isPersonalAsset(item._id) ? "Remove from personal devices" : "Mark as personal device"}
+                          >
+                            {isPersonalAsset(item._id) ? (
+                              <>
+                                <Star className="h-3 w-3 inline mr-1" />
+                                Personal
+                              </>
+                            ) : (
+                              <>
+                                <User className="h-3 w-3 inline mr-1" />
+                                Mark Personal
+                              </>
+                            )}
+                          </button>
+                          
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -776,7 +890,13 @@ export default function MyAssetsPage() {
             {/* Results Info */}
             {!loading && (
               <div className="mt-8 text-center text-sm text-gray-500">
-                Showing {activeTab === "hardware" ? hardware.length : software.length} {activeTab === "hardware" ? "hardware assets" : "software systems"} assigned to you
+                Showing {activeTab === "hardware" ? getFilteredAssets(hardware).length : getFilteredAssets(software).length} {activeTab === "hardware" ? "hardware assets" : "software systems"} assigned to you
+                
+                {showPersonalOnly && (
+                  <div className="mt-2 text-xs text-yellow-600">
+                    ⭐ Showing only personal devices
+                  </div>
+                )}
                 
                 {searchTerm && (
                   <div className="mt-2 text-xs text-blue-600">
