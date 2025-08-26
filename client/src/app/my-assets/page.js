@@ -393,18 +393,13 @@ export default function MyAssetsPage() {
         <div className="py-6">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Header */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between">
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                      <Package className="h-5 w-5 text-white" />
-                    </div>
-                    <h1 className="text-3xl font-bold text-gray-900">
+                  <h1 className="text-4xl font-bold text-gray-900 mb-2">
                       My Assets
                     </h1>
-                  </div>
-                  <p className="text-gray-600">
+                  <p className="text-lg text-gray-600 font-light">
                     View and manage your assigned IT hardware and software assets
                   </p>
                 </div>
@@ -412,7 +407,7 @@ export default function MyAssetsPage() {
                 <button
                   onClick={handleOpenTicketModal}
                   disabled={hardware.length === 0 && software.length === 0}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-gray-900 to-black text-white text-sm font-medium rounded-2xl hover:from-black hover:to-gray-900 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Create Ticket
@@ -421,17 +416,14 @@ export default function MyAssetsPage() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-blue-700 mb-1">
-                      Hardware Devices
-                      {showPersonalOnly && (
-                        <span className="text-xs text-blue-600 ml-2">(Personal Only)</span>
-                      )}
-                    </p>
-                    <p className="text-2xl font-bold text-blue-900">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <div className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:scale-105 bg-white hover:bg-gray-50">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <Monitor className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-gray-900">
                       {getFilteredAssets(hardware).length}
                       {showPersonalOnly && hardware.length > 0 && (
                         <span className="text-sm text-blue-600 ml-2">
@@ -439,23 +431,26 @@ export default function MyAssetsPage() {
                         </span>
                       )}
                     </p>
-                  </div>
-                  <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                    <Monitor className="h-5 w-5 text-white" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-green-700 mb-1">
-                      Software Systems
+                    <p className="text-sm text-gray-600 font-medium">
+                      Hardware Devices
                       {showPersonalOnly && (
-                        <span className="text-xs text-green-600 ml-2">(Personal Only)</span>
+                        <span className="text-xs text-blue-600 ml-2">(Personal Only)</span>
                       )}
                     </p>
-                    <p className="text-2xl font-bold text-green-900">
+                  </div>
+                  </div>
+                <p className="text-xs text-gray-500">
+                  Your assigned hardware
+                </p>
+              </div>
+
+              <div className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <Package className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-gray-900">
                       {getFilteredAssets(software).length}
                       {showPersonalOnly && software.length > 0 && (
                         <span className="text-sm text-green-600 ml-2">
@@ -463,27 +458,31 @@ export default function MyAssetsPage() {
                         </span>
                       )}
                     </p>
+                    <p className="text-sm text-gray-600 font-medium">
+                      Software Systems
+                      {showPersonalOnly && (
+                        <span className="text-xs text-green-600 ml-2">(Personal Only)</span>
+                      )}
+                    </p>
                   </div>
-                  <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
-                    <Package className="h-5 w-5 text-white" />
                   </div>
-                </div>
+                <p className="text-xs text-gray-500">Your assigned software</p>
               </div>
             </div>
 
             {/* Tab Navigation */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-              <div className="border-b border-gray-200">
-                <nav className="flex space-x-1 px-4" aria-label="Tabs">
+            <div className="bg-white rounded-3xl shadow-lg border border-gray-200 mb-8">
+              <div className="border-b border-gray-100">
+                <nav className="flex space-x-2 px-6" aria-label="Tabs">
                   <button
                     onClick={() => setActiveTab("hardware")}
-                    className={`py-3 px-3 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
+                    className={`py-4 px-6 border-b-2 font-medium text-sm transition-all duration-300 rounded-t-2xl ${
                       activeTab === "hardware"
-                        ? "border-blue-500 text-blue-600 bg-blue-50"
+                        ? "border-gray-900 text-gray-900 bg-gray-50"
                         : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
                     }`}
                   >
-                    <Monitor className="h-4 w-4 inline mr-2" />
+                    <Monitor className="h-5 w-5 inline mr-3" />
                     Hardware ({getFilteredAssets(hardware).length})
                     {showPersonalOnly && hardware.length > 0 && (
                       <span className="text-xs text-blue-600 ml-1">
@@ -493,13 +492,13 @@ export default function MyAssetsPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab("software")}
-                    className={`py-3 px-3 border-b-2 font-medium text-sm transition-all duration-200 rounded-t-lg ${
+                    className={`py-4 px-6 border-b-2 font-medium text-sm transition-all duration-300 rounded-t-2xl ${
                       activeTab === "software"
-                        ? "border-blue-500 text-blue-600 bg-blue-50"
+                        ? "border-gray-900 text-gray-900 bg-gray-50"
                         : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
                     }`}
                   >
-                    <Package className="h-4 w-4 inline mr-2" />
+                    <Package className="h-5 w-5 inline mr-3" />
                     Software ({getFilteredAssets(software).length})
                     {showPersonalOnly && software.length > 0 && (
                       <span className="text-xs text-green-600 ml-1">
@@ -511,10 +510,10 @@ export default function MyAssetsPage() {
               </div>
 
               {/* Search and Filter Bar */}
-              <div className="bg-white rounded border border-gray-200 p-3">
-                <div className="flex flex-col sm:flex-row gap-2">
+              <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1 relative">
-                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     {searchLoading && (
                       <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
@@ -530,14 +529,14 @@ export default function MyAssetsPage() {
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                      className={`w-full pl-7 pr-24 py-1.5 border rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 transition-colors ${
-                        searchTerm ? 'border-blue-300 bg-blue-50' : 'border-gray-300 bg-white'
+                      className={`w-full pl-10 pr-24 py-3 border rounded-2xl focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 transition-colors ${
+                        searchTerm ? 'border-gray-400 bg-gray-50' : 'border-gray-300 bg-white'
                       }`}
                     />
                     <button
                       onClick={handleSearch}
                       disabled={searchLoading}
-                      className="absolute right-1 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 focus:ring-1 focus:ring-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2 px-4 py-2 bg-gradient-to-r from-gray-900 to-black text-white text-xs rounded-xl hover:from-black hover:to-gray-900 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {searchLoading ? (
                         <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
@@ -548,7 +547,7 @@ export default function MyAssetsPage() {
                     {searchTerm && (
                       <button
                         onClick={handleClearSearch}
-                        className="absolute right-16 top-1/2 transform -translate-y-1/2 px-2 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 focus:ring-1 focus:ring-gray-400 transition-colors"
+                        className="absolute right-20 top-1/2 transform -translate-y-1/2 px-3 py-2 bg-gray-500 text-white text-xs rounded-xl hover:bg-gray-600 focus:ring-2 focus:ring-gray-400 transition-all duration-300 hover:scale-105"
                         title="Clear search"
                       >
                         ×
@@ -556,13 +555,13 @@ export default function MyAssetsPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-4">
                     <div className="relative">
-                      <Filter className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <select
                         value={filterType}
                         onChange={(e) => setFilterType(e.target.value)}
-                        className="pl-7 pr-5 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
+                        className="pl-10 pr-8 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white transition-colors"
                       >
                         {activeTab === "hardware" ? (
                           <>
@@ -584,10 +583,10 @@ export default function MyAssetsPage() {
                     <button
                       onClick={activeTab === "hardware" ? fetchHardware : fetchSoftware}
                       disabled={loading}
-                      className="flex items-center px-2 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 focus:ring-1 focus:ring-gray-400 disabled:opacity-50 text-sm"
+                      className="flex items-center px-4 py-3 bg-gradient-to-r from-gray-900 to-black text-white rounded-2xl hover:from-black hover:to-gray-900 focus:ring-2 focus:ring-gray-400 disabled:opacity-50 text-sm transition-all duration-300 hover:scale-105"
                     >
                       <RefreshCw
-                        className={`h-3.5 w-3.5 mr-1 ${
+                        className={`h-4 w-4 mr-2 ${
                           loading ? "animate-spin" : ""
                         }`}
                       />
@@ -596,23 +595,23 @@ export default function MyAssetsPage() {
 
                     <button
                       onClick={() => setShowPersonalOnly(!showPersonalOnly)}
-                      className={`flex items-center px-3 py-1.5 rounded text-sm transition-colors ${
+                      className={`flex items-center px-4 py-3 rounded-2xl text-sm transition-all duration-300 hover:scale-105 ${
                         showPersonalOnly 
-                          ? 'bg-yellow-600 text-white hover:bg-yellow-700' 
+                          ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700' 
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}
                       title={showPersonalOnly ? "Show all assets" : "Show only personal assets"}
                     >
-                      <Star className={`h-3.5 w-3.5 mr-1 ${showPersonalOnly ? 'text-yellow-200' : ''}`} />
+                      <Star className={`h-4 w-4 mr-2 ${showPersonalOnly ? 'text-yellow-200' : ''}`} />
                       {showPersonalOnly ? 'All Assets' : 'Personal Only'}
                     </button>
 
                     <button
                       onClick={handleExport}
                       disabled={loading || (activeTab === "hardware" ? getFilteredAssets(hardware).length === 0 : getFilteredAssets(software).length === 0)}
-                      className="flex items-center px-2 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 focus:ring-1 focus:ring-green-400 disabled:opacity-50 text-sm"
+                      className="flex items-center px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-2xl hover:from-green-700 hover:to-green-800 focus:ring-2 focus:ring-green-400 disabled:opacity-50 text-sm transition-all duration-300 hover:scale-105"
                     >
-                      <Download className="h-3.5 w-3.5 mr-1" />
+                      <Download className="h-4 w-4 mr-2" />
                       Export
                     </button>
                   </div>
@@ -659,15 +658,15 @@ export default function MyAssetsPage() {
                             </div>
                           )}
                           
-                          {item.status === "Active" ? (
-                            <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                              Active
-                            </div>
-                          ) : (
-                            <div className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
-                              {item.status || "Unknown"}
-                            </div>
-                          )}
+                                                      {item.status === "Active" ? (
+                              <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                                Active
+                              </div>
+                            ) : (
+                              <div className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
+                                {item.status || ""}
+                              </div>
+                            )}
                         </div>
 
                         {/* Quick Action Buttons */}
@@ -759,7 +758,7 @@ export default function MyAssetsPage() {
                             </div>
                             <div>
                               <h3 className="text-lg font-semibold text-gray-900">
-                                {item.system?.hostname || "Unknown System"}
+                                {item.system?.hostname || ""}
                               </h3>
                               <p className="text-sm text-gray-500">
                                 {item.system?.platform} Software
@@ -769,7 +768,7 @@ export default function MyAssetsPage() {
                           <div className="text-right">
                             <p className="text-xs text-gray-500">MAC Address</p>
                             <p className="text-sm font-mono text-gray-700">
-                              {item.system?.mac_address || "Unknown"}
+                              {item.system?.mac_address || ""}
                             </p>
                           </div>
                         </div>
@@ -915,136 +914,158 @@ export default function MyAssetsPage() {
             {/* Ticket Creation Modal */}
             {showTicketModal && (
               <div 
-                className="fixed inset-0 bg-gray-900/30 backdrop-blur-sm overflow-y-auto h-full w-full z-50"
+                className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
                 onClick={handleCloseTicketModal}
               >
                 <div 
-                  className="relative top-20 mx-auto p-5 border w-96 shadow-2xl rounded-lg bg-white/95 backdrop-blur-md"
+                  className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-gray-800">
+                  {/* Modal Header */}
+                  <div className="bg-gradient-to-r from-gray-900 to-black px-8 py-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
+                          <Ticket className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold text-white">
                         Create Support Ticket
                       </h3>
+                          <p className="text-gray-300 text-sm">
+                            Submit a new support request for your assets
+                          </p>
+                        </div>
+                      </div>
                       <button
                         onClick={handleCloseTicketModal}
-                        className="text-gray-500 hover:text-gray-700 transition-colors"
+                        className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300 hover:scale-110"
                       >
-                        <X className="h-5 w-5" />
+                        <X className="h-4 w-4" />
                       </button>
                     </div>
+                    </div>
                     
-                    <form onSubmit={handleCreateTicket} className="space-y-4">
+                  {/* Modal Body */}
+                  <div className="p-8">
+                    <form onSubmit={handleCreateTicket} className="space-y-6">
+                      {/* Title Field */}
                       <div>
-                        <label className="block text-sm font-semibold text-gray-800 mb-1">
-                          Title *
+                        <label className="block text-base font-semibold text-gray-800 mb-3">
+                          Ticket Title *
                         </label>
                         <input
                           type="text"
                           value={ticketForm.title}
                           onChange={(e) => setTicketForm(prev => ({ ...prev, title: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 placeholder-gray-500"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-gray-800 placeholder-gray-500 text-base transition-all duration-300 hover:border-gray-400"
                           placeholder="Brief description of the issue"
                           required
                         />
                       </div>
 
+                      {/* Description Field */}
                       <div>
-                        <label className="block text-sm font-semibold text-gray-800 mb-1">
+                        <label className="block text-base font-semibold text-gray-800 mb-3">
                           Description *
                         </label>
                         <textarea
                           value={ticketForm.description}
                           onChange={(e) => setTicketForm(prev => ({ ...prev, description: e.target.value }))}
-                          rows={3}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 placeholder-gray-500"
-                          placeholder="Detailed description of the problem"
+                          rows={4}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-gray-800 placeholder-gray-500 text-base transition-all duration-300 hover:border-gray-400 resize-none"
+                          placeholder="Provide detailed information about the problem, steps to reproduce, and any error messages..."
                           required
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      {/* Priority and Category Row */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                          <label className="block text-sm font-semibold text-gray-800 mb-1">
-                            Priority
+                          <label className="block text-base font-semibold text-gray-800 mb-3">
+                            Priority Level
                           </label>
                           <select
                             value={ticketForm.priority}
                             onChange={(e) => setTicketForm(prev => ({ ...prev, priority: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-gray-800 text-base transition-all duration-300 hover:border-gray-400"
                           >
-                            <option value="Low">Low</option>
-                            <option value="Medium">Medium</option>
-                            <option value="High">High</option>
-                            <option value="Critical">Critical</option>
+                            <option value="Low">🟢 Low Priority</option>
+                            <option value="Medium">🟡 Medium Priority</option>
+                            <option value="High">🟠 High Priority</option>
+                            <option value="Critical">🔴 Critical Priority</option>
                           </select>
                         </div>
 
                         <div>
-                          <label className="block text-sm font-semibold text-gray-800 mb-1">
-                            Category
+                          <label className="block text-base font-semibold text-gray-800 mb-3">
+                            Issue Category
                           </label>
                           <select
                             value={ticketForm.category}
                             onChange={(e) => setTicketForm(prev => ({ ...prev, category: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-gray-800 text-base transition-all duration-300 hover:border-gray-400"
                           >
-                            <option value="Hardware">Hardware</option>
-                            <option value="Software">Software</option>
-                            <option value="Network">Network</option>
-                            <option value="Account">Account</option>
-                            <option value="Other">Other</option>
+                            <option value="Hardware">💻 Hardware Issue</option>
+                            <option value="Software">🖥️ Software Problem</option>
+                            <option value="Network">🌐 Network Issue</option>
+                            <option value="Account">👤 Account Access</option>
+                            <option value="Other">❓ Other</option>
                           </select>
                         </div>
                       </div>
 
+                      {/* Asset Selection */}
                       <div>
-                        <label className="block text-sm font-semibold text-gray-800 mb-1">
+                        <label className="block text-base font-semibold text-gray-800 mb-3">
                           Related Asset *
                         </label>
                         <select
                           value={ticketForm.assetId}
                           onChange={(e) => setTicketForm(prev => ({ ...prev, assetId: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-gray-800 text-base transition-all duration-300 hover:border-gray-400"
                           required
                         >
-                          <option value="">Select an asset</option>
+                          <option value="">Select an asset from your inventory</option>
                           {activeTab === "hardware" 
                             ? hardware.map(asset => (
                                 <option key={asset._id} value={asset._id}>
-                                  {asset.system?.hostname || asset.system?.mac_address || "Unknown Device"}
+                                  💻 {asset.system?.hostname || asset.system?.mac_address || ""}
                                 </option>
                               ))
                             : software.map(asset => (
                                 <option key={asset._id} value={asset._id}>
-                                  {asset.system?.hostname || asset.system?.mac_address || "Unknown System"}
+                                  🖥️ {asset.system?.hostname || asset.system?.mac_address || ""}
                                 </option>
                               ))
                           }
                         </select>
                       </div>
 
-                      <div className="flex justify-end space-x-3 pt-4">
+                      {/* Action Buttons */}
+                      <div className="flex justify-end space-x-4 pt-6 border-t border-gray-100">
                         <button
                           type="button"
                           onClick={handleCloseTicketModal}
-                          className="px-4 py-2 text-gray-800 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors font-medium"
+                          className="px-6 py-3 text-gray-700 bg-gray-100 rounded-2xl hover:bg-gray-200 transition-all duration-300 font-medium text-base hover:scale-105"
                         >
                           Cancel
                         </button>
                         <button
                           type="submit"
                           disabled={ticketLoading}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                          className="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 font-medium text-base hover:scale-105 shadow-lg"
                         >
                           {ticketLoading ? (
                             <div className="flex items-center">
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                              Creating...
+                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                              Creating Ticket...
                             </div>
                           ) : (
-                            "Create Ticket"
+                            <div className="flex items-center">
+                              <Ticket className="h-4 w-4 mr-2" />
+                              Create Ticket
+                            </div>
                           )}
                         </button>
                       </div>

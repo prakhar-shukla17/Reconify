@@ -1084,10 +1084,7 @@ export default function AdminPage() {
           <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
             {/* Header */}
             <div className="mb-8">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-gray-900 to-gray-700 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Shield className="h-6 w-6 text-white" />
-                </div>
+              <div className="mb-6">
                 <div>
                   <h1 className="text-4xl font-bold text-gray-900 mb-2">
                     Admin Dashboard
@@ -1604,6 +1601,11 @@ export default function AdminPage() {
                           searchTerm ? 'border-gray-400 bg-gray-50' : 'border-gray-300 bg-white'
                         }`}
                       />
+                      {searchTerm && (
+                        <div className="absolute right-20 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">
+                          Press Enter to search
+                        </div>
+                      )}
                       <button
                         onClick={handleSearchSubmit}
                         disabled={searchLoading}
@@ -1720,8 +1722,19 @@ export default function AdminPage() {
                           placeholder="Search by title, description, ID..."
                           value={ticketFilters.searchTerm}
                           onChange={(e) => setTicketFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              // Trigger search on Enter key
+                              e.preventDefault();
+                            }
+                          }}
                           className="w-full pl-12 pr-3 py-3 border border-gray-300 rounded-2xl text-base text-gray-900 focus:ring-2 focus:ring-gray-400 focus:border-gray-400 transition-colors bg-white hover:border-gray-400"
                         />
+                        {ticketFilters.searchTerm && (
+                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">
+                            Press Enter to search
+                          </div>
+                        )}
                       </div>
                     </div>
 
