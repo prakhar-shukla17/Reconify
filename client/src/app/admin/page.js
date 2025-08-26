@@ -173,7 +173,7 @@ export default function AdminPage() {
       setTicketLoading(true);
       setTicketError(null);
       
-      const response = await ticketsAPI.getAll();
+      const response = await ticketsAPI.getAll({ page: 1, limit: 10000 }); // Increased limit to ensure all tickets are fetched
       const ticketsData = response.data.data || [];
 
       // Sort tickets: active tickets first, closed tickets last
@@ -1656,7 +1656,6 @@ export default function AdminPage() {
                             </select>
                           </div>
 
-
                         </>
                       )}
 
@@ -1703,6 +1702,22 @@ export default function AdminPage() {
                       )}
                     </div>
                   </div>
+
+                  {/* Remove Filter Text - Below the filter div */}
+                  {(filterType !== "all" || searchTerm) && (
+                    <div className="mt-3 text-center">
+                      <button
+                        onClick={() => {
+                          setFilterType("all");
+                          setSearchTerm("");
+                        }}
+                        className="text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer transition-colors"
+                        title="Remove all filters"
+                      >
+                        Remove Filter
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1753,7 +1768,6 @@ export default function AdminPage() {
                         <option value="In Progress">In Progress</option>
                         <option value="Resolved">Resolved</option>
                         <option value="Closed">Closed</option>
-                        <option value="Rejected">Rejected</option>
                       </select>
                     </div>
 
@@ -1840,8 +1854,18 @@ export default function AdminPage() {
                     >
                       Show Closed Tickets
                     </button>
+                    
+                    {/* Refresh Button */}
+                    <button
+                      onClick={() => fetchTickets(true)}
+                      disabled={ticketLoading}
+                      className="text-blue-700 hover:text-blue-900 hover:underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                      title="Refresh tickets data"
+                    >
+                      <RefreshCw className={`h-3 w-3 ${ticketLoading ? 'animate-spin' : ''}`} />
+                      <span>Refresh</span>
+                    </button>
                   </div>
-
 
                 </div>
               )}
@@ -1856,17 +1880,17 @@ export default function AdminPage() {
               <AlertsPanel />
             ) : activeTab === "tickets" ? (
               // Tickets Tab
-              <div className="p-6 bg-white rounded-3xl border border-gray-200 shadow-sm">
+              <div className="p-8 bg-white rounded-3xl border border-gray-200 shadow-sm">
                 {/* Export Buttons */}
                 {tickets.length > 0 && (
-                  <div className="mb-6 flex items-center justify-end space-x-2">
+                  <div className="mb-8 flex items-center justify-end space-x-3">
                     <button
                       onClick={() => {
                         exportTicketsToCSV(tickets, 'admin_all_tickets');
                         toast.success(`Exported ${tickets.length} tickets to CSV`);
                       }}
                       disabled={ticketLoading}
-                      className="text-xs border border-green-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                      className="text-sm border border-green-300 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
                       title="Export all tickets to CSV"
                     >
                       <Download className="h-3 w-3 mr-1" />
@@ -1878,7 +1902,7 @@ export default function AdminPage() {
                         toast.success('Exported ticket statistics to CSV');
                       }}
                       disabled={ticketLoading}
-                      className="text-xs border border-purple-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-700 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                      className="text-sm border border-purple-300 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-700 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
                       title="Export ticket statistics to CSV"
                     >
                       <Download className="h-3 w-3 mr-1" />
@@ -1896,7 +1920,7 @@ export default function AdminPage() {
                         toast.success(`Exported ${filteredTickets.length} filtered tickets to CSV`);
                       }}
                       disabled={ticketLoading || filteredTickets.length === 0}
-                      className="text-xs border border-indigo-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                      className="text-sm border border-indigo-300 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
                       title="Export currently filtered tickets to CSV"
                     >
                       <Download className="h-3 w-3 mr-1" />
@@ -1934,7 +1958,7 @@ export default function AdminPage() {
                           }
                         }}
                         disabled={ticketLoading}
-                        className="text-xs border border-blue-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                        className="text-sm border border-blue-300 rounded-2xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
                         title="Export tickets resolved today (with fresh data)"
                       >
                                                  <Download className="h-3 w-3 mr-1" />
@@ -1969,7 +1993,7 @@ export default function AdminPage() {
                           }
                         }}
                         disabled={ticketLoading}
-                        className="text-xs border border-orange-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500 text-orange-700 bg-orange-50 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                        className="text-sm border border-orange-300 rounded-2xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-orange-700 bg-orange-50 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
                         title="Export tickets from last 7 days (with fresh data)"
                       >
                         <Download className="h-3 w-3 mr-1" />
@@ -2004,7 +2028,7 @@ export default function AdminPage() {
                           }
                         }}
                         disabled={ticketLoading}
-                        className="text-xs border border-emerald-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+                        className="text-sm border border-emerald-300 rounded-2xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
                         title="Export SLA compliant tickets (with fresh data)"
                       >
                         <Download className="h-3 w-3 mr-1" />
@@ -2019,10 +2043,10 @@ export default function AdminPage() {
                     <div className="h-16 w-16 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center mx-auto mb-3">
                       <Ticket className="h-8 w-8 text-slate-500" />
                     </div>
-                    <h3 className="text-base font-medium text-slate-800 mb-1">
+                    <h3 className="text-xl font-semibold text-slate-800 mb-2">
                       No support tickets found
                     </h3>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-base text-slate-500">
                       No users have created support tickets yet.
                     </p>
                   </div>
@@ -2031,10 +2055,10 @@ export default function AdminPage() {
                     <div className="h-16 w-16 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center mx-auto mb-3">
                       <Search className="h-8 w-8 text-slate-500" />
                     </div>
-                    <h3 className="text-base font-medium text-slate-800 mb-1">
+                    <h3 className="text-xl font-semibold text-slate-800 mb-2">
                       No tickets match your filters
                     </h3>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-base text-slate-500">
                       Try adjusting your search criteria or clearing some filters.
                     </p>
                     <button
@@ -2046,7 +2070,7 @@ export default function AdminPage() {
                         dateRange: 'all',
                         assignedTo: 'all'
                       })}
-                      className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                      className="mt-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 hover:scale-105 text-base font-medium shadow-lg"
                     >
                       Clear All Filters
                     </button>
@@ -2078,8 +2102,8 @@ export default function AdminPage() {
                   <div className="mt-6 flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       {/* Items per page selector */}
-                      <div className="flex items-center space-x-2">
-                        <label className="text-sm text-gray-700">Show:</label>
+                      <div className="flex items-center space-x-3">
+                        <label className="text-base font-medium text-gray-700">Show:</label>
                         <select
                           value={ticketPagination.itemsPerPage}
                           onChange={(e) => {
@@ -2091,7 +2115,7 @@ export default function AdminPage() {
                               totalPages: Math.ceil(filteredTickets.length / newItemsPerPage)
                             }));
                           }}
-                                                     className="px-2 py-1 border border-gray-300 rounded text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="px-3 py-2 border border-gray-300 rounded-2xl text-base text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium"
                         >
                           <option value={4}>4</option>
                           <option value={8}>8</option>
@@ -2099,11 +2123,11 @@ export default function AdminPage() {
                           <option value={16}>16</option>
                           <option value={20}>20</option>
                         </select>
-                        <span className="text-sm text-gray-800">per page</span>
+                        <span className="text-base text-gray-800 font-medium">per page</span>
                       </div>
 
                       {/* Page info */}
-                      <div className="text-sm text-gray-800">
+                      <div className="text-base text-gray-800 font-medium">
                         Page {ticketPagination.currentPage} of {ticketPagination.totalPages} 
                         ({filteredTickets.length} filtered tickets)
                         {hasActiveFilters && (
@@ -2122,13 +2146,13 @@ export default function AdminPage() {
                           currentPage: Math.max(1, prev.currentPage - 1)
                         }))}
                         disabled={ticketPagination.currentPage === 1}
-                        className="px-3 py-2 text-sm text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500"
+                        className="px-4 py-2.5 text-base text-gray-800 border border-gray-300 rounded-2xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105"
                       >
                         Previous
                       </button>
                       
                       {/* Page numbers */}
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center space-x-2">
                         {Array.from({ length: Math.min(5, ticketPagination.totalPages) }, (_, i) => {
                           let pageNum;
                           if (ticketPagination.totalPages <= 5) {
@@ -2148,10 +2172,10 @@ export default function AdminPage() {
                                 ...prev,
                                 currentPage: pageNum
                               }))}
-                              className={`px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 ${
+                              className={`px-4 py-2.5 border rounded-2xl focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105 ${
                                 pageNum === ticketPagination.currentPage
-                                  ? 'bg-blue-600 text-white border-blue-600'
-                                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 shadow-lg'
+                                  : 'border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
                               }`}
                             >
                               {pageNum}
@@ -2166,7 +2190,7 @@ export default function AdminPage() {
                           currentPage: Math.min(prev.totalPages, prev.currentPage + 1)
                         }))}
                         disabled={ticketPagination.currentPage === ticketPagination.totalPages}
-                        className="px-3 py-2 text-sm text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500"
+                        className="px-4 py-2.5 text-base text-gray-800 border border-gray-300 rounded-2xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105"
                       >
                         Next
                       </button>
@@ -2820,8 +2844,19 @@ export default function AdminPage() {
                 setShowTicketManagementModal(false);
                 setSelectedTicket(null);
               }}
-              onUpdate={() => {
-                fetchTickets();
+              onUpdate={async () => {
+                // Force refresh tickets data to show updated information
+                await fetchTickets(true);
+                
+                // Reset pagination to first page when tickets are updated
+                setTicketPagination(prev => ({ ...prev, currentPage: 1 }));
+                
+                // Ensure the UI updates by forcing a re-render
+                // This will recalculate filtered tickets and pagination
+                setTicketFilters(prev => ({ ...prev }));
+                
+                // Show confirmation that data has been refreshed
+                toast.success("Ticket data refreshed successfully");
               }}
             />
           </LazyLoader>

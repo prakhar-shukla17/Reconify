@@ -30,6 +30,25 @@ import {
   Star,
 } from "lucide-react";
 
+// Helper function to format dates safely
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+    
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid Date';
+  }
+};
+
 export default function MyAssetsPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("hardware");
@@ -51,6 +70,9 @@ export default function MyAssetsPage() {
     assetId: "",
   });
   const [ticketLoading, setTicketLoading] = useState(false);
+  const [userTickets, setUserTickets] = useState([]);
+  const [ticketPriorityFilter, setTicketPriorityFilter] = useState("all");
+  const [ticketTimeFilter, setTicketTimeFilter] = useState("all");
   
   // Personal assets state - store in localStorage for persistence
   const [personalAssets, setPersonalAssets] = useState(() => {
@@ -122,12 +144,96 @@ export default function MyAssetsPage() {
     }
   };
 
+  // Fetch user's tickets
+  const fetchUserTickets = async () => {
+    try {
+      setSearchLoading(true);
+      
+      // Determine if we should exclude closed tickets
+      const shouldExcludeClosed = filterType === "all" && !searchTerm && ticketPriorityFilter === "all" && ticketTimeFilter === "all";
+      
+      const response = await ticketsAPI.getAll({ 
+        page: 1, 
+        limit: 10000, // Increased limit to ensure all tickets are fetched
+        userId: user?.id,
+        search: searchTerm || undefined,
+        status: filterType !== "all" ? filterType : undefined
+      });
+      
+      let tickets = response.data.data || [];
+      
+      // If no filters are applied, exclude closed tickets
+      if (shouldExcludeClosed) {
+        tickets = tickets.filter(ticket => ticket.status !== "Closed");
+      }
+      
+      setUserTickets(tickets);
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      toast.error("Failed to load tickets data");
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Filter tickets based on search and filter
+  const getFilteredTickets = () => {
+    let filtered = userTickets;
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(ticket => 
+        ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.category.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Apply status filter
+    if (filterType !== "all") {
+      filtered = filtered.filter(ticket => ticket.status === filterType);
+    }
+    
+    // Apply priority filter
+    if (ticketPriorityFilter !== "all") {
+      filtered = filtered.filter(ticket => ticket.priority === ticketPriorityFilter);
+    }
+    
+    // Apply time filter
+    if (ticketTimeFilter !== "all") {
+      const now = new Date();
+      
+      switch (ticketTimeFilter) {
+        case "today":
+          filtered = filtered.filter(ticket => {
+            const ticketDate = new Date(ticket.createdAt);
+            return ticketDate.toDateString() === now.toDateString();
+          });
+          break;
+        case "week":
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          filtered = filtered.filter(ticket => new Date(ticket.createdAt) >= weekAgo);
+          break;
+        case "month":
+          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          filtered = filtered.filter(ticket => new Date(ticket.createdAt) >= monthAgo);
+          break;
+        case "quarter":
+          const quarterAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          filtered = filtered.filter(ticket => new Date(ticket.createdAt) >= quarterAgo);
+          break;
+      }
+    }
+    
+    return filtered;
+  };
+
   // Initial data loading
   useEffect(() => {
     const loadInitialData = async () => {
       setLoading(true);
       try {
-        await Promise.all([fetchHardware(), fetchSoftware()]);
+        await Promise.all([fetchHardware(), fetchSoftware(), fetchUserTickets()]);
       } catch (error) {
         console.error("Error loading initial data:", error);
         toast.error("Failed to load initial data");
@@ -143,17 +249,29 @@ export default function MyAssetsPage() {
   useEffect(() => {
     if (activeTab === "hardware") {
       fetchHardware();
-    } else {
+    } else if (activeTab === "software") {
       fetchSoftware();
+    } else if (activeTab === "tickets") {
+      fetchUserTickets();
     }
   }, [searchTerm, filterType, activeTab, showPersonalOnly]);
+
+  // Reset filter when switching tabs
+  useEffect(() => {
+    setFilterType("all");
+    setSearchTerm("");
+    setTicketPriorityFilter("all");
+    setTicketTimeFilter("all");
+  }, [activeTab]);
 
   // Handle search
   const handleSearch = () => {
     if (activeTab === "hardware") {
       fetchHardware();
-    } else {
+    } else if (activeTab === "software") {
       fetchSoftware();
+    } else if (activeTab === "tickets") {
+      fetchUserTickets();
     }
   };
 
@@ -162,17 +280,40 @@ export default function MyAssetsPage() {
     setSearchTerm("");
     if (activeTab === "hardware") {
       fetchHardware();
-    } else {
+    } else if (activeTab === "software") {
       fetchSoftware();
+    } else if (activeTab === "tickets") {
+      fetchUserTickets();
     }
   };
 
-  // Get filtered assets based on personal filter
+  // Get filtered assets based on personal filter and filterType
   const getFilteredAssets = (assets) => {
-    if (showPersonalOnly) {
-      return assets.filter(asset => isPersonalAsset(asset._id));
+    let filtered = assets;
+    
+    // Apply filterType filter
+    if (filterType !== "all") {
+      if (filterType === "windows") {
+        filtered = filtered.filter(asset => 
+          asset.system?.platform?.toLowerCase() === "windows"
+        );
+      } else if (filterType === "linux") {
+        filtered = filtered.filter(asset => 
+          asset.system?.platform?.toLowerCase() === "linux"
+        );
+      } else if (filterType === "macos") {
+        filtered = filtered.filter(asset => 
+          asset.system?.platform?.toLowerCase() === "macos"
+        );
+      }
     }
-    return assets;
+    
+    // Apply personal filter
+    if (showPersonalOnly) {
+      filtered = filtered.filter(asset => isPersonalAsset(asset._id));
+    }
+    
+    return filtered;
   };
 
   // Export assets to CSV
@@ -302,6 +443,9 @@ export default function MyAssetsPage() {
           category: "Hardware",
           assetId: "",
         });
+        
+        // Reload user tickets to show the newly created ticket
+        await fetchUserTickets();
       } else {
         toast.error("Failed to create ticket");
       }
@@ -310,6 +454,25 @@ export default function MyAssetsPage() {
       toast.error(error.response?.data?.error || "Failed to create ticket");
     } finally {
       setTicketLoading(false);
+    }
+  };
+
+  // Handle ticket status update
+  const handleTicketStatusUpdate = async (ticketId, newStatus) => {
+    try {
+      const response = await ticketsAPI.update(ticketId, { status: newStatus });
+      
+      if (response.data.success) {
+        toast.success(`Ticket status updated to ${newStatus.replace('_', ' ')}`);
+        
+        // Refresh the entire tickets data to ensure everything is current
+        await fetchUserTickets();
+      } else {
+        toast.error("Failed to update ticket status");
+      }
+    } catch (error) {
+      console.error("Error updating ticket status:", error);
+      toast.error(error.response?.data?.error || "Failed to update ticket status");
     }
   };
 
@@ -506,10 +669,22 @@ export default function MyAssetsPage() {
                       </span>
                     )}
                   </button>
+                  <button
+                    onClick={() => setActiveTab("tickets")}
+                    className={`py-4 px-6 border-b-2 font-medium text-sm transition-all duration-300 rounded-t-2xl ${
+                      activeTab === "tickets"
+                        ? "border-gray-900 text-gray-900 bg-gray-50"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    <Ticket className="h-5 w-5 inline mr-3" />
+                    Tickets ({userTickets.length})
+                  </button>
                 </nav>
               </div>
 
               {/* Search and Filter Bar */}
+              {activeTab !== "tickets" && (
               <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm">
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1 relative">
@@ -524,7 +699,9 @@ export default function MyAssetsPage() {
                       placeholder={
                         activeTab === "hardware"
                           ? "Search hardware assets..."
-                          : "Search software systems..."
+                          : activeTab === "software"
+                          ? "Search software systems..."
+                          : "Search tickets..."
                       }
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -566,15 +743,25 @@ export default function MyAssetsPage() {
                         {activeTab === "hardware" ? (
                           <>
                             <option value="all">All Hardware</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
+                            <option value="windows">Windows</option>
+                            <option value="linux">Linux</option>
+                            <option value="macos">macOS</option>
                           </>
-                        ) : (
+                        ) : activeTab === "software" ? (
                           <>
                             <option value="all">All Software</option>
                             <option value="windows">Windows</option>
                             <option value="linux">Linux</option>
                             <option value="macos">macOS</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="all">All Status</option>
+                            <option value="Open">Open</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Resolved">Resolved</option>
+                            <option value="Closed">Closed</option>
+                            <option value="Rejected">Rejected</option>
                           </>
                         )}
                       </select>
@@ -606,6 +793,7 @@ export default function MyAssetsPage() {
                       {showPersonalOnly ? 'All Assets' : 'Personal Only'}
                     </button>
 
+
                     <button
                       onClick={handleExport}
                       disabled={loading || (activeTab === "hardware" ? getFilteredAssets(hardware).length === 0 : getFilteredAssets(software).length === 0)}
@@ -616,7 +804,150 @@ export default function MyAssetsPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* Remove Filter Text - Below the filter div */}
+                {(filterType !== "all" || searchTerm || showPersonalOnly) && (
+                  <div className="mt-3 text-center">
+                    <button
+                      onClick={() => {
+                        setFilterType("all");
+                        setSearchTerm("");
+                        setShowPersonalOnly(false);
+                      }}
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer transition-colors"
+                      title="Remove all filters"
+                    >
+                      Remove Filter
+                    </button>
               </div>
+                )}
+              </div>
+              )}
+
+              {/* Tickets Search Bar */}
+              {activeTab === "tickets" && (
+                <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm mb-8">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      {searchLoading && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        </div>
+                      )}
+                      <input
+                        type="text"
+                        placeholder="Search tickets by title, description, or category..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                        className={`w-full pl-10 pr-24 py-3 border rounded-2xl focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 transition-colors ${
+                          searchTerm ? 'border-gray-400 bg-gray-50' : 'border-gray-300 bg-white'
+                        }`}
+                      />
+                      <button
+                        onClick={handleSearch}
+                        disabled={searchLoading}
+                        className="absolute right-1 top-1/2 transform -translate-y-1/2 px-4 py-2 bg-gradient-to-r from-gray-900 to-black text-white text-xs rounded-xl hover:from-black hover:to-gray-900 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {searchLoading ? (
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                        ) : (
+                          'Search'
+                        )}
+                      </button>
+                      {searchTerm && (
+                        <button
+                          onClick={handleClearSearch}
+                          className="absolute right-20 top-1/2 transform -translate-y-1/2 px-3 py-2 bg-gray-500 text-white text-xs rounded-xl hover:bg-gray-600 focus:ring-2 focus:ring-gray-400 transition-all duration-300 hover:scale-105"
+                          title="Clear search"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center space-x-4">
+                      <div className="relative">
+                        <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <select
+                          value={filterType}
+                          onChange={(e) => setFilterType(e.target.value)}
+                          className="pl-10 pr-8 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white transition-colors"
+                        >
+                          <option value="all">All Status</option>
+                          <option value="Open">Open</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Resolved">Resolved</option>
+                          <option value="Closed">Closed</option>
+                        </select>
+                      </div>
+
+                      <div className="relative">
+                        <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <select
+                          value={ticketPriorityFilter}
+                          onChange={(e) => setTicketPriorityFilter(e.target.value)}
+                          className="pl-10 pr-8 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white transition-colors"
+                        >
+                          <option value="all">All Priority</option>
+                          <option value="Low">Low</option>
+                          <option value="Medium">Medium</option>
+                          <option value="High">High</option>
+                          <option value="Critical">Critical</option>
+                        </select>
+                      </div>
+
+                      <div className="relative">
+                        <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <select
+                          value={ticketTimeFilter}
+                          onChange={(e) => setTicketTimeFilter(e.target.value)}
+                          className="pl-10 pr-8 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white transition-colors"
+                        >
+                          <option value="all">All Time</option>
+                          <option value="today">Today</option>
+                          <option value="week">Last 7 Days</option>
+                          <option value="month">Last 30 Days</option>
+                          <option value="quarter">Last 90 Days</option>
+                        </select>
+                      </div>
+
+                                            <button
+                        onClick={fetchUserTickets}
+                        disabled={loading}
+                        className="flex items-center px-4 py-3 bg-gradient-to-r from-gray-900 to-black text-white rounded-2xl hover:from-black hover:to-gray-900 focus:ring-2 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm transition-all duration-300 hover:scale-105"
+                      >
+                        <RefreshCw
+                          className={`h-4 w-4 mr-2 ${
+                            loading ? "animate-spin" : ""
+                          }`}
+                        />
+                        Refresh
+                      </button>
+
+                    </div>
+                  </div>
+
+                  {/* Remove Filter Text - Below the tickets filter div */}
+                  {(filterType !== "all" || ticketPriorityFilter !== "all" || ticketTimeFilter !== "all" || searchTerm) && (
+                    <div className="mt-3 text-center">
+                      <button
+                        onClick={() => {
+                          setFilterType("all");
+                          setTicketPriorityFilter("all");
+                          setTicketTimeFilter("all");
+                          setSearchTerm("");
+                        }}
+                        className="text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer transition-colors"
+                        title="Remove all filters"
+                      >
+                        Remove Filter
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Content */}
@@ -658,15 +989,15 @@ export default function MyAssetsPage() {
                             </div>
                           )}
                           
-                                                      {item.status === "Active" ? (
-                              <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                                Active
-                              </div>
-                            ) : (
-                              <div className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
+                          {item.status === "Active" ? (
+                            <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                              Active
+                            </div>
+                          ) : (
+                            <div className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
                                 {item.status || ""}
-                              </div>
-                            )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Quick Action Buttons */}
@@ -721,7 +1052,7 @@ export default function MyAssetsPage() {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : activeTab === "software" ? (
               // Software Tab
               <div>
                 {software.length === 0 ? (
@@ -884,10 +1215,115 @@ export default function MyAssetsPage() {
                   </div>
                 )}
               </div>
+            ) : null}
+
+            {/* Tickets Tab Content */}
+            {activeTab === "tickets" && (
+              <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm">
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : getFilteredTickets().length === 0 ? (
+                  <div className="text-center py-12">
+                    <Ticket className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No tickets found
+                    </h3>
+                    <p className="text-gray-500">
+                      {searchTerm || filterType !== "all" || ticketPriorityFilter !== "all" || ticketTimeFilter !== "all"
+                        ? "Try adjusting your search or filter criteria."
+                        : "You haven't created any support tickets yet."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {getFilteredTickets().map((ticket) => (
+                      <div
+                        key={ticket._id}
+                        className="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:border-gray-300 transition-all duration-300"
+                      >
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <h4 className="text-lg font-semibold text-gray-900">
+                                {ticket.title}
+                              </h4>
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                ticket.status === 'open' ? 'bg-blue-100 text-blue-800' :
+                                ticket.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                                ticket.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {ticket.status.replace('_', ' ').toUpperCase()}
+                              </span>
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                ticket.priority === 'Low' ? 'bg-green-100 text-green-800' :
+                                ticket.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                                ticket.priority === 'High' ? 'bg-orange-100 text-orange-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {ticket.priority}
+                              </span>
+                            </div>
+                            <p className="text-gray-600 mb-3">
+                              {ticket.description}
+                            </p>
+                                                          <div className="flex items-center space-x-4 text-sm text-gray-500">
+                                <span>Category: {ticket.category}</span>
+                                <span>Created: {formatDate(ticket.createdAt)}</span>
+                                {ticket.updatedAt && ticket.updatedAt !== ticket.createdAt && (
+                                  <span>Updated: {formatDate(ticket.updatedAt)}</span>
+                                )}
+                              </div>
+                              
+                              {/* Status Update Buttons */}
+                              <div className="mt-4 flex items-center space-x-2">
+                                <span className="text-sm font-medium text-gray-700">Update Status:</span>
+                                {ticket.status === 'open' && (
+                                  <button
+                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'in_progress')}
+                                    className="px-3 py-1.5 bg-yellow-100 text-yellow-800 text-xs rounded-full hover:bg-yellow-200 transition-colors"
+                                  >
+                                    Mark In Progress
+                                  </button>
+                                )}
+                                {ticket.status === 'open' && (
+                                  <button
+                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'resolved')}
+                                    className="px-3 py-1.5 bg-green-100 text-green-800 text-xs rounded-full hover:bg-green-200 transition-colors"
+                                  >
+                                    Mark Resolved
+                                  </button>
+                                )}
+                                {ticket.status === 'in_progress' && (
+                                  <button
+                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'resolved')}
+                                    className="px-3 py-1.5 bg-green-100 text-green-800 text-xs rounded-full hover:bg-green-200 transition-colors"
+                                  >
+                                    Mark Resolved
+                                  </button>
+                                )}
+                                {ticket.status === 'resolved' && (
+                                  <button
+                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'closed')}
+                                    className="px-3 py-1.5 bg-gray-100 text-gray-800 text-xs rounded-full hover:bg-gray-200 transition-colors"
+                                  >
+                                    Close Ticket
+                                  </button>
+                                )}
+                              </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Results Info */}
-            {!loading && (
+            {!loading && activeTab !== "tickets" && (
               <div className="mt-8 text-center text-sm text-gray-500">
                 Showing {activeTab === "hardware" ? getFilteredAssets(hardware).length : getFilteredAssets(software).length} {activeTab === "hardware" ? "hardware assets" : "software systems"} assigned to you
                 

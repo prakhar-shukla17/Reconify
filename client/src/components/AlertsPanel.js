@@ -269,10 +269,10 @@ const AlertsPanel = ({ className = "" }) => {
     const safeCount = count || 0;
     
     const getTileColor = () => {
-      if (safeCount === 0) return "bg-gray-50 border-gray-200";
-      if (safeCount <= 2) return "bg-yellow-50 border-yellow-200";
-      if (safeCount <= 5) return "bg-orange-50 border-orange-200";
-      return "bg-red-50 border-red-200";
+      if (safeCount === 0) return "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200";
+      if (safeCount <= 2) return "bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200";
+      if (safeCount <= 5) return "bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200";
+      return "bg-gradient-to-br from-red-50 to-red-100 border-red-200";
     };
 
     const getTextColor = () => {
@@ -282,29 +282,34 @@ const AlertsPanel = ({ className = "" }) => {
       return "text-red-700";
     };
 
+    const getIconBgColor = () => {
+      if (safeCount === 0) return "bg-gray-200";
+      if (safeCount <= 2) return "bg-yellow-200";
+      if (safeCount <= 5) return "bg-orange-200";
+      return "bg-red-200";
+    };
+
     return (
-      <div className={`border rounded-lg p-4 transition-all duration-200 hover:shadow-md cursor-pointer ${getTileColor()}`}>
+      <div className={`border-2 rounded-3xl p-6 transition-all duration-300 hover:shadow-xl hover:scale-105 cursor-pointer ${getTileColor()}`}>
         <button
           onClick={() => openComponentModal(componentType)}
           className="w-full text-left"
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex items-center justify-between mb-4">
+            <div className={`w-12 h-12 ${getIconBgColor()} rounded-2xl flex items-center justify-center`}>
               <ComponentIcon className={`h-6 w-6 ${getTextColor()}`} />
-              <div>
-                <h4 className={`font-semibold ${getTextColor()}`}>
-                  {getComponentName[componentType]} Alerts
-                </h4>
-                <p className="text-sm text-gray-600">
-                  {safeCount} alert{safeCount !== 1 ? 's' : ''}
-                </p>
-              </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <span className={`text-2xl font-bold ${getTextColor()}`}>
-                {safeCount}
-              </span>
-            </div>
+            <span className={`text-3xl font-bold ${getTextColor()}`}>
+              {safeCount}
+            </span>
+          </div>
+          <div>
+            <h4 className={`text-lg font-semibold ${getTextColor()} mb-2`}>
+              {getComponentName[componentType]} Alerts
+            </h4>
+            <p className="text-sm text-gray-600">
+              {safeCount === 0 ? 'No alerts' : `${safeCount} alert${safeCount !== 1 ? 's' : ''} detected`}
+            </p>
           </div>
         </button>
       </div>
@@ -344,26 +349,28 @@ const AlertsPanel = ({ className = "" }) => {
 
     return (
       <div 
-        className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300 ease-in-out"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300 ease-in-out"
         onClick={handleBackdropClick}
       >
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-auto max-h-[90vh] overflow-y-auto transform transition-all duration-300 ease-out scale-100 animate-in fade-in-0 zoom-in-95">
-          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl">
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl mx-auto max-h-[90vh] overflow-y-auto transform transition-all duration-300 ease-out scale-100 animate-in fade-in-0 zoom-in-95">
+          <div className="sticky top-0 bg-gradient-to-r from-gray-900 to-black text-white px-8 py-6 rounded-t-3xl">
             <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-3">
-                <ComponentIcon className="h-6 w-6 text-blue-600" />
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                  <ComponentIcon className="h-6 w-6 text-white" />
+                </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900">
+                  <h3 className="text-2xl font-bold text-white">
                     {getComponentName[selectedComponentType]} Warranty Alerts
                   </h3>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-gray-300 text-sm mt-1">
                     {componentAlerts.length} PC{componentAlerts.length !== 1 ? 's' : ''} with expiring warranties
                   </p>
                 </div>
               </div>
               <button
                 onClick={closeComponentModal}
-                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-2 transition-all duration-200 hover:scale-105"
+                className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300 hover:scale-110"
                 aria-label="Close modal"
               >
                 <X className="h-5 w-5" />
@@ -371,17 +378,19 @@ const AlertsPanel = ({ className = "" }) => {
             </div>
           </div>
 
-          <div className="px-6 py-4">
+          <div className="px-8 py-6">
             {modalLoading ? (
               <div className="animate-pulse">
-                <div className="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                <div className="h-4 bg-gray-200 rounded w-2/3 mt-2"></div>
+                <div className="h-6 bg-gray-200 rounded-2xl w-3/4 mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded-2xl w-1/2"></div>
+                <div className="h-4 bg-gray-200 rounded-2xl w-2/3 mt-2"></div>
               </div>
             ) : componentAlerts.length === 0 ? (
-              <div className="text-center py-8">
-                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                <h4 className="text-lg font-medium text-gray-900 mb-2">
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-green-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
+                <h4 className="text-xl font-semibold text-gray-900 mb-2">
                   No {getComponentName[selectedComponentType]} Warranty Alerts
                 </h4>
                 <p className="text-gray-500">
@@ -393,11 +402,11 @@ const AlertsPanel = ({ className = "" }) => {
                 {componentAlerts.map((alert, index) => (
                   <div 
                     key={alert.id} 
-                    className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-all duration-200 hover:scale-[1.02]"
+                    className="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] hover:border-gray-300"
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center space-x-3">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-4">
                         <HardDrive className="h-5 w-5 text-blue-600" />
                         <div>
                           <h4 className="font-medium text-gray-900 text-lg">
@@ -515,30 +524,37 @@ const AlertsPanel = ({ className = "" }) => {
 
   // Main content component
   const MainContent = useCallback(() => (
-    <div className={`bg-white rounded-lg shadow-sm border ${className}`}>
-      <div className="px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            {alerts.length > 0 ? (
-              <BellRing className="h-5 w-5 text-red-600" />
-            ) : (
-              <BellRing className="h-5 w-5 text-gray-400" />
-            )}
-            <h3 className="text-lg font-semibold text-gray-900">
-              Warranty Alerts
-            </h3>
+    <div className={`bg-white rounded-3xl border border-gray-200 shadow-sm ${className}`}>
+      <div className="px-8 py-6 border-b border-gray-100">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center">
+              {alerts.length > 0 ? (
+                <BellRing className="h-6 w-6 text-white" />
+              ) : (
+                <BellRing className="h-6 w-6 text-white opacity-80" />
+              )}
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900">
+                Warranty Alerts
+              </h3>
+              <p className="text-gray-600 text-sm">
+                Monitor expiring warranties and critical alerts
+              </p>
+            </div>
             {(alerts && alerts.length > 0) && (
-              <span className="bg-red-100 text-red-800 text-xs font-medium px-2 py-1 rounded-full">
-                {summary.total || 0}
-              </span>
+              <div className="bg-gradient-to-r from-red-500 to-red-600 text-white text-sm font-semibold px-4 py-2 rounded-2xl shadow-lg">
+                {summary.total || 0} Active Alerts
+              </div>
             )}
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4">
             <select
               value={alertDays}
               onChange={(e) => handleAlertDaysChange(parseInt(e.target.value))}
-              className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+              className="px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-gray-900 bg-white hover:border-gray-400 transition-all duration-300 text-sm font-medium"
             >
               <option value={7}>Next 7 days</option>
               <option value={14}>Next 14 days</option>
@@ -550,7 +566,7 @@ const AlertsPanel = ({ className = "" }) => {
             <select
               value={filter}
               onChange={(e) => handleFilterChange(e.target.value)}
-              className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+              className="px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-gray-900 bg-white hover:border-gray-400 transition-all duration-300 text-sm font-medium"
             >
               <option value="all">All Severities</option>
               <option value="critical">Critical</option>
@@ -562,30 +578,30 @@ const AlertsPanel = ({ className = "" }) => {
             <button
               onClick={() => fetchAlerts(true)}
               disabled={loading}
-              className="text-sm border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl hover:from-blue-700 hover:to-blue-800 focus:ring-2 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl flex items-center space-x-2"
             >
               {loading ? (
-                <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-600"></div>
-                  <span>Loading...</span>
-                </div>
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span className="font-medium">Loading...</span>
+                </>
               ) : (
-                <div className="flex items-center space-x-2">
-                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <>
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  <span>Refresh</span>
-                </div>
+                  <span className="font-medium">Refresh</span>
+                </>
               )}
             </button>
           </div>
         </div>
 
-        <div className="mt-6">
-          <h4 className="text-md font-medium text-gray-900 mb-4">
+        <div className="mt-8">
+          <h4 className="text-xl font-semibold text-gray-900 mb-6">
             Component Alert Statistics
           </h4>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
             <ComponentAlertTile
               componentType="cpu"
               count={componentCounts.cpu || 0}
