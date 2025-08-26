@@ -118,7 +118,7 @@ export default function AdminPage() {
   // Asset pagination state
   const [assetPagination, setAssetPagination] = useState({
     currentPage: 1,
-    itemsPerPage: 12,
+    itemsPerPage: 9,
     totalPages: 1,
     totalItems: 0
   });
@@ -2202,15 +2202,7 @@ export default function AdminPage() {
               // Assets Tab
               <div ref={assetsSectionRef}>
                 {/* Assets Info */}
-                {currentAssets.length > 0 && (
-                  <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
-                    <div className="flex items-center justify-between text-sm text-gray-600">
-                      <span>
-                        Showing {currentAssets.length} of {assetPagination.totalItems} {assetType === "hardware" ? "hardware assets" : "software systems"} (Page {assetPagination.currentPage} of {assetPagination.totalPages})
-                      </span>
-                    </div>
-                  </div>
-                )}
+
 
                 {currentAssets.length === 0 ? (
                   <div className="text-center py-12">
@@ -2379,7 +2371,7 @@ export default function AdminPage() {
                                   // Software Card - Same as Dashboard
                                   <div
                                     key={item._id}
-                                    className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border cursor-pointer"
+                                    className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border cursor-pointer h-80 flex flex-col"
                                     onClick={() => setSelectedSoftware(item)}
                                   >
                                     <div className="flex items-center justify-between mb-4">
@@ -2404,7 +2396,7 @@ export default function AdminPage() {
                                       </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                    <div className="grid grid-cols-2 gap-4 mb-4 flex-1">
                                       <div className="flex items-center space-x-2">
                                         <Package className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
@@ -2503,79 +2495,157 @@ export default function AdminPage() {
 
                     {/* Assets Pagination */}
                     {assetPagination.totalPages > 1 && (
-                      <div className="mt-8">
-                        <Pagination
-                          currentPage={assetPagination.currentPage}
-                          totalPages={assetPagination.totalPages}
-                          totalItems={assetPagination.totalItems}
-                          itemsPerPage={assetPagination.itemsPerPage}
-                          onPageChange={handleAssetPageChange}
-                          onItemsPerPageChange={handleAssetItemsPerPageChange}
-                        />
-                        
-                        {/* Mobile-friendly load more option */}
-                        <div className="mt-4 text-center sm:hidden">
+                      <div className="mt-6">
+                        {/* Pagination Navigation */}
+                        <div className="flex items-center justify-center space-x-2 mb-4">
+                          {/* Fast Forward to First Page */}
                           <button
-                            onClick={() => handleAssetPageChange(assetPagination.currentPage + 1)}
-                            disabled={assetPagination.currentPage >= assetPagination.totalPages}
-                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            onClick={() => handleAssetPageChange(1)}
+                            disabled={assetPagination.currentPage === 1}
+                            className="px-3 py-2.5 text-base text-gray-800 border border-gray-300 rounded-2xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105"
+                            title="Go to first page"
                           >
-                            Load More
+                            ⏮️
+                          </button>
+                          
+                          <button
+                            onClick={() => handleAssetPageChange(Math.max(1, assetPagination.currentPage - 1))}
+                            disabled={assetPagination.currentPage === 1}
+                            className="px-4 py-2.5 text-base text-gray-800 border border-gray-300 rounded-2xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105"
+                          >
+                            Previous
+                          </button>
+                          
+                          {/* Page numbers */}
+                          <div className="flex items-center space-x-2">
+                            {Array.from({ length: Math.min(5, assetPagination.totalPages) }, (_, i) => {
+                              let pageNum;
+                              if (assetPagination.totalPages <= 5) {
+                                pageNum = i + 1;
+                              } else if (assetPagination.currentPage <= 3) {
+                                pageNum = i + 1;
+                              } else if (assetPagination.currentPage >= assetPagination.totalPages - 2) {
+                                pageNum = assetPagination.totalPages - 4 + i;
+                              } else {
+                                pageNum = assetPagination.currentPage - 2 + i;
+                              }
+                              
+                              return (
+                                <button
+                                  key={pageNum}
+                                  onClick={() => handleAssetPageChange(pageNum)}
+                                  className={`px-4 py-2.5 border rounded-2xl focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105 ${
+                                    pageNum === assetPagination.currentPage
+                                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 shadow-lg'
+                                      : 'border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                                  }`}
+                                >
+                                  {pageNum}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          
+                          <button
+                            onClick={() => handleAssetPageChange(Math.min(assetPagination.totalPages, assetPagination.currentPage + 1))}
+                            disabled={assetPagination.currentPage >= assetPagination.totalPages}
+                            className="px-4 py-2.5 text-base text-gray-800 border border-gray-300 rounded-2xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105"
+                          >
+                            Next
+                          </button>
+                          
+                          {/* Fast Forward to Last Page */}
+                          <button
+                            onClick={() => handleAssetPageChange(assetPagination.totalPages)}
+                            disabled={assetPagination.currentPage >= assetPagination.totalPages}
+                            className="px-3 py-2.5 text-base text-gray-800 border border-gray-300 rounded-2xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105"
+                            title="Go to last page"
+                          >
+                            ⏭️
                           </button>
                         </div>
-                        
-                        {/* Quick jump for large datasets */}
-                        {assetPagination.totalPages > 10 && (
-                          <div className="mt-4 text-center">
-                            <div className="inline-flex items-center space-x-2 bg-gray-100 rounded-lg px-4 py-2">
-                              <span className="text-sm text-gray-800 font-medium">Quick Jump:</span>
-                              <input
-                                type="text"
-                                placeholder="Page #"
-                                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900 text-center"
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    const page = parseInt(e.target.value);
-                                    if (page >= 1 && page <= assetPagination.totalPages) {
-                                      handleAssetPageChange(page);
-                                      e.target.value = '';
-                                    } else {
-                                      toast.error(`Please enter a page number between 1 and ${assetPagination.totalPages}`);
-                                    }
-                                  }
-                                }}
-                                onBlur={(e) => {
-                                  const page = parseInt(e.target.value);
-                                  if (page >= 1 && page <= assetPagination.totalPages) {
-                                    handleAssetPageChange(page);
-                                    e.target.value = '';
-                                  }
-                                }}
-                              />
-                              <span className="text-xs text-gray-700 font-medium">of {assetPagination.totalPages}</span>
+
+                        {/* Clean Info Bar */}
+                        <div className="bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4">
+                          <div className="flex items-center justify-between">
+                            {/* Left Side - Items per page & Page info */}
+                            <div className="flex items-center space-x-6">
+                              {/* Items per page selector */}
+                              <div className="flex items-center space-x-3">
+                                <label className="text-sm font-medium text-gray-700">Show:</label>
+                                <select
+                                  value={assetPagination.itemsPerPage}
+                                  onChange={(e) => {
+                                    const newItemsPerPage = parseInt(e.target.value);
+                                    setAssetPagination(prev => ({
+                                      ...prev,
+                                      itemsPerPage: newItemsPerPage,
+                                      currentPage: 1, // Reset to first page
+                                      totalPages: Math.ceil(assetPagination.totalItems / newItemsPerPage)
+                                    }));
+                                  }}
+                                  className="px-3 py-2 border border-gray-300 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium bg-white"
+                                >
+                                  <option value={9}>9</option>
+                                  <option value={18}>18</option>
+                                  <option value={27}>27</option>
+                                  <option value={36}>36</option>
+                                  <option value={45}>45</option>
+                                </select>
+                                <span className="text-sm text-gray-600">per page</span>
+                              </div>
+
+                              {/* Page info */}
+                              <div className="text-sm text-gray-700">
+                                <span className="font-medium">Page {assetPagination.currentPage}</span>
+                                <span className="text-gray-500"> of {assetPagination.totalPages}</span>
+                                <span className="text-gray-600 ml-2">({assetPagination.totalItems} {assetType === "hardware" ? "hardware assets" : "software systems"})</span>
+                              </div>
                             </div>
+
+                            {/* Right Side - Quick jump */}
+                            {assetPagination.totalPages > 10 && (
+                              <div className="flex items-center space-x-3">
+                                <span className="text-sm font-medium text-gray-700">Quick Jump:</span>
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Page #"
+                                    className="w-16 px-3 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 text-center bg-white"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        const page = parseInt(e.target.value);
+                                        if (page >= 1 && page <= assetPagination.totalPages) {
+                                          handleAssetPageChange(page);
+                                          e.target.value = '';
+                                        } else {
+                                          toast.error(`Please enter a page number between 1 and ${assetPagination.totalPages}`);
+                                        }
+                                      }
+                                    }}
+                                    onBlur={(e) => {
+                                      const page = parseInt(e.target.value);
+                                      if (page >= 1 && page <= assetPagination.totalPages) {
+                                        handleAssetPageChange(page);
+                                        e.target.value = '';
+                                      }
+                                    }}
+                                  />
+                                  <span className="text-xs text-gray-500">of {assetPagination.totalPages}</span>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
                     )}
 
                     {/* Results Info */}
-                    {!loading && (
+                    {!loading && assetPagination.totalItems > 1000 && (
                       <div className="mt-8 text-center text-sm text-gray-500">
-                        Showing {currentAssets.length} of {assetPagination.totalItems} {assetType === "hardware" ? "hardware assets" : "software systems"} (Page {assetPagination.currentPage} of {assetPagination.totalPages})
-                        
-                        {assetPagination.totalItems > 1000 && (
-                          <div className="mt-2 text-xs text-blue-600">
-                            💡 Tip: Use search and filters to quickly find specific assets
-                          </div>
-                        )}
-                        
-                        {/* Cache indicator */}
-                        {assetCache.size > 0 && (
-                          <div className="mt-2 text-xs text-green-600">
-                            🚀 {assetCache.size} pages cached for faster loading
-                          </div>
-                        )}
+                        <div className="text-xs text-blue-600">
+                          💡 Tip: Use search and filters to quickly find specific assets
+                        </div>
                       </div>
                     )}
 
@@ -2855,8 +2925,7 @@ export default function AdminPage() {
                 // This will recalculate filtered tickets and pagination
                 setTicketFilters(prev => ({ ...prev }));
                 
-                // Show confirmation that data has been refreshed
-                toast.success("Ticket data refreshed successfully");
+                // Data has been refreshed silently
               }}
             />
           </LazyLoader>
