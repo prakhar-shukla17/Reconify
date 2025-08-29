@@ -157,6 +157,7 @@ export const downloadScanner = async (req, res) => {
       "software.py",
       "telemetry.py",
       "itam_scanner.py",
+      "utils.py",
       "requirements.txt",
       "README.md",
     ];

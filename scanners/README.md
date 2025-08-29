@@ -66,10 +66,24 @@ Edit `itam_scanner.py` to modify:
 - `hardware.py` - Hardware detection module
 - `software.py` - Software detection module
 - `telemetry.py` - Telemetry collection module
+- `utils.py` - Shared utilities for consistent MAC address generation
 - `requirements.txt` - Python dependencies
 - `run_itam_scanner.bat` - Windows batch file
 - `run_itam_scanner.sh` - Linux/macOS shell script
 - `itam_scanner.log` - Log file (created when running)
+
+## MAC Address Consistency
+
+All scanners now use a shared utility (`utils.py`) to ensure they generate the same MAC address for the same system. This ensures that:
+
+- Hardware and software data are properly linked
+- Telemetry data is associated with the correct asset
+- Asset tracking is consistent across all scanners
+
+The shared MAC address generation:
+1. First tries to get a real MAC address from network interfaces
+2. Falls back to `uuid.getnode()` for consistency
+3. Ensures all scanners use the same logic and format
 
 ## API Endpoints
 

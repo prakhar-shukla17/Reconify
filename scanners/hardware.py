@@ -8,6 +8,20 @@ import socket
 import uuid
 import requests
 
+# Import shared utilities
+try:
+    from utils import get_consistent_mac_address, get_system_identifier
+except ImportError:
+    # Fallback if utils module is not available
+    def get_consistent_mac_address():
+        return "Unknown"
+    def get_system_identifier():
+        return {
+            'hostname': platform.node(),
+            'mac_address': "Unknown",
+            'system_id': f"{platform.node()}_Unknown"
+        }
+
 # Tenant configuration - these will be set by the download system
 TENANT_ID = os.getenv('TENANT_ID', 'default')
 API_TOKEN = os.getenv('API_TOKEN', '')
@@ -84,7 +98,7 @@ class HardwareDetector:
             'python_version': platform.python_version(),
             'boot_time': None,
             'uptime': None,
-            'mac_address': self._get_mac_address()
+            'mac_address': get_consistent_mac_address()
         }
         
         if PSUTIL_AVAILABLE:
@@ -750,34 +764,8 @@ class HardwareDetector:
         
         return power_thermal
     
-    def _get_mac_address(self):
-        """Get MAC address of the primary network interface."""
-        mac = None
-        if PSUTIL_AVAILABLE:
-            for iface, addrs in psutil.net_if_addrs().items():
-                for addr in addrs:
-                    if hasattr(addr, 'address'):
-                        addr_str = addr.address
-                        # Look specifically for IPv6 link-local addresses (fe80::)
-                        if addr_str.startswith('fe80::'):
-                            mac = addr_str.upper()
-                            break
-                if mac:
-                    break
-        
-        if not mac:
-            # Fallback: use uuid.getnode
-            try:
-                mac_int = uuid.getnode()
-                mac = ':'.join(['{:02x}'.format((mac_int >> i) & 0xff)
-                                for i in range(40, -1, -8)])
-                if mac == "00:00:00:00:00:00":
-                    mac = "Unknown"
-            except:
-                mac = "Unknown"
-        
-        # Ensure consistent uppercase format
-        return mac.upper() if mac != "Unknown" else mac
+    # MAC address is now handled by shared utility function
+    # This ensures consistency across hardware and software scanners
 
     
     # def export_hardware_info(self, filename=None):

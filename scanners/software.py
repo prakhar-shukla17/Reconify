@@ -15,6 +15,20 @@ import uuid
 import winreg
 import glob
 
+# Import shared utilities
+try:
+    from utils import get_consistent_mac_address, get_system_identifier
+except ImportError:
+    # Fallback if utils module is not available
+    def get_consistent_mac_address():
+        return "Unknown"
+    def get_system_identifier():
+        return {
+            'hostname': platform.node(),
+            'mac_address': "Unknown",
+            'system_id': f"{platform.node()}_Unknown"
+        }
+
 # Tenant configuration - these will be set by the download system
 TENANT_ID = os.getenv('TENANT_ID', 'default')
 API_TOKEN = os.getenv('API_TOKEN', '')
@@ -73,44 +87,15 @@ class SoftwareDetector:
             'platform_version': platform.version(),
             'architecture': platform.machine(),
             'hostname': platform.node(),
-            'mac_address': self._get_mac_address(),
+            'mac_address': get_consistent_mac_address(),
             'scan_timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'python_version': platform.python_version()
         }
         
         return system_info
     
-    def _get_mac_address(self):
-        """Get MAC address of the primary network interface."""
-        mac = None
-        if PSUTIL_AVAILABLE:
-            for iface, addrs in psutil.net_if_addrs().items():
-                for addr in addrs:
-                    # Only use real MACs (6 hex pairs separated by colons or hyphens)
-                    if hasattr(addr, 'address'):
-                        addr_str = addr.address
-                        # Check if it's a valid MAC address format (XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX)
-                        if (len(addr_str.split(':')) == 6 or len(addr_str.split('-')) == 6):
-                            # Normalize to colon format
-                            if '-' in addr_str:
-                                addr_str = addr_str.replace('-', ':')
-                            
-                            if (addr_str != "00:00:00:00:00:00" and
-                                all(len(part) == 2 and part.isalnum() for part in addr_str.split(':'))):
-                                mac = addr_str
-                                break
-                if mac:
-                    break
-        if not mac:
-            # Fallback: use uuid.getnode
-            mac_int = uuid.getnode()
-            mac = ':'.join(['{:02x}'.format((mac_int >> i) & 0xff)
-                            for i in range(40, -1, -8)])
-            if mac == "00:00:00:00:00:00":
-                mac = "Unknown"
-        
-        # Ensure consistent uppercase format
-        return mac.upper() if mac != "Unknown" else mac
+    # MAC address is now handled by shared utility function
+    # This ensures consistency across hardware and software scanners
     
     def _get_installed_software(self):
         """Get installed software information."""
