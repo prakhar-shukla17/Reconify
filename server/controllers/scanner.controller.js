@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import archiver from "archiver";
+import jwt from "jsonwebtoken";
 import { generateTenantId } from "../utils/tenantUtils.js";
 import { generateToken } from "../middleware/auth.js";
 
@@ -15,7 +16,6 @@ export const downloadScanner = async (req, res) => {
     if (!user && token) {
       // If no user in session but token provided, try to validate token
       try {
-        const jwt = require("jsonwebtoken");
         console.log("Validating token:", token.substring(0, 20) + "...");
 
         // Try different JWT secrets
