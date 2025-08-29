@@ -46,6 +46,7 @@ export const authAPI = {
   getProfile: () => api.get("/auth/profile"),
   updateProfile: (userData) => api.put("/auth/profile", userData),
   getAllUsers: () => api.get("/auth/users"),
+  createUser: (userData) => api.post("/auth/create-user", userData),
   assignAsset: (userId, macAddress) =>
     api.post("/auth/assign-asset", { userId, macAddress }),
   assignMultipleAssets: (userId, macAddresses) =>

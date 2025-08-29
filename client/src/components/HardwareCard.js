@@ -70,7 +70,7 @@ const HardwareCard = ({ hardware, onClick }) => {
         status: "unknown",
         icon: Clock,
         color: "text-gray-500",
-        text: "No warranty info",
+        text: "",
       };
     }
 
@@ -123,7 +123,7 @@ const HardwareCard = ({ hardware, onClick }) => {
           icon: CheckCircle,
           color: "text-green-600",
           bgColor: "bg-green-100",
-          text: `Excellent (${healthScore})`,
+          text: `${healthScore}`,
         };
       case "good":
         return {
@@ -312,26 +312,10 @@ const HardwareCard = ({ hardware, onClick }) => {
           <div className="text-xs text-gray-500">
             Last updated: {new Date(hardware.updatedAt).toLocaleDateString()}
           </div>
-          {/* Health Status */}
-          <div className="flex items-center space-x-1">
-            <healthInfo.icon className={`h-3 w-3 ${healthInfo.color}`} />
-            <span className={`text-xs ${healthInfo.color}`}>
-              {healthInfo.text}
-            </span>
-          </div>
-          {/* Warranty Status */}
-          <div className="flex items-center space-x-1">
-            <warrantyInfo.icon className={`h-3 w-3 ${warrantyInfo.color}`} />
-            <span className={`text-xs ${warrantyInfo.color}`}>
-              {warrantyInfo.text}
-            </span>
-          </div>
+
+
         </div>
         <div className="flex items-center space-x-2">
-          <div className="flex items-center space-x-1">
-            <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-            <span className="text-xs text-gray-600">Online</span>
-          </div>
           <button
             onClick={(e) => {
               e.stopPropagation();

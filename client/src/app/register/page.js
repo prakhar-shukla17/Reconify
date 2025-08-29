@@ -31,24 +31,16 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (isAuthenticated && !loading) {
-      // Redirect based on user role
-      if (user?.role === "admin") {
-        router.push("/dashboard");
-      } else {
-        router.push("/my-assets");
-      }
+      // All new registrations are now admins, redirect to admin dashboard
+      router.push("/dashboard");
     }
   }, [isAuthenticated, loading, router, user]);
 
   const onSubmit = async (data) => {
     const result = await registerUser(data);
     if (result.success) {
-      // Redirect based on user role
-      if (result.user?.role === "admin") {
-        router.push("/dashboard");
-      } else {
-        router.push("/my-assets");
-      }
+      // All new registrations are now admins, redirect to admin dashboard
+      router.push("/dashboard");
     }
   };
 
@@ -272,6 +264,33 @@ export default function RegisterPage() {
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">
                   {errors.email.message}
+                </p>
+              )}
+            </div>
+
+            {/* Company Field */}
+            <div>
+              <label
+                htmlFor="company"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Company Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                {...register("company", {
+                  required: "Company name is required",
+                  minLength: {
+                    value: 2,
+                    message: "Company name must be at least 2 characters",
+                  },
+                })}
+                type="text"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
+                placeholder="Enter your company name"
+              />
+              {errors.company && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.company.message}
                 </p>
               )}
             </div>

@@ -16,6 +16,7 @@ import TicketCard from "../../components/TicketCard";
 import TicketManagementModal from "../../components/lazy/TicketManagementModal.lazy";
 import HealthDashboard from "../../components/lazy/HealthDashboard.lazy";
 import MLServiceControlPanel from "../../components/lazy/MLServiceControlPanel.lazy";
+import CreateUserModal from "../../components/CreateUserModal";
 
 import LazyLoader from "../../components/LazyLoader";
 import Pagination from "../../components/Pagination";
@@ -90,6 +91,7 @@ export default function AdminPage() {
     medium: 0,
     low: 0
   });
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
 
 
 
@@ -2675,37 +2677,20 @@ export default function AdminPage() {
                         </h3>
                         <div className="flex items-center space-x-2">
                           <button
+                            onClick={() => setShowCreateUserModal(true)}
+                            className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors flex items-center space-x-2"
+                            title="Create new user"
+                          >
+                            <UserPlus className="h-4 w-4" />
+                            <span>Create User</span>
+                          </button>
+                          <button
                             onClick={() => fetchUsers()}
                             className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
                             title="Refresh users"
                           >
                             <RefreshCw className="h-4 w-4" />
                           </button>
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <input
-                              type="text"
-                              placeholder="Search users..."
-                              value={searchTerm}
-                              onChange={(e) => handleSearchInputChange(e.target.value)}
-                              onKeyPress={handleSearchKeyPress}
-                              className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          <button
-                            onClick={handleSearchSubmit}
-                            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
-                          >
-                            Search
-                          </button>
-                          {searchTerm && (
-                            <button
-                              onClick={handleClearSearch}
-                              className="px-3 py-2 text-gray-600 text-sm hover:text-gray-800 transition-colors"
-                            >
-                              Clear
-                            </button>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -2962,6 +2947,21 @@ export default function AdminPage() {
                 fetchSoftware();
               }
               setShowCsvImportModal(false);
+            }}
+          />
+        </LazyLoader>
+
+        {/* Create User Modal */}
+        <LazyLoader>
+          <CreateUserModal
+            isOpen={showCreateUserModal}
+            onClose={() => setShowCreateUserModal(false)}
+            onUserCreated={(newUser) => {
+              // Add the new user to the users list
+              setUsers(prev => [newUser, ...prev]);
+              // Refresh users to get the updated list
+              fetchUsers();
+              toast.success(`User ${newUser.firstName} ${newUser.lastName} created successfully!`);
             }}
           />
         </LazyLoader>
