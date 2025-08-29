@@ -56,7 +56,7 @@ export const requireAdmin = (req, res, next) => {
   console.log("req.user:", req.user);
   console.log("User role:", req.user?.role);
   
-  if (req.user.role !== "admin") {
+  if (req.user.role !== "admin" && req.user.role !== "superadmin") {
     console.log("Access denied - user is not admin");
     return res
       .status(403)
@@ -67,12 +67,29 @@ export const requireAdmin = (req, res, next) => {
   next();
 };
 
+// Check if user is super admin
+export const requireSuperAdmin = (req, res, next) => {
+  console.log("=== requireSuperAdmin middleware ===");
+  console.log("req.user:", req.user);
+  console.log("User role:", req.user?.role);
+  
+  if (req.user.role !== "superadmin") {
+    console.log("Access denied - user is not super admin");
+    return res
+      .status(403)
+      .json({ error: "Access denied. Super Admin privileges required." });
+  }
+  
+  console.log("Super Admin access granted");
+  next();
+};
+
 // Check if user can access specific asset
 export const canAccessAsset = (req, res, next) => {
   const { id } = req.params; // MAC address
 
-  // Admin can access all assets
-  if (req.user.role === "admin") {
+  // Super admin and admin can access all assets
+  if (req.user.role === "superadmin" || req.user.role === "admin") {
     return next();
   }
 

@@ -1,10 +1,11 @@
 import User from "../models/user.models.js";
 import { generateToken } from "../middleware/auth.js";
+import { generateTenantId } from "../utils/tenantUtils.js";
 
 // Register new user
 export const register = async (req, res) => {
   try {
-    const { username, email, password, firstName, lastName, department, role } =
+    const { username, email, password, firstName, lastName, department, role, company } =
       req.body;
 
     // Check if user already exists
@@ -18,6 +19,30 @@ export const register = async (req, res) => {
       });
     }
 
+    // Determine the role to assign
+    let assignedRole = "user"; // Default role for new registrations
+    
+    // If the requesting user is a super admin, they can create any role
+    if (req.user && req.user.role === "superadmin") {
+      assignedRole = role || "user";
+    } else if (req.user && req.user.role === "admin") {
+      // Regular admins can only create user accounts
+      assignedRole = "user";
+    } else {
+      // Public registration (no auth) creates admin accounts by default
+      assignedRole = "admin";
+    }
+
+    // Determine tenant_id based on context
+    let tenantId;
+    if (req.user) {
+      // Admin creating user - inherit admin's tenant_id
+      tenantId = req.user.tenant_id;
+    } else {
+      // Public registration - hash company name to create tenant_id
+      tenantId = generateTenantId(company);
+    }
+
     // Create new user
     const user = new User({
       username,
@@ -26,7 +51,8 @@ export const register = async (req, res) => {
       firstName,
       lastName,
       department,
-      role: role || "user", // Default to user, only admin can create admin accounts
+      role: assignedRole,
+      tenant_id: tenantId,
     });
 
     await user.save();
@@ -171,7 +197,13 @@ export const updateProfile = async (req, res) => {
 // Admin: Get all users
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({})
+    // Add tenant ID filter
+    let query = {};
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+
+    const users = await User.find(query)
       .select("-password")
       .sort({ createdAt: -1 });
 
@@ -481,5 +513,77 @@ export const getUnassignedAssets = async (req, res) => {
   } catch (error) {
     console.error("Get unassigned assets error:", error);
     res.status(500).json({ error: "Failed to get unassigned assets" });
+  }
+};
+
+// Admin: Create new user
+export const createUser = async (req, res) => {
+  try {
+    const { username, email, password, firstName, lastName, department, role, company } = req.body;
+
+    // Check if user already exists
+    const existingUser = await User.findOne({
+      $or: [{ email }, { username }],
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        error: "User with this email or username already exists",
+      });
+    }
+
+    // Determine the role to assign based on admin permissions
+    let assignedRole = "user"; // Default role for new registrations
+    
+    if (req.user.role === "superadmin") {
+      // Super admin can create any role
+      assignedRole = role || "user";
+    } else if (req.user.role === "admin") {
+      // Regular admin can only create user accounts
+      assignedRole = "user";
+    } else {
+      return res.status(403).json({
+        error: "Insufficient permissions to create users",
+      });
+    }
+
+    // Create new user
+    const user = new User({
+      username,
+      email,
+      password,
+      firstName,
+      lastName,
+      department,
+      role: assignedRole,
+      isActive: true,
+      tenant_id: req.user.tenant_id, // Always inherit admin's tenant_id
+    });
+
+    await user.save();
+
+    // Return user data (excluding password)
+    const userResponse = {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      fullName: user.fullName,
+      department: user.department,
+      role: user.role,
+      assignedAssets: user.assignedAssets,
+      isActive: user.isActive,
+      tenant_id: user.tenant_id,
+      createdAt: user.createdAt,
+    };
+
+    res.status(201).json({
+      message: "User created successfully",
+      user: userResponse,
+    });
+  } catch (error) {
+    console.error("Create user error:", error);
+    res.status(500).json({ error: "Failed to create user" });
   }
 };

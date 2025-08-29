@@ -3,6 +3,9 @@ import bcrypt from "bcryptjs";
 
 const UserSchema = new mongoose.Schema(
   {
+    // Tenant ID for multi-tenancy
+    tenant_id: { type: String, required: true, index: true },
+    
     username: {
       type: String,
       required: true,
@@ -25,7 +28,7 @@ const UserSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["user", "admin"],
+      enum: ["user", "admin", "superadmin"],
       default: "user",
     },
     firstName: {

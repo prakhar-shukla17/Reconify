@@ -8,6 +8,7 @@ import softwarerouter from "./router/software.route.js";
 import alertsrouter from "./router/alerts.route.js";
 import ticketrouter from "./router/ticket.route.js";
 import telemetryrouter from "./router/telemetry.route.js";
+import superadminrouter from "./router/superadmin.route.js";
 
 const app = express();
 configDotenv();
@@ -28,6 +29,7 @@ app.use("/api/software", softwarerouter);
 app.use("/api/alerts", alertsrouter);
 app.use("/api/tickets", ticketrouter);
 app.use("/api/telemetry", telemetryrouter);
+app.use("/api/superadmin", superadminrouter);
 
 // 404 handler for undefined routes
 app.use("*", (req, res) => {

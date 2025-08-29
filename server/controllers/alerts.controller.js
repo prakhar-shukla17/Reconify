@@ -27,6 +27,11 @@ export const getWarrantyAlerts = async (req, res) => {
       '_id': 1
     };
 
+    // Add tenant ID filter
+    if (req.user && req.user.tenant_id) {
+      hardwareQuery.tenant_id = req.user.tenant_id;
+    }
+
     // If user is not admin, filter by assigned assets
     if (req.user.role !== "admin") {
       hardwareQuery._id = { $in: req.user.assignedAssets };

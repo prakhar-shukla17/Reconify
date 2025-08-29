@@ -16,6 +16,11 @@ export const getAll = async (req, res) => {
     let totalCount = 0;
     let softwareList;
 
+    // Add tenant ID filter
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+
     // Build search query - optimize for performance
     if (search) {
       // Use text search if available, otherwise regex
@@ -102,7 +107,14 @@ export const getAll = async (req, res) => {
 export const getById = async (req, res) => {
   try {
     const { id } = req.params; // MAC address
-    const software = await Software.findById(id);
+    
+    // Build query with tenant_id filter
+    let query = { _id: id };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
+    const software = await Software.findOne(query);
 
     if (!software) {
       return res
@@ -150,6 +162,7 @@ export const createOrUpdateSoftware = async (req, res) => {
     // Prepare software document
     const softwareDocument = {
       _id: macAddress,
+      tenant_id: req.user?.tenant_id || "default",
       system: softwareData.system,
       installed_software: softwareData.installed_software || [],
       system_software: softwareData.system_software || [],
@@ -236,6 +249,11 @@ export const searchSoftware = async (req, res) => {
       };
     }
 
+    // Add tenant_id filter
+    if (req.user && req.user.tenant_id) {
+      searchCriteria.tenant_id = req.user.tenant_id;
+    }
+    
     const results = await Software.find(searchCriteria)
       .select(
         "system.hostname system.mac_address system.platform installed_software"
@@ -260,7 +278,14 @@ export const getSoftwareByVendor = async (req, res) => {
   try {
     const { vendor } = req.params;
 
+    // Build tenant_id filter
+    let matchStage = {};
+    if (req.user && req.user.tenant_id) {
+      matchStage.tenant_id = req.user.tenant_id;
+    }
+    
     const results = await Software.aggregate([
+      { $match: matchStage },
       { $unwind: "$installed_software" },
       {
         $match: {
@@ -306,7 +331,14 @@ export const getSoftwareByVendor = async (req, res) => {
 // Get outdated software report (admin only)
 export const getOutdatedSoftware = async (req, res) => {
   try {
+    // Build tenant_id filter
+    let matchStage = {};
+    if (req.user && req.user.tenant_id) {
+      matchStage.tenant_id = req.user.tenant_id;
+    }
+    
     const results = await Software.aggregate([
+      { $match: matchStage },
       { $unwind: "$installed_software" },
       {
         $match: {
@@ -353,7 +385,13 @@ export const deleteSoftware = async (req, res) => {
   try {
     const { id } = req.params; // MAC address
 
-    const result = await Software.findByIdAndDelete(id);
+    // Build query with tenant_id filter
+    let query = { _id: id };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+
+    const result = await Software.findOneAndDelete(query);
 
     if (!result) {
       return res.status(404).json({ error: "Software data not found" });

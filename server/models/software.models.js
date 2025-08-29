@@ -45,6 +45,9 @@ const BrowserExtensionSchema = new mongoose.Schema(
 // Main Software Schema
 const SoftwareSchema = new mongoose.Schema(
   {
+    // Tenant ID for multi-tenancy
+    tenant_id: { type: String, required: true, index: true },
+    
     // Use MAC address as the primary key to link with hardware
     _id: { type: String, required: true }, // MAC address
 

@@ -360,7 +360,10 @@ export const receiveTelemetry = async (req, res) => {
     // Find or create telemetry record
     let telemetry = await Telemetry.findOne({ mac_address });
     if (!telemetry) {
-      telemetry = new Telemetry({ mac_address });
+      telemetry = new Telemetry({ 
+        mac_address,
+        tenant_id: req.user?.tenant_id || "default"
+      });
     }
 
     // Prepare new telemetry data
@@ -450,7 +453,13 @@ export const getTelemetry = async (req, res) => {
   try {
     const { mac_address } = req.params;
 
-    const telemetry = await Telemetry.findOne({ mac_address });
+    // Add tenant ID filter
+    let query = { mac_address };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+
+    const telemetry = await Telemetry.findOne(query);
     if (!telemetry) {
       return res.status(404).json({ error: "Telemetry data not found" });
     }
@@ -467,7 +476,14 @@ export const getTelemetry = async (req, res) => {
 
 export const getHealthSummary = async (req, res) => {
   try {
+    // Add tenant ID filter
+    let matchStage = {};
+    if (req.user && req.user.tenant_id) {
+      matchStage = { tenant_id: req.user.tenant_id };
+    }
+
     const summary = await Telemetry.aggregate([
+      { $match: matchStage },
       {
         $group: {
           _id: "$health_analysis.health_status",
@@ -477,8 +493,9 @@ export const getHealthSummary = async (req, res) => {
       },
     ]);
 
-    const totalAssets = await Telemetry.countDocuments();
+    const totalAssets = await Telemetry.countDocuments(matchStage);
     const criticalIssues = await Telemetry.countDocuments({
+      ...matchStage,
       "health_analysis.health_status": "critical",
     });
 

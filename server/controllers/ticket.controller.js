@@ -22,7 +22,12 @@ export const createTicket = async (req, res) => {
     }
 
     // Verify the asset exists and user has access to it
-    const asset = await Hardware.findById(asset_id);
+    let assetQuery = { _id: asset_id };
+    if (req.user && req.user.tenant_id) {
+      assetQuery.tenant_id = req.user.tenant_id;
+    }
+    
+    const asset = await Hardware.findOne(assetQuery);
     if (!asset) {
       return res.status(404).json({
         error: "Asset not found",
@@ -44,6 +49,7 @@ export const createTicket = async (req, res) => {
     // Create ticket
     const ticketData = {
       ticket_id: ticketId, // Explicitly set the ticket_id
+      tenant_id: user.tenant_id || "default",
       title: title.trim(),
       description: description.trim(),
       priority: priority || "Medium",
@@ -81,6 +87,11 @@ export const getAllTickets = async (req, res) => {
 
     // Build filter based on user role
     let filter = {};
+
+    // Add tenant ID filter
+    if (user.tenant_id) {
+      filter.tenant_id = user.tenant_id;
+    }
 
     if (user.role !== "admin") {
       // Regular users can only see their own tickets
@@ -130,7 +141,13 @@ export const getTicketById = async (req, res) => {
     const { id } = req.params;
     const user = req.user;
 
-    const ticket = await Ticket.findById(id)
+    // Build query with tenant_id filter
+    let query = { _id: id };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
+    const ticket = await Ticket.findOne(query)
       .populate("created_by", "username email")
       .populate("assigned_to", "username email")
       .populate("resolved_by", "username email");
@@ -171,7 +188,13 @@ export const updateTicket = async (req, res) => {
     const { status, priority, assigned_to, resolution, category } = req.body;
     const user = req.user;
 
-    const ticket = await Ticket.findById(id);
+    // Build query with tenant_id filter
+    let query = { _id: id };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
+    const ticket = await Ticket.findOne(query);
     if (!ticket) {
       return res.status(404).json({
         error: "Ticket not found",
@@ -203,7 +226,12 @@ export const updateTicket = async (req, res) => {
         ticket.assigned_to_name = null;
       } else {
         // Assign to admin
-        const assignedUser = await User.findById(assigned_to);
+        let userQuery = { _id: assigned_to };
+        if (req.user && req.user.tenant_id) {
+          userQuery.tenant_id = req.user.tenant_id;
+        }
+        
+        const assignedUser = await User.findOne(userQuery);
         if (!assignedUser) {
           return res.status(400).json({
             error: "Assigned user not found",
@@ -237,7 +265,7 @@ export const updateTicket = async (req, res) => {
     const updatedTicket = await ticket.save();
 
     // Populate the response
-    const populatedTicket = await Ticket.findById(updatedTicket._id)
+    const populatedTicket = await Ticket.findOne({ _id: updatedTicket._id })
       .populate("created_by", "username email")
       .populate("assigned_to", "username email")
       .populate("resolved_by", "username email");
@@ -273,7 +301,13 @@ export const addComment = async (req, res) => {
       });
     }
 
-    const ticket = await Ticket.findById(id);
+    // Build query with tenant_id filter
+    let query = { _id: id };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
+    const ticket = await Ticket.findOne(query);
     if (!ticket) {
       return res.status(404).json({
         error: "Ticket not found",
@@ -439,7 +473,13 @@ export const updateTicketStatus = async (req, res) => {
       });
     }
 
-    const ticket = await Ticket.findById(id);
+    // Build query with tenant_id filter
+    let query = { _id: id };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
+    const ticket = await Ticket.findOne(query);
     if (!ticket) {
       return res.status(404).json({
         error: "Ticket not found",
@@ -491,7 +531,13 @@ export const assignTicket = async (req, res) => {
     const { id } = req.params;
     const { assigned_to } = req.body; // Can be null to unassign
 
-    const ticket = await Ticket.findById(id);
+    // Build query with tenant_id filter
+    let query = { _id: id };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
+    const ticket = await Ticket.findOne(query);
     if (!ticket) {
       return res.status(404).json({
         error: "Ticket not found",
@@ -504,7 +550,12 @@ export const assignTicket = async (req, res) => {
       ticket.assigned_to_name = null;
     } else {
       // Assign to admin
-      const assignedUser = await User.findById(assigned_to);
+      let userQuery = { _id: assigned_to };
+      if (req.user && req.user.tenant_id) {
+        userQuery.tenant_id = req.user.tenant_id;
+      }
+      
+      const assignedUser = await User.findOne(userQuery);
       if (!assignedUser) {
         return res.status(400).json({
           error: "Assigned user not found",
@@ -545,7 +596,13 @@ export const assignTicket = async (req, res) => {
 // Get all admin users (for assignment dropdown)
 export const getAdminUsers = async (req, res) => {
   try {
-    const admins = await User.find({ role: "admin", isActive: true })
+    // Build query with tenant_id filter
+    let query = { role: "admin", isActive: true };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
+    const admins = await User.find(query)
       .select("_id username email")
       .sort({ username: 1 });
 
@@ -575,7 +632,13 @@ export const closeTicket = async (req, res) => {
       });
     }
 
-    const ticket = await Ticket.findById(id);
+    // Build query with tenant_id filter
+    let query = { _id: id };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
+    const ticket = await Ticket.findOne(query);
     if (!ticket) {
       return res.status(404).json({
         error: "Ticket not found",
@@ -593,7 +656,7 @@ export const closeTicket = async (req, res) => {
     const updatedTicket = await ticket.save();
 
     // Populate the response
-    const populatedTicket = await Ticket.findById(updatedTicket._id)
+    const populatedTicket = await Ticket.findOne({ _id: updatedTicket._id })
       .populate("created_by", "username email")
       .populate("assigned_to", "username email")
       .populate("resolved_by", "username email");

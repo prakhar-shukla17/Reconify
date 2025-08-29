@@ -89,6 +89,9 @@ const HealthAnalysisSchema = new mongoose.Schema({
 
 const TelemetrySchema = new mongoose.Schema(
   {
+    // Tenant ID for multi-tenancy
+    tenant_id: { type: String, required: true, index: true },
+    
     mac_address: {
       type: String,
       required: true,

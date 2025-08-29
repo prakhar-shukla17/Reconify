@@ -14,6 +14,11 @@ export const getAll = async (req, res) => {
     let query = {};
     let totalCount = 0;
 
+    // Add tenant ID filter
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+
     // Build search query - optimize for performance
     if (search) {
       // Use text search if available, otherwise regex
@@ -119,7 +124,14 @@ export const getAll = async (req, res) => {
 export const getById = async (req, res) => {
   try {
     const { id } = req.params; // MAC address
-    const hardware = await Hardware.findById(id);
+    
+    // Build query with tenant_id filter
+    let query = { _id: id };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
+    const hardware = await Hardware.findOne(query);
 
     if (!hardware) {
       return res.status(404).json({ error: "Hardware not found" });
@@ -156,8 +168,14 @@ export const createHardware = async (req, res) => {
     // Convert MAC address to string and use as _id
     const macAddressString = String(macAddress);
 
+    // Build query with tenant_id filter
+    let query = { _id: macAddressString };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
     // Check if this is an update to an existing asset
-    const existingHardware = await Hardware.findById(macAddressString);
+    const existingHardware = await Hardware.findOne(query);
 
     if (existingHardware) {
       // Update existing asset with scanner data
@@ -204,8 +222,8 @@ export const createHardware = async (req, res) => {
         };
       }
 
-      const updatedHardware = await Hardware.findByIdAndUpdate(
-        macAddressString,
+      const updatedHardware = await Hardware.findOneAndUpdate(
+        query,
         updatedData,
         { new: true }
       );
@@ -219,6 +237,7 @@ export const createHardware = async (req, res) => {
 
     const dataWithCustomId = {
       _id: macAddressString,
+      tenant_id: req.user?.tenant_id || "default",
       ...hardwareData,
       asset_info: {
         ...hardwareData.asset_info,
@@ -277,9 +296,15 @@ export const updateAssetInfo = async (req, res) => {
       }
     }
 
+    // Build query with tenant_id filter
+    let query = { _id: id };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
     // Update the hardware document
-    const updatedHardware = await Hardware.findByIdAndUpdate(
-      id,
+    const updatedHardware = await Hardware.findOneAndUpdate(
+      query,
       {
         $set: {
           asset_info: {
@@ -362,9 +387,15 @@ export const updateUserAssetInfo = async (req, res) => {
       cost: parseFloat(assetInfoData.cost) || 0,
     };
 
+    // Build query with tenant_id filter and user assignment check
+    let query = { _id: id };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
     // Update the hardware document
-    const updatedHardware = await Hardware.findByIdAndUpdate(
-      id,
+    const updatedHardware = await Hardware.findOneAndUpdate(
+      query,
       { $set: { asset_info: updateData } },
       { new: true, runValidators: true }
     );
@@ -400,13 +431,19 @@ export const getExpiringWarranties = async (req, res) => {
 
     let hardwareList;
 
-    // If user is admin, get all hardware with expiring warranties
+    // Build tenant_id filter
+    let tenantFilter = {};
+    if (req.user && req.user.tenant_id) {
+      tenantFilter.tenant_id = req.user.tenant_id;
+    }
+    
+    // If user is admin, get all hardware with expiring warranties for their tenant
     if (req.user && req.user.role === "admin") {
-      hardwareList = await Hardware.findExpiringWarranties(daysNumber);
+      hardwareList = await Hardware.findExpiringWarranties(daysNumber, tenantFilter);
     }
     // If user is regular user, get only their assigned assets with expiring warranties
     else if (req.user && req.user.assignedAssets) {
-      const expiringAssets = await Hardware.findExpiringWarranties(daysNumber);
+      const expiringAssets = await Hardware.findExpiringWarranties(daysNumber, tenantFilter);
       hardwareList = expiringAssets.filter((asset) =>
         req.user.assignedAssets.includes(asset._id)
       );
@@ -434,6 +471,11 @@ export const getExpiringWarranties = async (req, res) => {
 export const getWarrantyStats = async (req, res) => {
   try {
     let matchQuery = {};
+
+    // Apply tenant_id filtering
+    if (req.user && req.user.tenant_id) {
+      matchQuery.tenant_id = req.user.tenant_id;
+    }
 
     // Apply role-based filtering
     if (req.user && req.user.role !== "admin" && req.user.assignedAssets) {
@@ -604,8 +646,14 @@ export const updateComponentWarranty = async (req, res) => {
         return res.status(400).json({ error: "Invalid component type" });
     }
 
+    // Build query with tenant_id filter
+    let query = { _id: id };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
     // Update the hardware document
-    const updatedHardware = await Hardware.findByIdAndUpdate(id, updateQuery, {
+    const updatedHardware = await Hardware.findOneAndUpdate(query, updateQuery, {
       new: true,
       runValidators: true,
     });
@@ -724,8 +772,14 @@ export const updateUserComponentWarranty = async (req, res) => {
         return res.status(400).json({ error: "Invalid component type" });
     }
 
+    // Build query with tenant_id filter and user assignment check
+    let query = { _id: id };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
     // Update the hardware document
-    const updatedHardware = await Hardware.findByIdAndUpdate(id, updateQuery, {
+    const updatedHardware = await Hardware.findOneAndUpdate(query, updateQuery, {
       new: true,
       runValidators: true,
     });
@@ -770,8 +824,14 @@ export const createManualAsset = async (req, res) => {
     // Convert MAC address to uppercase for consistency
     const normalizedMacAddress = macAddress.toUpperCase();
 
+    // Build query with tenant_id filter
+    let query = { _id: normalizedMacAddress };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
     // Check if asset already exists
-    const existingAsset = await Hardware.findById(normalizedMacAddress);
+    const existingAsset = await Hardware.findOne(query);
     if (existingAsset) {
       return res.status(409).json({
         error: "Asset with this MAC address already exists",
@@ -781,6 +841,7 @@ export const createManualAsset = async (req, res) => {
     // Create minimal manual entry
     const manualAssetData = {
       _id: normalizedMacAddress,
+      tenant_id: req.user?.tenant_id || "default",
       system: {
         mac_address: normalizedMacAddress,
         hostname: hostname || `Manual-${normalizedMacAddress.slice(-6)}`,
@@ -865,10 +926,17 @@ export const createManualAsset = async (req, res) => {
 // Get all manual entries (assets created manually but not yet scanned)
 export const getManualEntries = async (req, res) => {
   try {
-    const manualAssets = await Hardware.find({
+    // Build query with tenant_id filter
+    let query = {
       "asset_info.entry_type": "manual",
       "scan_metadata.scan_status": "manual_entry_pending_scan",
-    });
+    };
+    
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+    
+    const manualAssets = await Hardware.find(query);
 
     res.json({
       success: true,
@@ -895,11 +963,17 @@ export const getUnassignedAssets = async (req, res) => {
   try {
     const User = (await import("../models/user.models.js")).default;
 
+    // Build tenant_id filter
+    let tenantFilter = {};
+    if (req.user && req.user.tenant_id) {
+      tenantFilter.tenant_id = req.user.tenant_id;
+    }
+    
     const allAssets = await Hardware.find(
-      {},
+      tenantFilter,
       "_id system.hostname system.mac_address"
     );
-    const users = await User.find({}, "assignedAssets");
+    const users = await User.find(tenantFilter, "assignedAssets");
 
     const assignedMacAddresses = new Set();
     users.forEach((user) => {
@@ -930,16 +1004,24 @@ export const getDashboardStats = async (req, res) => {
   try {
     const { user } = req;
 
+    // Build tenant_id filter
+    let tenantFilter = {};
+    if (req.user && req.user.tenant_id) {
+      tenantFilter.tenant_id = req.user.tenant_id;
+    }
+    
     // Get total assets count
-    const totalAssets = await Hardware.countDocuments();
+    const totalAssets = await Hardware.countDocuments(tenantFilter);
 
     // Get assigned assets count
     const assignedAssets = await Hardware.countDocuments({
+      ...tenantFilter,
       "system.mac_address": { $in: user.assignedAssets || [] },
     });
 
     // Get active assets count
     const activeAssets = await Hardware.countDocuments({
+      ...tenantFilter,
       "asset_info.status": "Active",
     });
 
@@ -948,6 +1030,7 @@ export const getDashboardStats = async (req, res) => {
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
     const expiringWarranties = await Hardware.countDocuments({
+      ...tenantFilter,
       "asset_info.warranty_expiry": {
         $gte: new Date(),
         $lte: thirtyDaysFromNow,
@@ -1123,6 +1206,7 @@ export const importCsvAssets = async (req, res) => {
         // Create hardware data object
         const hardwareData = {
           _id: macAddress,
+          tenant_id: req.user?.tenant_id || "default",
           system: {
             platform: "Unknown",
             platform_release: "Unknown",
@@ -1204,8 +1288,14 @@ export const importCsvAssets = async (req, res) => {
           },
         };
 
+        // Build query with tenant_id filter
+        let query = { _id: macAddress };
+        if (req.user && req.user.tenant_id) {
+          query.tenant_id = req.user.tenant_id;
+        }
+        
         // Check if asset already exists
-        const existingAsset = await Hardware.findById(macAddress);
+        const existingAsset = await Hardware.findOne(query);
         if (existingAsset) {
           results.push({ // Changed from results.errors.push to results.push
             row: rowNumber,

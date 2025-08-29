@@ -2,6 +2,9 @@ import mongoose from "mongoose";
 
 const TicketSchema = new mongoose.Schema(
   {
+    // Tenant ID for multi-tenancy
+    tenant_id: { type: String, required: true, index: true },
+    
     ticket_id: {
       type: String,
       unique: true,

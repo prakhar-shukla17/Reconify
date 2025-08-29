@@ -2,6 +2,9 @@ import mongoose from "mongoose";
 
 const SoftwarePatchSchema = new mongoose.Schema(
   {
+    // Tenant ID for multi-tenancy
+    tenant_id: { type: String, required: true, index: true },
+    
     software_name: { type: String, required: true },
     version: { type: String, required: true },
     vendor: { type: String, default: "Unknown" },
