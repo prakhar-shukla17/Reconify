@@ -56,13 +56,16 @@ export const downloadScanner = async (req, res) => {
         // Create a minimal user object for the download
         user = {
           _id: decoded.userId || decoded.id,
-          tenant_id: decoded.tenant_id || "default",
-          firstName: decoded.firstName || decoded.username || "User",
-          lastName: decoded.lastName || "",
-          email: decoded.email || "user@example.com",
-          department: decoded.department || "N/A",
+          tenant_id: decoded.tenant_id,
+          firstName: decoded.firstName,
+          lastName: decoded.lastName,
+          email: decoded.email,
+          department: decoded.department,
+          role: decoded.role,
         };
         console.log("Created user object:", user);
+        console.log("User tenant_id:", user.tenant_id);
+        console.log("Decoded token tenant_id:", decoded.tenant_id);
       } catch (tokenError) {
         console.log("Token validation failed:", tokenError.message);
         console.log("Token details:", {
@@ -87,6 +90,29 @@ export const downloadScanner = async (req, res) => {
       };
     }
 
+    // Ensure user has a valid tenant_id
+    if (!user.tenant_id || user.tenant_id === "default") {
+      console.log("Warning: User has no tenant_id or default tenant_id");
+      console.log("User object:", user);
+
+      // Try to get user from database if we have userId
+      if (user._id && user._id !== "default-user") {
+        try {
+          const User = (await import("../models/user.models.js")).default;
+          const dbUser = await User.findById(user._id);
+          if (dbUser && dbUser.tenant_id) {
+            console.log(
+              "Found user in database with tenant_id:",
+              dbUser.tenant_id
+            );
+            user.tenant_id = dbUser.tenant_id;
+          }
+        } catch (dbError) {
+          console.log("Failed to fetch user from database:", dbError.message);
+        }
+      }
+    }
+
     // Check user agent to detect download managers
     const userAgent = req.get("User-Agent") || "";
     const isDownloadManager =
@@ -105,7 +131,14 @@ export const downloadScanner = async (req, res) => {
 
     // Generate tenant-specific configuration
     const tenantId = user.tenant_id;
-    const apiToken = generateToken(user._id);
+    const apiToken = generateToken(user._id, {
+      tenant_id: user.tenant_id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      department: user.department,
+      role: user.role,
+    });
     const apiBaseUrl = process.env.API_BASE_URL || "http://localhost:3000/api";
 
     // Create temporary directory for scanner files

@@ -5,8 +5,17 @@ const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
 
 // Generate JWT token
-export const generateToken = (userId) => {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
+export const generateToken = (userId, userData = {}) => {
+  const tokenData = {
+    userId,
+    tenant_id: userData.tenant_id,
+    firstName: userData.firstName,
+    lastName: userData.lastName,
+    email: userData.email,
+    department: userData.department,
+    role: userData.role,
+  };
+  return jwt.sign(tokenData, JWT_SECRET, { expiresIn: "7d" });
 };
 
 // Verify JWT token middleware
@@ -14,7 +23,7 @@ export const verifyToken = async (req, res, next) => {
   try {
     console.log("=== verifyToken middleware ===");
     console.log("Headers:", req.headers);
-    
+
     const token = req.header("Authorization")?.replace("Bearer ", "");
     console.log("Token:", token ? `${token.substring(0, 20)}...` : "No token");
 
@@ -27,9 +36,14 @@ export const verifyToken = async (req, res, next) => {
 
     const decoded = jwt.verify(token, JWT_SECRET);
     console.log("Decoded token:", decoded);
-    
+
     const user = await User.findById(decoded.userId).select("-password");
-    console.log("User found:", user ? { id: user._id, username: user.username, role: user.role } : "No user");
+    console.log(
+      "User found:",
+      user
+        ? { id: user._id, username: user.username, role: user.role }
+        : "No user"
+    );
 
     if (!user) {
       console.log("User not found");
@@ -42,7 +56,11 @@ export const verifyToken = async (req, res, next) => {
     }
 
     req.user = user;
-    console.log("User set in req.user:", { id: req.user._id, username: req.user.username, role: req.user.role });
+    console.log("User set in req.user:", {
+      id: req.user._id,
+      username: req.user.username,
+      role: req.user.role,
+    });
     next();
   } catch (error) {
     console.error("Token verification error:", error);
@@ -55,14 +73,14 @@ export const requireAdmin = (req, res, next) => {
   console.log("=== requireAdmin middleware ===");
   console.log("req.user:", req.user);
   console.log("User role:", req.user?.role);
-  
+
   if (req.user.role !== "admin" && req.user.role !== "superadmin") {
     console.log("Access denied - user is not admin");
     return res
       .status(403)
       .json({ error: "Access denied. Admin privileges required." });
   }
-  
+
   console.log("Admin access granted");
   next();
 };
@@ -72,14 +90,14 @@ export const requireSuperAdmin = (req, res, next) => {
   console.log("=== requireSuperAdmin middleware ===");
   console.log("req.user:", req.user);
   console.log("User role:", req.user?.role);
-  
+
   if (req.user.role !== "superadmin") {
     console.log("Access denied - user is not super admin");
     return res
       .status(403)
       .json({ error: "Access denied. Super Admin privileges required." });
   }
-  
+
   console.log("Super Admin access granted");
   next();
 };

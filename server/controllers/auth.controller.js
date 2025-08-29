@@ -5,8 +5,16 @@ import { generateTenantId } from "../utils/tenantUtils.js";
 // Register new user
 export const register = async (req, res) => {
   try {
-    const { username, email, password, firstName, lastName, department, role, company } =
-      req.body;
+    const {
+      username,
+      email,
+      password,
+      firstName,
+      lastName,
+      department,
+      role,
+      company,
+    } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({
@@ -21,7 +29,7 @@ export const register = async (req, res) => {
 
     // Determine the role to assign
     let assignedRole = "user"; // Default role for new registrations
-    
+
     // If the requesting user is a super admin, they can create any role
     if (req.user && req.user.role === "superadmin") {
       assignedRole = role || "user";
@@ -57,8 +65,15 @@ export const register = async (req, res) => {
 
     await user.save();
 
-    // Generate token
-    const token = generateToken(user._id);
+    // Generate token with user data
+    const token = generateToken(user._id, {
+      tenant_id: user.tenant_id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      department: user.department,
+      role: user.role,
+    });
 
     // Return user data (excluding password)
     const userResponse = {
@@ -109,8 +124,15 @@ export const login = async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // Generate token
-    const token = generateToken(user._id);
+    // Generate token with user data
+    const token = generateToken(user._id, {
+      tenant_id: user.tenant_id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      department: user.department,
+      role: user.role,
+    });
 
     // Return user data (excluding password)
     const userResponse = {
@@ -519,7 +541,16 @@ export const getUnassignedAssets = async (req, res) => {
 // Admin: Create new user
 export const createUser = async (req, res) => {
   try {
-    const { username, email, password, firstName, lastName, department, role, company } = req.body;
+    const {
+      username,
+      email,
+      password,
+      firstName,
+      lastName,
+      department,
+      role,
+      company,
+    } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({
@@ -534,7 +565,7 @@ export const createUser = async (req, res) => {
 
     // Determine the role to assign based on admin permissions
     let assignedRole = "user"; // Default role for new registrations
-    
+
     if (req.user.role === "superadmin") {
       // Super admin can create any role
       assignedRole = role || "user";
