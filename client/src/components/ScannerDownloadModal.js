@@ -38,38 +38,59 @@ const ScannerDownloadModal = ({ isOpen, onClose }) => {
       setError(null);
       setDownloadProgress(0);
 
-      // Simulate progress
-      const progressInterval = setInterval(() => {
-        setDownloadProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 200);
+      // Get the authentication token
+      const token = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("token="))
+        ?.split("=")[1];
 
-      const response = await scannerAPI.downloadScanner(selectedPlatform);
-
-      // Create download link
-      const blob = new Blob([response.data], { type: "application/zip" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `itam_scanner_${selectedPlatform}.zip`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      clearInterval(progressInterval);
-      setDownloadProgress(100);
-
-      setTimeout(() => {
+      if (!token) {
+        setError("Authentication token not found. Please log in again.");
         setIsDownloading(false);
-        setDownloadProgress(0);
-        onClose();
-      }, 1000);
+        return;
+      }
+
+      // Use direct browser download with token as URL parameter
+      const downloadUrl = `http://localhost:3000/api/scanner/download?platform=${selectedPlatform}&token=${encodeURIComponent(
+        token
+      )}&t=${Date.now()}`;
+
+      console.log("Download URL:", downloadUrl);
+
+      // Create a temporary link element for direct browser download
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `itam_scanner_${selectedPlatform}.zip`;
+      link.target = "_blank"; // Open in new tab/window
+      link.rel = "noopener noreferrer";
+
+      // Add additional attributes to prevent download manager interception
+      link.setAttribute(
+        "data-downloadurl",
+        `application/zip:${link.download}:${link.href}`
+      );
+      link.style.display = "none";
+
+      // Add to DOM, click, and remove
+      document.body.appendChild(link);
+
+      // Small delay to ensure proper setup
+      setTimeout(() => {
+        console.log("Clicking download link...");
+        link.click();
+        document.body.removeChild(link);
+      }, 100);
+
+      // Show download started message
+      setDownloadProgress(50);
+      setTimeout(() => {
+        setDownloadProgress(100);
+        setTimeout(() => {
+          setIsDownloading(false);
+          setDownloadProgress(0);
+          onClose();
+        }, 1000);
+      }, 1500);
     } catch (error) {
       console.error("Download error:", error);
       setError("Failed to download scanner package");

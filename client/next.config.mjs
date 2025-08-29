@@ -4,6 +4,16 @@ const nextConfig = {
   experimental: {
     // This ensures consistent port usage
   },
+
+  // Proxy API requests to backend server
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "http://localhost:3000/api/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
