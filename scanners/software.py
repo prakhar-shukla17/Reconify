@@ -15,6 +15,11 @@ import uuid
 import winreg
 import glob
 
+# Tenant configuration - these will be set by the download system
+TENANT_ID = os.getenv('TENANT_ID', 'default')
+API_TOKEN = os.getenv('API_TOKEN', '')
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3000/api')
+
 # Optional imports for enhanced features
 try:
     import psutil
@@ -49,6 +54,14 @@ class SoftwareDetector:
         
         # Scan metadata
         self.software_info['scan_metadata'] = self._get_scan_metadata()
+        
+        # Add tenant information at root level for backend compatibility
+        self.software_info['tenant_id'] = TENANT_ID
+        self.software_info['tenant_info'] = {
+            'tenant_id': TENANT_ID,
+            'scanner_version': '2.0',
+            'configured_at': datetime.now().isoformat()
+        }
         
         return self.software_info
     
@@ -489,22 +502,51 @@ class SoftwareDetector:
     
     def _get_system_software(self):
         """Get system software information."""
-        system_software = {
-            'operating_system': {
-                'name': platform.system(),
-                'version': platform.version(),
-                'release': platform.release(),
-                'architecture': platform.machine()
-            },
-            'python_version': platform.python_version(),
-            'python_implementation': platform.python_implementation()
-        }
+        system_software = []
+        
+        # Add operating system as system software
+        system_software.append({
+            'name': f"{platform.system()} {platform.release()}",
+            'version': platform.version(),
+            'vendor': platform.system(),
+            'install_date': "Unknown",
+            'install_location': "System",
+            'size': "Unknown"
+        })
+        
+        # Add Python as system software
+        system_software.append({
+            'name': f"Python {platform.python_version()}",
+            'version': platform.python_version(),
+            'vendor': "Python Software Foundation",
+            'install_date': "Unknown",
+            'install_location': "System",
+            'size': "Unknown"
+        })
+        
+        # Add Python implementation
+        system_software.append({
+            'name': f"Python Implementation: {platform.python_implementation()}",
+            'version': platform.python_version(),
+            'vendor': "Python Software Foundation",
+            'install_date': "Unknown",
+            'install_location': "System",
+            'size': "Unknown"
+        })
         
         if PSUTIL_AVAILABLE:
             try:
-                system_software['boot_time'] = datetime.fromtimestamp(psutil.boot_time()).strftime("%Y-%m-%d %H:%M:%S")
+                boot_time = datetime.fromtimestamp(psutil.boot_time()).strftime("%Y-%m-%d %H:%M:%S")
+                system_software.append({
+                    'name': "System Boot Time",
+                    'version': boot_time,
+                    'vendor': "System",
+                    'install_date': "Unknown",
+                    'install_location': "System",
+                    'size': "Unknown"
+                })
             except:
-                system_software['boot_time'] = "Unknown"
+                pass
         
         return system_software
     
@@ -519,12 +561,13 @@ class SoftwareDetector:
             'total_startup_count': len(self.software_info.get('startup_programs', []))
         }
 
-def send_software_data(software_data, api_base_url="http://localhost:3000/api"):
+def send_software_data(software_data, api_base_url=API_BASE_URL, api_token=API_TOKEN):
     """Send software data to the API."""
     try:
         import requests
         
-        response = requests.post(f"{api_base_url}/software", json=software_data, timeout=30)
+        headers = {'Authorization': f'Bearer {api_token}'}
+        response = requests.post(f"{api_base_url}/software", json=software_data, headers=headers, timeout=30)
         
         if response.status_code in [200, 201]:
             print(f"Software data sent successfully: {len(software_data.get('installed_software', []))} applications")

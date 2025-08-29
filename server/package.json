@@ -13,6 +13,7 @@
     "setup": "node scripts/createAdmin.js"
   },
   "dependencies": {
+    "archiver": "^6.0.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",

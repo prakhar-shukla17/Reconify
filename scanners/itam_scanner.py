@@ -14,6 +14,11 @@ import logging
 from datetime import datetime
 import requests
 
+# Tenant configuration - these will be set by the download system
+TENANT_ID = os.getenv('TENANT_ID', 'default')
+API_TOKEN = os.getenv('API_TOKEN', '')
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3000/api')
+
 # Add current directory to path to import local modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -28,7 +33,6 @@ except ImportError as e:
     sys.exit(1)
 
 # Configuration
-API_BASE_URL = "http://localhost:3000/api"
 HARDWARE_SOFTWARE_INTERVAL = 60  # 1 hour in minutes
 TELEMETRY_INTERVAL = 10  # 10 minutes
 
@@ -53,6 +57,10 @@ class ITAMScanner:
         self.running = False
         self.hardware_detector = HardwareDetector()
         self.software_detector = SoftwareDetector()
+        
+        # Log tenant configuration
+        logger.info(f"Scanner initialized for tenant: {TENANT_ID}")
+        logger.info(f"API Base URL: {API_BASE_URL}")
         
     def start(self):
         """Start the ITAM scanner with scheduled tasks."""
@@ -147,7 +155,8 @@ class ITAMScanner:
     def send_software_data(self, software_data):
         """Send software data to the API."""
         try:
-            response = requests.post(f"{API_BASE_URL}/software", json=software_data, timeout=30)
+            headers = {'Authorization': f'Bearer {API_TOKEN}'}
+            response = requests.post(f"{API_BASE_URL}/software", json=software_data, headers=headers, timeout=30)
             return {
                 "success": response.status_code == 200,
                 "status_code": response.status_code,

@@ -9,6 +9,7 @@ import alertsrouter from "./router/alerts.route.js";
 import ticketrouter from "./router/ticket.route.js";
 import telemetryrouter from "./router/telemetry.route.js";
 import superadminrouter from "./router/superadmin.route.js";
+import scannerrouter from "./router/scanner.route.js";
 
 const app = express();
 configDotenv();
@@ -30,6 +31,7 @@ app.use("/api/alerts", alertsrouter);
 app.use("/api/tickets", ticketrouter);
 app.use("/api/telemetry", telemetryrouter);
 app.use("/api/superadmin", superadminrouter);
+app.use("/api/scanner", scannerrouter);
 
 // 404 handler for undefined routes
 app.use("*", (req, res) => {
@@ -43,8 +45,7 @@ app.use((error, req, res, next) => {
   res.status(500).json({ error: "Internal server error" });
 });
 // MongoDB connection URI
-const mongoUri =  process.env.MONGODB_URI;
-
+const mongoUri = process.env.MONGODB_URI;
 
 // Connect to MongoDB
 mongoose

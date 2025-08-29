@@ -46,7 +46,6 @@ export const authAPI = {
   getProfile: () => api.get("/auth/profile"),
   updateProfile: (userData) => api.put("/auth/profile", userData),
   getAllUsers: () => api.get("/auth/users"),
-  createUser: (userData) => api.post("/auth/create-user", userData),
   assignAsset: (userId, macAddress) =>
     api.post("/auth/assign-asset", { userId, macAddress }),
   assignMultipleAssets: (userId, macAddresses) =>
@@ -76,7 +75,12 @@ export const hardwareAPI = {
       componentIndex,
       warrantyInfo,
     }),
-  updateUserComponentWarranty: (id, componentType, componentIndex, warrantyInfo) =>
+  updateUserComponentWarranty: (
+    id,
+    componentType,
+    componentIndex,
+    warrantyInfo
+  ) =>
     api.put(`/hardware/${id}/user-component-warranty`, {
       componentType,
       componentIndex,
@@ -106,7 +110,10 @@ export const softwareAPI = {
 
 // Alerts API calls
 export const alertsAPI = {
-  getWarrantyAlerts: (days = 30, page = 1, limit = 20, filter = "all") => api.get(`/alerts/warranty?days=${days}&page=${page}&limit=${limit}&filter=${filter}`),
+  getWarrantyAlerts: (days = 30, page = 1, limit = 20, filter = "all") =>
+    api.get(
+      `/alerts/warranty?days=${days}&page=${page}&limit=${limit}&filter=${filter}`
+    ),
   getStatistics: () => api.get("/alerts/statistics"),
 };
 
@@ -134,6 +141,15 @@ export const ticketsAPI = {
 export const telemetryAPI = {
   getTelemetry: (macAddress) => api.get(`/telemetry/${macAddress}`),
   getHealthSummary: () => api.get("/telemetry/health-summary"),
+};
+
+// Scanner API calls
+export const scannerAPI = {
+  getPlatforms: () => api.get("/scanner/platforms"),
+  downloadScanner: (platform) =>
+    api.get(`/scanner/download?platform=${platform}`, {
+      responseType: "blob",
+    }),
 };
 
 export default api;

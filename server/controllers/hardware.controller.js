@@ -124,13 +124,13 @@ export const getAll = async (req, res) => {
 export const getById = async (req, res) => {
   try {
     const { id } = req.params; // MAC address
-    
+
     // Build query with tenant_id filter
     let query = { _id: id };
     if (req.user && req.user.tenant_id) {
       query.tenant_id = req.user.tenant_id;
     }
-    
+
     const hardware = await Hardware.findOne(query);
 
     if (!hardware) {
@@ -173,14 +173,22 @@ export const createHardware = async (req, res) => {
     if (req.user && req.user.tenant_id) {
       query.tenant_id = req.user.tenant_id;
     }
-    
+
     // Check if this is an update to an existing asset
     const existingHardware = await Hardware.findOne(query);
 
     if (existingHardware) {
+      // Determine tenant_id: prioritize scanner data, then existing data, then user context, then default
+      const tenantId =
+        hardwareData.tenant_id ||
+        existingHardware.tenant_id ||
+        req.user?.tenant_id ||
+        "default";
+
       // Update existing asset with scanner data
       let updatedData = {
         ...hardwareData,
+        tenant_id: tenantId, // Ensure tenant_id is preserved/updated
         scan_metadata: {
           ...hardwareData.scan_metadata,
           scan_status: "completed",
@@ -235,9 +243,12 @@ export const createHardware = async (req, res) => {
       });
     }
 
+    // Determine tenant_id: prioritize scanner data, then user context, then default
+    const tenantId = hardwareData.tenant_id || req.user?.tenant_id || "default";
+
     const dataWithCustomId = {
       _id: macAddressString,
-      tenant_id: req.user?.tenant_id || "default",
+      tenant_id: tenantId,
       ...hardwareData,
       asset_info: {
         ...hardwareData.asset_info,
@@ -301,7 +312,7 @@ export const updateAssetInfo = async (req, res) => {
     if (req.user && req.user.tenant_id) {
       query.tenant_id = req.user.tenant_id;
     }
-    
+
     // Update the hardware document
     const updatedHardware = await Hardware.findOneAndUpdate(
       query,
@@ -392,7 +403,7 @@ export const updateUserAssetInfo = async (req, res) => {
     if (req.user && req.user.tenant_id) {
       query.tenant_id = req.user.tenant_id;
     }
-    
+
     // Update the hardware document
     const updatedHardware = await Hardware.findOneAndUpdate(
       query,
@@ -436,14 +447,20 @@ export const getExpiringWarranties = async (req, res) => {
     if (req.user && req.user.tenant_id) {
       tenantFilter.tenant_id = req.user.tenant_id;
     }
-    
+
     // If user is admin, get all hardware with expiring warranties for their tenant
     if (req.user && req.user.role === "admin") {
-      hardwareList = await Hardware.findExpiringWarranties(daysNumber, tenantFilter);
+      hardwareList = await Hardware.findExpiringWarranties(
+        daysNumber,
+        tenantFilter
+      );
     }
     // If user is regular user, get only their assigned assets with expiring warranties
     else if (req.user && req.user.assignedAssets) {
-      const expiringAssets = await Hardware.findExpiringWarranties(daysNumber, tenantFilter);
+      const expiringAssets = await Hardware.findExpiringWarranties(
+        daysNumber,
+        tenantFilter
+      );
       hardwareList = expiringAssets.filter((asset) =>
         req.user.assignedAssets.includes(asset._id)
       );
@@ -651,12 +668,16 @@ export const updateComponentWarranty = async (req, res) => {
     if (req.user && req.user.tenant_id) {
       query.tenant_id = req.user.tenant_id;
     }
-    
+
     // Update the hardware document
-    const updatedHardware = await Hardware.findOneAndUpdate(query, updateQuery, {
-      new: true,
-      runValidators: true,
-    });
+    const updatedHardware = await Hardware.findOneAndUpdate(
+      query,
+      updateQuery,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
     if (!updatedHardware) {
       return res.status(404).json({ error: "Hardware not found" });
@@ -777,12 +798,16 @@ export const updateUserComponentWarranty = async (req, res) => {
     if (req.user && req.user.tenant_id) {
       query.tenant_id = req.user.tenant_id;
     }
-    
+
     // Update the hardware document
-    const updatedHardware = await Hardware.findOneAndUpdate(query, updateQuery, {
-      new: true,
-      runValidators: true,
-    });
+    const updatedHardware = await Hardware.findOneAndUpdate(
+      query,
+      updateQuery,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
     if (!updatedHardware) {
       return res.status(404).json({ error: "Hardware not found" });
@@ -829,7 +854,7 @@ export const createManualAsset = async (req, res) => {
     if (req.user && req.user.tenant_id) {
       query.tenant_id = req.user.tenant_id;
     }
-    
+
     // Check if asset already exists
     const existingAsset = await Hardware.findOne(query);
     if (existingAsset) {
@@ -900,22 +925,22 @@ export const createManualAsset = async (req, res) => {
     });
   } catch (error) {
     console.error("Create manual asset error:", error);
-    
+
     // Handle validation errors specifically
-    if (error.name === 'ValidationError') {
+    if (error.name === "ValidationError") {
       return res.status(400).json({
         error: "Validation error",
-        details: Object.values(error.errors).map(err => err.message)
+        details: Object.values(error.errors).map((err) => err.message),
       });
     }
-    
+
     // Handle duplicate key errors
     if (error.code === 11000) {
       return res.status(409).json({
-        error: "Asset with this MAC address already exists"
+        error: "Asset with this MAC address already exists",
       });
     }
-    
+
     res.status(500).json({
       error: "Failed to create manual asset entry",
       details: error.message,
@@ -931,11 +956,11 @@ export const getManualEntries = async (req, res) => {
       "asset_info.entry_type": "manual",
       "scan_metadata.scan_status": "manual_entry_pending_scan",
     };
-    
+
     if (req.user && req.user.tenant_id) {
       query.tenant_id = req.user.tenant_id;
     }
-    
+
     const manualAssets = await Hardware.find(query);
 
     res.json({
@@ -968,7 +993,7 @@ export const getUnassignedAssets = async (req, res) => {
     if (req.user && req.user.tenant_id) {
       tenantFilter.tenant_id = req.user.tenant_id;
     }
-    
+
     const allAssets = await Hardware.find(
       tenantFilter,
       "_id system.hostname system.mac_address"
@@ -1009,7 +1034,7 @@ export const getDashboardStats = async (req, res) => {
     if (req.user && req.user.tenant_id) {
       tenantFilter.tenant_id = req.user.tenant_id;
     }
-    
+
     // Get total assets count
     const totalAssets = await Hardware.countDocuments(tenantFilter);
 
@@ -1293,11 +1318,12 @@ export const importCsvAssets = async (req, res) => {
         if (req.user && req.user.tenant_id) {
           query.tenant_id = req.user.tenant_id;
         }
-        
+
         // Check if asset already exists
         const existingAsset = await Hardware.findOne(query);
         if (existingAsset) {
-          results.push({ // Changed from results.errors.push to results.push
+          results.push({
+            // Changed from results.errors.push to results.push
             row: rowNumber,
             message: `Asset with MAC address ${macAddress} already exists`,
           });
@@ -1311,7 +1337,8 @@ export const importCsvAssets = async (req, res) => {
         await newAsset.save();
 
         successCount++;
-        results.push({ // Changed from results.importedAssets.push to results.push
+        results.push({
+          // Changed from results.importedAssets.push to results.push
           assetId,
           assetName: fullAssetName,
           macAddress,
@@ -1323,7 +1350,8 @@ export const importCsvAssets = async (req, res) => {
         // );
       } catch (error) {
         console.error(`Error processing row ${rowNumber}:`, error);
-        results.push({ // Changed from results.errors.push to results.push
+        results.push({
+          // Changed from results.errors.push to results.push
           row: rowNumber,
           message: `Error processing row: ${error.message}`,
         });

@@ -4,6 +4,12 @@ import requests
 from datetime import datetime
 import uuid
 import socket
+import os
+
+# Tenant configuration - these will be set by the download system
+TENANT_ID = os.getenv('TENANT_ID', 'default')
+API_TOKEN = os.getenv('API_TOKEN', '')
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3000/api')
 
 # Check if psutil is available
 try:
@@ -60,7 +66,8 @@ def get_system_usage():
         "mac_address": mac_address,
         "cpu_percent": cpu_percent,
         "ram_percent": ram_percent,
-        "storage_percent": storage_percent
+        "storage_percent": storage_percent,
+        "tenant_id": TENANT_ID  # Add tenant ID to telemetry data
     }
     return telemetry_data
 
@@ -69,7 +76,8 @@ def send_telemetry(api_url):
     data = get_system_usage()
     print(data)
     try:
-        response = requests.post(api_url, json=data, timeout=10)
+        headers = {'Authorization': f'Bearer {API_TOKEN}'}
+        response = requests.post(api_url, json=data, headers=headers, timeout=10)
         return {
             "success": True,
             "status_code": response.status_code,

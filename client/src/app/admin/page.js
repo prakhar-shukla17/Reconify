@@ -17,18 +17,25 @@ import TicketManagementModal from "../../components/lazy/TicketManagementModal.l
 import HealthDashboard from "../../components/lazy/HealthDashboard.lazy";
 import MLServiceControlPanel from "../../components/lazy/MLServiceControlPanel.lazy";
 import CreateUserModal from "../../components/CreateUserModal";
+import ScannerDownloadModal from "../../components/ScannerDownloadModal";
 
 import LazyLoader from "../../components/LazyLoader";
 import Pagination from "../../components/Pagination";
-import { hardwareAPI, authAPI, ticketsAPI, softwareAPI, alertsAPI } from "../../lib/api";
+import {
+  hardwareAPI,
+  authAPI,
+  ticketsAPI,
+  softwareAPI,
+  alertsAPI,
+} from "../../lib/api";
 import toast from "react-hot-toast";
 
-import { 
-  exportTicketsToCSV, 
-  exportTicketStatsToCSV, 
-  exportTicketsResolvedToday, 
+import {
+  exportTicketsToCSV,
+  exportTicketStatsToCSV,
+  exportTicketsResolvedToday,
   exportTicketsByTimePeriod,
-  exportTicketsBySLACompliance
+  exportTicketsBySLACompliance,
 } from "../../utils/exportUtils";
 import {
   Users,
@@ -89,29 +96,27 @@ export default function AdminPage() {
     critical: 0,
     high: 0,
     medium: 0,
-    low: 0
+    low: 0,
   });
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
-
-
-
-
+  const [showScannerDownloadModal, setShowScannerDownloadModal] =
+    useState(false);
 
   // Enhanced ticket filtering and pagination state
   const [ticketFilters, setTicketFilters] = useState({
-    status: 'all',
-    priority: 'all',
-    category: 'all',
-    searchTerm: '',
-    dateRange: 'all',
-    assignedTo: 'all'
+    status: "all",
+    priority: "all",
+    category: "all",
+    searchTerm: "",
+    dateRange: "all",
+    assignedTo: "all",
   });
-  
+
   const [ticketPagination, setTicketPagination] = useState({
     currentPage: 1,
     itemsPerPage: 12,
     totalPages: 1,
-    totalItems: 0
+    totalItems: 0,
   });
 
   // Ref for the assets section to scroll to
@@ -122,7 +127,7 @@ export default function AdminPage() {
     currentPage: 1,
     itemsPerPage: 9,
     totalPages: 1,
-    totalItems: 0
+    totalItems: 0,
   });
 
   // Asset cache for better performance
@@ -153,168 +158,197 @@ export default function AdminPage() {
   // Set cached tickets
   const setCachedTickets = useCallback((data) => {
     const cacheKey = `admin-tickets`;
-    setTicketCache(prev => new Map(prev).set(cacheKey, {
-      data,
-      timestamp: Date.now()
-    }));
+    setTicketCache((prev) =>
+      new Map(prev).set(cacheKey, {
+        data,
+        timestamp: Date.now(),
+      })
+    );
   }, []);
 
   // Optimized ticket fetching with caching
-  const fetchTickets = useCallback(async (forceRefresh = false) => {
-    // Check cache first (unless forcing refresh)
-    if (!forceRefresh) {
-      const cached = getCachedTickets();
-      if (cached) {
-        setTickets(cached);
-        setTicketError(null);
-        return;
-      }
-    }
-
-    try {
-      setTicketLoading(true);
-      setTicketError(null);
-      
-      const response = await ticketsAPI.getAll({ page: 1, limit: 10000 }); // Increased limit to ensure all tickets are fetched
-      const ticketsData = response.data.data || [];
-
-      // Sort tickets: active tickets first, closed tickets last
-      const sortedTickets = ticketsData.sort((a, b) => {
-        const aIsClosed = a.status === "Closed" || a.status === "Rejected";
-        const bIsClosed = b.status === "Closed" || b.status === "Rejected";
-
-        if (aIsClosed && !bIsClosed) return 1; // a goes after b
-        if (!aIsClosed && bIsClosed) return -1; // a goes before b
-        
-        // For active tickets, prioritize by priority and creation date
-        if (!aIsClosed && !bIsClosed) {
-          const priorityOrder = { 'Critical': 1, 'High': 2, 'Medium': 3, 'Low': 4 };
-          const aPriority = priorityOrder[a.priority] || 5;
-          const bPriority = priorityOrder[b.priority] || 5;
-          
-          if (aPriority !== bPriority) {
-            return aPriority - bPriority;
-          }
-          
-          // If same priority, show newer tickets first
-          return new Date(b.created_at) - new Date(a.created_at);
+  const fetchTickets = useCallback(
+    async (forceRefresh = false) => {
+      // Check cache first (unless forcing refresh)
+      if (!forceRefresh) {
+        const cached = getCachedTickets();
+        if (cached) {
+          setTickets(cached);
+          setTicketError(null);
+          return;
         }
-        
-        return 0; // keep original order for closed tickets
-      });
+      }
 
-      setTickets(sortedTickets);
-      setCachedTickets(sortedTickets);
-      setLastTicketFetch(Date.now());
-    } catch (error) {
-      console.error("Error fetching tickets:", error);
-      setTicketError("Failed to load tickets");
-      toast.error("Failed to load tickets");
-    } finally {
-      setTicketLoading(false);
-    }
-  }, [getCachedTickets, setCachedTickets]);
+      try {
+        setTicketLoading(true);
+        setTicketError(null);
+
+        const response = await ticketsAPI.getAll({ page: 1, limit: 10000 }); // Increased limit to ensure all tickets are fetched
+        const ticketsData = response.data.data || [];
+
+        // Sort tickets: active tickets first, closed tickets last
+        const sortedTickets = ticketsData.sort((a, b) => {
+          const aIsClosed = a.status === "Closed" || a.status === "Rejected";
+          const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+
+          if (aIsClosed && !bIsClosed) return 1; // a goes after b
+          if (!aIsClosed && bIsClosed) return -1; // a goes before b
+
+          // For active tickets, prioritize by priority and creation date
+          if (!aIsClosed && !bIsClosed) {
+            const priorityOrder = { Critical: 1, High: 2, Medium: 3, Low: 4 };
+            const aPriority = priorityOrder[a.priority] || 5;
+            const bPriority = priorityOrder[b.priority] || 5;
+
+            if (aPriority !== bPriority) {
+              return aPriority - bPriority;
+            }
+
+            // If same priority, show newer tickets first
+            return new Date(b.created_at) - new Date(a.created_at);
+          }
+
+          return 0; // keep original order for closed tickets
+        });
+
+        setTickets(sortedTickets);
+        setCachedTickets(sortedTickets);
+        setLastTicketFetch(Date.now());
+      } catch (error) {
+        console.error("Error fetching tickets:", error);
+        setTicketError("Failed to load tickets");
+        toast.error("Failed to load tickets");
+      } finally {
+        setTicketLoading(false);
+      }
+    },
+    [getCachedTickets, setCachedTickets]
+  );
 
   // Check if any filters are active
   const hasActiveFilters = useMemo(() => {
-    return ticketFilters.status !== 'all' || 
-           ticketFilters.priority !== 'all' || 
-           ticketFilters.dateRange !== 'all' || 
-           ticketFilters.searchTerm ||
-           ticketFilters.category !== 'all' ||
-           ticketFilters.assignedTo !== 'all';
+    return (
+      ticketFilters.status !== "all" ||
+      ticketFilters.priority !== "all" ||
+      ticketFilters.dateRange !== "all" ||
+      ticketFilters.searchTerm ||
+      ticketFilters.category !== "all" ||
+      ticketFilters.assignedTo !== "all"
+    );
   }, [ticketFilters]);
 
   // Memoized filtered tickets with advanced filtering
   const filteredTickets = useMemo(() => {
     let filtered = [...tickets];
-    
+
     // Status filter
-    if (ticketFilters.status !== 'all') {
-      filtered = filtered.filter(ticket => ticket.status === ticketFilters.status);
+    if (ticketFilters.status !== "all") {
+      filtered = filtered.filter(
+        (ticket) => ticket.status === ticketFilters.status
+      );
     } else {
       // By default, only show active tickets (exclude closed and rejected)
-      filtered = filtered.filter(ticket => 
-        ticket.status !== 'Closed' && ticket.status !== 'Rejected'
+      filtered = filtered.filter(
+        (ticket) => ticket.status !== "Closed" && ticket.status !== "Rejected"
       );
     }
-    
+
     // Priority filter
-    if (ticketFilters.priority !== 'all') {
-      filtered = filtered.filter(ticket => ticket.priority === ticketFilters.priority);
+    if (ticketFilters.priority !== "all") {
+      filtered = filtered.filter(
+        (ticket) => ticket.priority === ticketFilters.priority
+      );
     }
-    
+
     // Category filter
-    if (ticketFilters.category !== 'all') {
-      filtered = filtered.filter(ticket => ticket.category === ticketFilters.category);
+    if (ticketFilters.category !== "all") {
+      filtered = filtered.filter(
+        (ticket) => ticket.category === ticketFilters.category
+      );
     }
-    
+
     // Search term filter
     if (ticketFilters.searchTerm) {
       const searchLower = ticketFilters.searchTerm.toLowerCase();
-      filtered = filtered.filter(ticket =>
-        ticket.title?.toLowerCase().includes(searchLower) ||
-        ticket.description?.toLowerCase().includes(searchLower) ||
-        ticket.ticket_id?.toLowerCase().includes(searchLower) ||
-        ticket.created_by_name?.toLowerCase().includes(searchLower) ||
-        ticket.asset_hostname?.toLowerCase().includes(searchLower)
+      filtered = filtered.filter(
+        (ticket) =>
+          ticket.title?.toLowerCase().includes(searchLower) ||
+          ticket.description?.toLowerCase().includes(searchLower) ||
+          ticket.ticket_id?.toLowerCase().includes(searchLower) ||
+          ticket.created_by_name?.toLowerCase().includes(searchLower) ||
+          ticket.asset_hostname?.toLowerCase().includes(searchLower)
       );
     }
-    
+
     // Date range filter
-    if (ticketFilters.dateRange !== 'all') {
+    if (ticketFilters.dateRange !== "all") {
       const now = new Date();
       let startDate;
-      
+
       switch (ticketFilters.dateRange) {
-        case 'today':
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        case "today":
+          startDate = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+          );
           break;
-        case 'week':
-          startDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+        case "week":
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           break;
-        case 'month':
-          startDate = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+        case "month":
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
           break;
-        case 'quarter':
-          startDate = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+        case "quarter":
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
           break;
         default:
           break;
       }
-      
+
       if (startDate) {
-        filtered = filtered.filter(ticket => new Date(ticket.created_at) >= startDate);
+        filtered = filtered.filter(
+          (ticket) => new Date(ticket.created_at) >= startDate
+        );
       }
     }
-    
+
     // Assigned to filter
-    if (ticketFilters.assignedTo !== 'all') {
-      if (ticketFilters.assignedTo === 'unassigned') {
-        filtered = filtered.filter(ticket => !ticket.assigned_to?.username);
+    if (ticketFilters.assignedTo !== "all") {
+      if (ticketFilters.assignedTo === "unassigned") {
+        filtered = filtered.filter((ticket) => !ticket.assigned_to?.username);
       } else {
-        filtered = filtered.filter(ticket => ticket.assigned_to?.username === ticketFilters.assignedTo);
+        filtered = filtered.filter(
+          (ticket) => ticket.assigned_to?.username === ticketFilters.assignedTo
+        );
       }
     }
-    
+
     return filtered;
   }, [tickets, ticketFilters, hasActiveFilters]);
 
   // Memoized paginated tickets
   const paginatedTickets = useMemo(() => {
-    const startIndex = (ticketPagination.currentPage - 1) * ticketPagination.itemsPerPage;
+    const startIndex =
+      (ticketPagination.currentPage - 1) * ticketPagination.itemsPerPage;
     const endIndex = startIndex + ticketPagination.itemsPerPage;
     return filteredTickets.slice(startIndex, endIndex);
-  }, [filteredTickets, ticketPagination.currentPage, ticketPagination.itemsPerPage]);
+  }, [
+    filteredTickets,
+    ticketPagination.currentPage,
+    ticketPagination.itemsPerPage,
+  ]);
 
   // Update pagination when filters change
   useEffect(() => {
-    const totalPages = Math.ceil(filteredTickets.length / ticketPagination.itemsPerPage);
-    setTicketPagination(prev => ({
+    const totalPages = Math.ceil(
+      filteredTickets.length / ticketPagination.itemsPerPage
+    );
+    setTicketPagination((prev) => ({
       ...prev,
       currentPage: 1, // Reset to first page when filters change
       totalPages: Math.max(1, totalPages),
-      totalItems: filteredTickets.length
+      totalItems: filteredTickets.length,
     }));
   }, [filteredTickets, ticketPagination.itemsPerPage]);
 
@@ -323,58 +357,61 @@ export default function AdminPage() {
     const handleKeyDown = (e) => {
       if (activeTab === "tickets") {
         switch (e.key) {
-          case 'ArrowLeft':
+          case "ArrowLeft":
             if (e.ctrlKey) {
               e.preventDefault();
-              setTicketPagination(prev => ({
+              setTicketPagination((prev) => ({
                 ...prev,
-                currentPage: Math.max(1, prev.currentPage - 1)
+                currentPage: Math.max(1, prev.currentPage - 1),
               }));
             }
             break;
-          case 'ArrowRight':
+          case "ArrowRight":
             if (e.ctrlKey) {
               e.preventDefault();
-              setTicketPagination(prev => ({
+              setTicketPagination((prev) => ({
                 ...prev,
-                currentPage: Math.min(prev.totalPages, prev.currentPage + 1)
+                currentPage: Math.min(prev.totalPages, prev.currentPage + 1),
               }));
             }
             break;
-          case 'Home':
+          case "Home":
             if (e.ctrlKey) {
               e.preventDefault();
-              setTicketPagination(prev => ({ ...prev, currentPage: 1 }));
+              setTicketPagination((prev) => ({ ...prev, currentPage: 1 }));
             }
             break;
-          case 'End':
+          case "End":
             if (e.ctrlKey) {
               e.preventDefault();
-              setTicketPagination(prev => ({ ...prev, currentPage: prev.totalPages }));
+              setTicketPagination((prev) => ({
+                ...prev,
+                currentPage: prev.totalPages,
+              }));
             }
             break;
-          case 'Escape':
+          case "Escape":
             setTicketFilters({
-              status: 'all',
-              priority: 'all',
-              category: 'all',
-              searchTerm: '',
-              dateRange: 'all',
-              assignedTo: 'all'
+              status: "all",
+              priority: "all",
+              category: "all",
+              searchTerm: "",
+              dateRange: "all",
+              assignedTo: "all",
             });
             break;
         }
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [activeTab, ticketPagination.totalPages]);
 
   // Memoized ticket statistics
   const ticketStats = useMemo(() => {
     if (!tickets.length) return { total: 0, open: 0, resolved: 0, closed: 0 };
-    
+
     return {
       total: tickets.length,
       open: tickets.filter((t) => t.status === "Open").length,
@@ -385,8 +422,8 @@ export default function AdminPage() {
 
   // Memoized filtered tickets (only active tickets for display)
   const activeTickets = useMemo(() => {
-    return tickets.filter(ticket => 
-      ticket.status !== "Closed" && ticket.status !== "Rejected"
+    return tickets.filter(
+      (ticket) => ticket.status !== "Closed" && ticket.status !== "Rejected"
     );
   }, [tickets]);
 
@@ -409,10 +446,10 @@ export default function AdminPage() {
         } else if (activeTab === "alerts") {
           await fetchAlerts();
         }
-        
+
         // Always load users for assignment functionality
         await fetchUsers();
-        
+
         // Load dashboard stats for accurate asset counts
         await fetchDashboardStats();
       } catch (error) {
@@ -475,17 +512,28 @@ export default function AdminPage() {
   useEffect(() => {
     if (activeTab === "assets") {
       if (assetType === "hardware") {
-        fetchHardware(assetPagination.currentPage, assetPagination.itemsPerPage);
+        fetchHardware(
+          assetPagination.currentPage,
+          assetPagination.itemsPerPage
+        );
       } else {
-        fetchSoftware(assetPagination.currentPage, assetPagination.itemsPerPage);
+        fetchSoftware(
+          assetPagination.currentPage,
+          assetPagination.itemsPerPage
+        );
       }
     }
-  }, [assetPagination.currentPage, assetPagination.itemsPerPage, activeTab, assetType]);
+  }, [
+    assetPagination.currentPage,
+    assetPagination.itemsPerPage,
+    activeTab,
+    assetType,
+  ]);
 
   // Reset pagination when search or filter changes
   useEffect(() => {
-    setAssetPagination(prev => ({ ...prev, currentPage: 1 }));
-    
+    setAssetPagination((prev) => ({ ...prev, currentPage: 1 }));
+
     // Clear cache when filters change for fresh results
     setAssetCache(new Map());
   }, [searchTerm, filterType]);
@@ -506,26 +554,30 @@ export default function AdminPage() {
     } else {
       fetchSoftware(1, assetPagination.itemsPerPage);
     }
-    
+
     // Refresh dashboard stats when switching asset types
     fetchDashboardStats();
   };
 
-  const fetchHardware = async (page = 1, limit = assetPagination.itemsPerPage) => {
+  const fetchHardware = async (
+    page = 1,
+    limit = assetPagination.itemsPerPage
+  ) => {
     try {
       // Check cache first
       const cacheKey = `hardware_${page}_${limit}_${searchTerm}_${filterType}`;
       const cached = assetCache.get(cacheKey);
-      
-      if (cached && Date.now() - cached.timestamp < 300000) { // 5 minutes TTL
+
+      if (cached && Date.now() - cached.timestamp < 300000) {
+        // 5 minutes TTL
         setHardware(cached.data);
         if (cached.pagination) {
-          setAssetPagination(prev => ({
+          setAssetPagination((prev) => ({
             ...prev,
             currentPage: cached.pagination.currentPage,
             totalPages: cached.pagination.totalPages,
             totalItems: cached.pagination.totalItems,
-            itemsPerPage: cached.pagination.itemsPerPage
+            itemsPerPage: cached.pagination.itemsPerPage,
           }));
         }
         return;
@@ -541,7 +593,7 @@ export default function AdminPage() {
       // Build query parameters
       const params = {
         page,
-        limit
+        limit,
       };
 
       // Add search and filter parameters if we're on the assets tab
@@ -561,21 +613,26 @@ export default function AdminPage() {
 
       // Update pagination state from server response
       if (response.data.pagination) {
-        console.log('Hardware API response pagination:', response.data.pagination);
-        setAssetPagination(prev => ({
+        console.log(
+          "Hardware API response pagination:",
+          response.data.pagination
+        );
+        setAssetPagination((prev) => ({
           ...prev,
           currentPage: response.data.pagination.currentPage,
           totalPages: response.data.pagination.totalPages,
           totalItems: response.data.pagination.totalItems,
-          itemsPerPage: response.data.pagination.itemsPerPage
+          itemsPerPage: response.data.pagination.itemsPerPage,
         }));
 
         // Cache the response with pagination data
-        setAssetCache(prev => new Map(prev).set(cacheKey, {
-          data: hardwareData,
-          pagination: response.data.pagination,
-          timestamp: Date.now()
-        }));
+        setAssetCache((prev) =>
+          new Map(prev).set(cacheKey, {
+            data: hardwareData,
+            pagination: response.data.pagination,
+            timestamp: Date.now(),
+          })
+        );
       }
     } catch (error) {
       console.error("Error fetching hardware:", error);
@@ -590,30 +647,32 @@ export default function AdminPage() {
   const fetchDashboardStats = async () => {
     try {
       const response = await hardwareAPI.getStats();
-      console.log('Dashboard stats API response:', response.data);
+      console.log("Dashboard stats API response:", response.data);
       setDashboardStats(response.data.data);
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
     }
   };
 
-
-
-  const fetchSoftware = async (page = 1, limit = assetPagination.itemsPerPage) => {
+  const fetchSoftware = async (
+    page = 1,
+    limit = assetPagination.itemsPerPage
+  ) => {
     try {
       // Check cache first
       const cacheKey = `software_${page}_${limit}_${searchTerm}_${filterType}`;
       const cached = assetCache.get(cacheKey);
-      
-      if (cached && Date.now() - cached.timestamp < 300000) { // 5 minutes TTL
+
+      if (cached && Date.now() - cached.timestamp < 300000) {
+        // 5 minutes TTL
         setSoftware(cached.data);
         if (cached.pagination) {
-          setAssetPagination(prev => ({
+          setAssetPagination((prev) => ({
             ...prev,
             currentPage: cached.pagination.currentPage,
             totalPages: cached.pagination.totalPages,
             totalItems: cached.pagination.totalItems,
-            itemsPerPage: cached.pagination.itemsPerPage
+            itemsPerPage: cached.pagination.itemsPerPage,
           }));
         }
         return;
@@ -629,7 +688,7 @@ export default function AdminPage() {
       // Build query parameters
       const params = {
         page,
-        limit
+        limit,
       };
 
       // Add search and filter parameters if we're on the assets tab
@@ -649,21 +708,26 @@ export default function AdminPage() {
 
       // Update pagination state from server response
       if (response.data.pagination) {
-        console.log('Software API response pagination:', response.data.pagination);
-        setAssetPagination(prev => ({
+        console.log(
+          "Software API response pagination:",
+          response.data.pagination
+        );
+        setAssetPagination((prev) => ({
           ...prev,
           currentPage: response.data.pagination.currentPage,
           totalPages: response.data.pagination.totalPages,
           totalItems: response.data.pagination.totalItems,
-          itemsPerPage: response.data.pagination.itemsPerPage
+          itemsPerPage: response.data.pagination.itemsPerPage,
         }));
 
         // Cache the response with pagination data
-        setAssetCache(prev => new Map(prev).set(cacheKey, {
-          data: softwareData,
-          pagination: response.data.pagination,
-          timestamp: Date.now()
-        }));
+        setAssetCache((prev) =>
+          new Map(prev).set(cacheKey, {
+            data: softwareData,
+            pagination: response.data.pagination,
+            timestamp: Date.now(),
+          })
+        );
       }
     } catch (error) {
       console.error("Error fetching software:", error);
@@ -682,20 +746,28 @@ export default function AdminPage() {
       console.log("Users API response:", response);
       const usersData = response.data.users || [];
       console.log("Users data:", usersData);
-      
+
       // Ensure user objects have the expected structure
-      const normalizedUsers = usersData.map(user => ({
+      const normalizedUsers = usersData.map((user) => ({
         id: user._id || user.id,
         username: user.username || user.email,
         email: user.email,
-        firstName: user.firstName || user.first_name || user.name?.split(' ')[0] || 'Unknown',
-        lastName: user.lastName || user.last_name || user.name?.split(' ').slice(1).join(' ') || 'Unknown',
-        role: user.role || 'user',
-        department: user.department || 'Not specified',
+        firstName:
+          user.firstName ||
+          user.first_name ||
+          user.name?.split(" ")[0] ||
+          "Unknown",
+        lastName:
+          user.lastName ||
+          user.last_name ||
+          user.name?.split(" ").slice(1).join(" ") ||
+          "Unknown",
+        role: user.role || "user",
+        department: user.department || "Not specified",
         assignedAssets: user.assignedAssets || user.assigned_assets || [],
-        isActive: user.isActive !== undefined ? user.isActive : true
+        isActive: user.isActive !== undefined ? user.isActive : true,
       }));
-      
+
       console.log("Normalized users:", normalizedUsers);
       setUsers(normalizedUsers);
     } catch (error) {
@@ -705,8 +777,6 @@ export default function AdminPage() {
       setLoading(false);
     }
   };
-
-
 
   const fetchAlerts = async () => {
     try {
@@ -830,21 +900,22 @@ export default function AdminPage() {
     } else if (activeTab === "assets") {
       if (assetType === "hardware") {
         // Hardware statistics - use total count from pagination for overall count
-        const totalAssets = assetPagination.totalItems || dashboardStats?.totalAssets || 0;
-        
+        const totalAssets =
+          assetPagination.totalItems || dashboardStats?.totalAssets || 0;
+
         // Calculate assigned assets from users data for more accurate count
         const assignedAssets = users.reduce((total, user) => {
           return total + (user.assignedAssets?.length || 0);
         }, 0);
 
         // Debug logging to verify total count
-        console.log('Admin stats - Hardware:', {
+        console.log("Admin stats - Hardware:", {
           assetPaginationTotalItems: assetPagination.totalItems,
           dashboardStatsTotalAssets: dashboardStats?.totalAssets,
           calculatedTotalAssets: totalAssets,
           currentPageHardwareCount: hardware.length,
           assignedAssets,
-          unassignedAssets: totalAssets - assignedAssets
+          unassignedAssets: totalAssets - assignedAssets,
         });
 
         return {
@@ -869,13 +940,13 @@ export default function AdminPage() {
         );
 
         // Debug logging to verify total count
-        console.log('Admin stats - Software:', {
+        console.log("Admin stats - Software:", {
           assetPaginationTotalItems: assetPagination.totalItems,
           calculatedTotalSystems: totalSystems,
           currentPageSoftwareCount: software.length,
           totalPackages,
           totalServices,
-          totalStartupPrograms
+          totalStartupPrograms,
         });
 
         return {
@@ -890,11 +961,20 @@ export default function AdminPage() {
       const totalUsers = users.length;
       const activeUsers = users.filter((u) => u.isActive).length;
       const inactiveUsers = totalUsers - activeUsers;
-      const usersWithAssets = users.filter((u) => u.assignedAssets?.length > 0).length;
+      const usersWithAssets = users.filter(
+        (u) => u.assignedAssets?.length > 0
+      ).length;
       const usersWithoutAssets = totalUsers - usersWithAssets;
-      const totalAssignedAssets = users.reduce((sum, u) => sum + (u.assignedAssets?.length || 0), 0);
-      const averageAssetsPerUser = totalUsers > 0 ? (totalAssignedAssets / totalUsers).toFixed(1) : 0;
-      const maxAssetsPerUser = Math.max(...users.map((u) => u.assignedAssets?.length || 0), 0);
+      const totalAssignedAssets = users.reduce(
+        (sum, u) => sum + (u.assignedAssets?.length || 0),
+        0
+      );
+      const averageAssetsPerUser =
+        totalUsers > 0 ? (totalAssignedAssets / totalUsers).toFixed(1) : 0;
+      const maxAssetsPerUser = Math.max(
+        ...users.map((u) => u.assignedAssets?.length || 0),
+        0
+      );
 
       return {
         totalUsers,
@@ -933,7 +1013,8 @@ export default function AdminPage() {
   const stats = getSystemStats();
 
   // Search function that only triggers when explicitly called
-  const handleSearch = useCallback((term) => {
+  const handleSearch = useCallback(
+    (term) => {
       setSearchTerm(term);
       if (activeTab === "assets") {
         if (assetType === "hardware") {
@@ -944,7 +1025,9 @@ export default function AdminPage() {
       } else if (activeTab === "users") {
         fetchUsers();
       }
-  }, [activeTab, assetType, fetchHardware, fetchSoftware, fetchUsers]);
+    },
+    [activeTab, assetType, fetchHardware, fetchSoftware, fetchUsers]
+  );
 
   // Handle search input change without triggering search
   const handleSearchInputChange = (value) => {
@@ -972,7 +1055,7 @@ export default function AdminPage() {
 
   // Handle Enter key press in search input
   const handleSearchKeyPress = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleSearchSubmit();
     }
   };
@@ -980,14 +1063,14 @@ export default function AdminPage() {
   // Pagination handlers for assets
   const handleAssetPageChange = (newPage) => {
     setPaginationLoading(true);
-    setAssetPagination(prev => ({ ...prev, currentPage: newPage }));
-    
+    setAssetPagination((prev) => ({ ...prev, currentPage: newPage }));
+
     // Scroll to top of assets section when page changes
     setTimeout(() => {
       if (assetsSectionRef.current) {
-        assetsSectionRef.current.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start' 
+        assetsSectionRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
         });
       }
     }, 100); // Small delay to ensure state update completes
@@ -995,18 +1078,18 @@ export default function AdminPage() {
 
   const handleAssetItemsPerPageChange = (newItemsPerPage) => {
     setPaginationLoading(true);
-    setAssetPagination(prev => ({ 
-      ...prev, 
+    setAssetPagination((prev) => ({
+      ...prev,
       itemsPerPage: newItemsPerPage,
-      currentPage: 1 // Reset to first page
+      currentPage: 1, // Reset to first page
     }));
-    
+
     // Scroll to top of assets section when items per page changes
     setTimeout(() => {
       if (assetsSectionRef.current) {
-        assetsSectionRef.current.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start' 
+        assetsSectionRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
         });
       }
     }, 100); // Small delay to ensure state update completes
@@ -1014,11 +1097,16 @@ export default function AdminPage() {
 
   // Handle URL query parameters for tab navigation
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
-      const tabParam = urlParams.get('tab');
-      
-      if (tabParam && ['assets', 'users', 'tickets', 'alerts', 'health', 'ml'].includes(tabParam)) {
+      const tabParam = urlParams.get("tab");
+
+      if (
+        tabParam &&
+        ["assets", "users", "tickets", "alerts", "health", "ml"].includes(
+          tabParam
+        )
+      ) {
         setActiveTab(tabParam);
       }
     }
@@ -1038,19 +1126,22 @@ export default function AdminPage() {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Admin Panel
               </button>
-                             <HardwareDetails 
-                 hardware={selectedHardware} 
-                 onHardwareUpdate={(updatedHardware) => {
-                   console.log('Admin page received onHardwareUpdate:', updatedHardware);
-                   setSelectedHardware(updatedHardware);
-                   // Also update the hardware in the main list
-                   setHardware(prevHardware => 
-                     prevHardware.map(h => 
-                       h._id === updatedHardware._id ? updatedHardware : h
-                     )
-                   );
-                 }}
-               />
+              <HardwareDetails
+                hardware={selectedHardware}
+                onHardwareUpdate={(updatedHardware) => {
+                  console.log(
+                    "Admin page received onHardwareUpdate:",
+                    updatedHardware
+                  );
+                  setSelectedHardware(updatedHardware);
+                  // Also update the hardware in the main list
+                  setHardware((prevHardware) =>
+                    prevHardware.map((h) =>
+                      h._id === updatedHardware._id ? updatedHardware : h
+                    )
+                  );
+                }}
+              />
             </div>
           </div>
         </div>
@@ -1063,9 +1154,9 @@ export default function AdminPage() {
       <ProtectedRoute requireAdmin>
         <div className="min-h-screen bg-gray-50">
           <Navbar />
-          <SoftwareDetails 
-            software={selectedSoftware} 
-            onBack={() => setSelectedSoftware(null)} 
+          <SoftwareDetails
+            software={selectedSoftware}
+            onBack={() => setSelectedSoftware(null)}
           />
         </div>
       </ProtectedRoute>
@@ -1245,9 +1336,7 @@ export default function AdminPage() {
                         </p>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      Disabled accounts
-                    </p>
+                    <p className="text-xs text-gray-500">Disabled accounts</p>
                   </div>
 
                   <div className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50">
@@ -1268,8 +1357,6 @@ export default function AdminPage() {
                       Have assigned devices
                     </p>
                   </div>
-
-
                 </>
               ) : activeTab === "alerts" ? (
                 <>
@@ -1287,9 +1374,7 @@ export default function AdminPage() {
                         </p>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      All active alerts
-                    </p>
+                    <p className="text-xs text-gray-500">All active alerts</p>
                   </div>
 
                   <div className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50">
@@ -1344,9 +1429,7 @@ export default function AdminPage() {
                         </p>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      Monitor closely
-                    </p>
+                    <p className="text-xs text-gray-500">Monitor closely</p>
                   </div>
 
                   <div className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50">
@@ -1363,9 +1446,7 @@ export default function AdminPage() {
                         </p>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      Low risk alerts
-                    </p>
+                    <p className="text-xs text-gray-500">Low risk alerts</p>
                   </div>
                 </>
               ) : (
@@ -1411,9 +1492,7 @@ export default function AdminPage() {
                             </p>
                           </div>
                         </div>
-                        <p className="text-xs text-gray-500">
-                          User assigned
-                        </p>
+                        <p className="text-xs text-gray-500">User assigned</p>
                       </div>
 
                       <div className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50">
@@ -1434,8 +1513,6 @@ export default function AdminPage() {
                           Available for assignment
                         </p>
                       </div>
-
-
                     </>
                   ) : (
                     <>
@@ -1472,14 +1549,10 @@ export default function AdminPage() {
                             </p>
                           </div>
                         </div>
-                        <p className="text-xs text-gray-500">
-                          System services
-                        </p>
+                        <p className="text-xs text-gray-500">System services</p>
                       </div>
                     </>
                   )}
-
-
                 </>
               )}
             </div>
@@ -1539,6 +1612,13 @@ export default function AdminPage() {
                     <Activity className="h-5 w-5 inline mr-3" />
                     Health
                   </button>
+                  <button
+                    onClick={() => setShowScannerDownloadModal(true)}
+                    className="py-4 px-6 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 rounded-t-2xl"
+                  >
+                    <Download className="h-5 w-5 inline mr-3" />
+                    Download Scanner
+                  </button>
                 </nav>
               </div>
 
@@ -1597,10 +1677,14 @@ export default function AdminPage() {
                             : "Search users..."
                         }
                         value={searchTerm}
-                        onChange={(e) => handleSearchInputChange(e.target.value)}
+                        onChange={(e) =>
+                          handleSearchInputChange(e.target.value)
+                        }
                         onKeyPress={handleSearchKeyPress}
                         className={`w-full pl-7 pr-24 py-3 border rounded-2xl focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 transition-colors ${
-                          searchTerm ? 'border-gray-400 bg-gray-50' : 'border-gray-300 bg-white'
+                          searchTerm
+                            ? "border-gray-400 bg-gray-50"
+                            : "border-gray-300 bg-white"
                         }`}
                       />
                       {searchTerm && (
@@ -1616,20 +1700,19 @@ export default function AdminPage() {
                         {searchLoading ? (
                           <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
                         ) : (
-                          'Search'
+                          "Search"
                         )}
                       </button>
-                                             {searchTerm && (
-                         <button
-                           onClick={handleClearSearch}
-                           className="absolute right-20 top-1/2 transform -translate-y-1/2 px-3 py-2 bg-gray-500 text-white text-xs rounded-xl hover:bg-gray-600 focus:ring-2 focus:ring-gray-400 transition-all duration-300 hover:scale-105"
-                           title="Clear search"
-                         >
-                           ×
-                         </button>
-                       )}
+                      {searchTerm && (
+                        <button
+                          onClick={handleClearSearch}
+                          className="absolute right-20 top-1/2 transform -translate-y-1/2 px-3 py-2 bg-gray-500 text-white text-xs rounded-xl hover:bg-gray-600 focus:ring-2 focus:ring-gray-400 transition-all duration-300 hover:scale-105"
+                          title="Clear search"
+                        >
+                          ×
+                        </button>
+                      )}
                     </div>
-
 
                     <div className="flex items-center space-x-2">
                       {activeTab === "assets" && (
@@ -1657,7 +1740,6 @@ export default function AdminPage() {
                               )}
                             </select>
                           </div>
-
                         </>
                       )}
 
@@ -1738,9 +1820,14 @@ export default function AdminPage() {
                           type="text"
                           placeholder="Search by title, description, ID..."
                           value={ticketFilters.searchTerm}
-                          onChange={(e) => setTicketFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                          onChange={(e) =>
+                            setTicketFilters((prev) => ({
+                              ...prev,
+                              searchTerm: e.target.value,
+                            }))
+                          }
                           onKeyPress={(e) => {
-                            if (e.key === 'Enter') {
+                            if (e.key === "Enter") {
                               // Trigger search on Enter key
                               e.preventDefault();
                             }
@@ -1762,7 +1849,12 @@ export default function AdminPage() {
                       </label>
                       <select
                         value={ticketFilters.status}
-                        onChange={(e) => setTicketFilters(prev => ({ ...prev, status: e.target.value }))}
+                        onChange={(e) =>
+                          setTicketFilters((prev) => ({
+                            ...prev,
+                            status: e.target.value,
+                          }))
+                        }
                         className="w-full px-3 py-3 border border-gray-300 rounded-2xl text-base text-gray-900 focus:ring-2 focus:ring-gray-400 focus:border-gray-400 transition-colors bg-white hover:border-gray-400"
                       >
                         <option value="all">All Status</option>
@@ -1780,7 +1872,12 @@ export default function AdminPage() {
                       </label>
                       <select
                         value={ticketFilters.priority}
-                        onChange={(e) => setTicketFilters(prev => ({ ...prev, priority: e.target.value }))}
+                        onChange={(e) =>
+                          setTicketFilters((prev) => ({
+                            ...prev,
+                            priority: e.target.value,
+                          }))
+                        }
                         className="w-full px-3 py-3 border border-gray-300 rounded-2xl text-base text-gray-900 focus:ring-2 focus:ring-gray-400 focus:border-gray-400 transition-colors bg-white hover:border-gray-400"
                       >
                         <option value="all">All Priority</option>
@@ -1798,7 +1895,12 @@ export default function AdminPage() {
                       </label>
                       <select
                         value={ticketFilters.dateRange}
-                        onChange={(e) => setTicketFilters(prev => ({ ...prev, dateRange: e.target.value }))}
+                        onChange={(e) =>
+                          setTicketFilters((prev) => ({
+                            ...prev,
+                            dateRange: e.target.value,
+                          }))
+                        }
                         className="w-full px-3 py-3 border border-gray-300 rounded-2xl text-base text-gray-900 focus:ring-2 focus:ring-gray-400 focus:border-gray-400 transition-colors bg-white hover:border-gray-400"
                       >
                         <option value="all">All Time</option>
@@ -1812,14 +1914,16 @@ export default function AdminPage() {
                     {/* Clear Filters Button */}
                     <div className="flex items-end">
                       <button
-                        onClick={() => setTicketFilters({
-                          status: 'all',
-                          priority: 'all',
-                          category: 'all',
-                          searchTerm: '',
-                          dateRange: 'all',
-                          assignedTo: 'all'
-                        })}
+                        onClick={() =>
+                          setTicketFilters({
+                            status: "all",
+                            priority: "all",
+                            category: "all",
+                            searchTerm: "",
+                            dateRange: "all",
+                            assignedTo: "all",
+                          })
+                        }
                         className="w-full px-4 py-3 text-base text-gray-600 border border-gray-300 rounded-2xl hover:bg-gray-50 hover:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:border-gray-400 transition-all duration-300 hover:scale-105"
                       >
                         Clear Filters
@@ -1827,36 +1931,54 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-
-
                   {/* Quick Actions */}
                   <div className="mt-3 flex items-center space-x-4 text-sm">
                     <span className="text-gray-800">Quick Actions:</span>
                     <button
-                      onClick={() => setTicketFilters(prev => ({ ...prev, status: 'Open' }))}
+                      onClick={() =>
+                        setTicketFilters((prev) => ({
+                          ...prev,
+                          status: "Open",
+                        }))
+                      }
                       className="text-blue-700 hover:text-blue-900 hover:underline transition-colors"
                     >
                       Show Open Tickets
                     </button>
                     <button
-                      onClick={() => setTicketFilters(prev => ({ ...prev, priority: 'Critical' }))}
+                      onClick={() =>
+                        setTicketFilters((prev) => ({
+                          ...prev,
+                          priority: "Critical",
+                        }))
+                      }
                       className="text-red-700 hover:text-red-900 hover:underline transition-colors"
                     >
                       Show Critical Priority
                     </button>
                     <button
-                      onClick={() => setTicketFilters(prev => ({ ...prev, dateRange: 'today' }))}
+                      onClick={() =>
+                        setTicketFilters((prev) => ({
+                          ...prev,
+                          dateRange: "today",
+                        }))
+                      }
                       className="text-green-700 hover:text-green-900 hover:underline transition-colors"
                     >
                       Show Today's Tickets
                     </button>
                     <button
-                      onClick={() => setTicketFilters(prev => ({ ...prev, status: 'Closed' }))}
+                      onClick={() =>
+                        setTicketFilters((prev) => ({
+                          ...prev,
+                          status: "Closed",
+                        }))
+                      }
                       className="text-gray-700 hover:text-gray-900 hover:underline transition-colors"
                     >
                       Show Closed Tickets
                     </button>
-                    
+
                     {/* Refresh Button */}
                     <button
                       onClick={() => fetchTickets(true)}
@@ -1864,11 +1986,14 @@ export default function AdminPage() {
                       className="text-blue-700 hover:text-blue-900 hover:underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
                       title="Refresh tickets data"
                     >
-                      <RefreshCw className={`h-3 w-3 ${ticketLoading ? 'animate-spin' : ''}`} />
+                      <RefreshCw
+                        className={`h-3 w-3 ${
+                          ticketLoading ? "animate-spin" : ""
+                        }`}
+                      />
                       <span>Refresh</span>
                     </button>
                   </div>
-
                 </div>
               )}
             </div>
@@ -1888,8 +2013,10 @@ export default function AdminPage() {
                   <div className="mb-8 flex items-center justify-end space-x-3">
                     <button
                       onClick={() => {
-                        exportTicketsToCSV(tickets, 'admin_all_tickets');
-                        toast.success(`Exported ${tickets.length} tickets to CSV`);
+                        exportTicketsToCSV(tickets, "admin_all_tickets");
+                        toast.success(
+                          `Exported ${tickets.length} tickets to CSV`
+                        );
                       }}
                       disabled={ticketLoading}
                       className="text-sm border border-green-300 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
@@ -1900,8 +2027,11 @@ export default function AdminPage() {
                     </button>
                     <button
                       onClick={() => {
-                        exportTicketStatsToCSV(tickets, 'admin_ticket_statistics');
-                        toast.success('Exported ticket statistics to CSV');
+                        exportTicketStatsToCSV(
+                          tickets,
+                          "admin_ticket_statistics"
+                        );
+                        toast.success("Exported ticket statistics to CSV");
                       }}
                       disabled={ticketLoading}
                       className="text-sm border border-purple-300 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-700 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
@@ -1910,16 +2040,21 @@ export default function AdminPage() {
                       <Download className="h-3 w-3 mr-1" />
                       Export Stats
                     </button>
-                    
+
                     {/* Export Filtered Tickets Button */}
                     <button
                       onClick={() => {
                         if (filteredTickets.length === 0) {
-                          toast.error('No filtered tickets to export');
+                          toast.error("No filtered tickets to export");
                           return;
                         }
-                        exportTicketsToCSV(filteredTickets, 'admin_filtered_tickets');
-                        toast.success(`Exported ${filteredTickets.length} filtered tickets to CSV`);
+                        exportTicketsToCSV(
+                          filteredTickets,
+                          "admin_filtered_tickets"
+                        );
+                        toast.success(
+                          `Exported ${filteredTickets.length} filtered tickets to CSV`
+                        );
                       }}
                       disabled={ticketLoading || filteredTickets.length === 0}
                       className="text-sm border border-indigo-300 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
@@ -1928,7 +2063,7 @@ export default function AdminPage() {
                       <Download className="h-3 w-3 mr-1" />
                       Export Filtered
                     </button>
-                   
+
                     {/* Time-based Export Buttons */}
                     <div className="flex items-center space-x-1">
                       <button
@@ -1938,33 +2073,50 @@ export default function AdminPage() {
                             const response = await ticketsAPI.getAll();
                             const freshTickets = response.data.data || [];
                             const sortedTickets = freshTickets.sort((a, b) => {
-                              const aIsClosed = a.status === "Closed" || a.status === "Rejected";
-                              const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                              const aIsClosed =
+                                a.status === "Closed" ||
+                                a.status === "Rejected";
+                              const bIsClosed =
+                                b.status === "Closed" ||
+                                b.status === "Rejected";
                               if (aIsClosed && !bIsClosed) return 1;
                               if (!aIsClosed && bIsClosed) return -1;
                               return 0;
                             });
-                            
+
                             // Update local state with fresh data
                             setTickets(sortedTickets);
                             setCachedTickets(sortedTickets);
-                            
+
                             // Export fresh data
-                            const count = exportTicketsResolvedToday(sortedTickets, 'admin_tickets_resolved_today');
-                            toast.success(`Exported ${count} tickets resolved today to CSV (fresh data)`);
+                            const count = exportTicketsResolvedToday(
+                              sortedTickets,
+                              "admin_tickets_resolved_today"
+                            );
+                            toast.success(
+                              `Exported ${count} tickets resolved today to CSV (fresh data)`
+                            );
                           } catch (error) {
-                            console.error('Error fetching fresh tickets for export:', error);
+                            console.error(
+                              "Error fetching fresh tickets for export:",
+                              error
+                            );
                             // Fallback to cached data
-                            const count = exportTicketsResolvedToday(tickets, 'admin_tickets_resolved_today');
-                            toast.success(`Exported ${count} tickets resolved today to CSV (cached data)`);
+                            const count = exportTicketsResolvedToday(
+                              tickets,
+                              "admin_tickets_resolved_today"
+                            );
+                            toast.success(
+                              `Exported ${count} tickets resolved today to CSV (cached data)`
+                            );
                           }
                         }}
                         disabled={ticketLoading}
                         className="text-sm border border-blue-300 rounded-2xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
                         title="Export tickets resolved today (with fresh data)"
                       >
-                                                 <Download className="h-3 w-3 mr-1" />
-                         Resolved Today
+                        <Download className="h-3 w-3 mr-1" />
+                        Resolved Today
                       </button>
                       <button
                         onClick={async () => {
@@ -1973,33 +2125,51 @@ export default function AdminPage() {
                             const response = await ticketsAPI.getAll();
                             const freshTickets = response.data.data || [];
                             const sortedTickets = freshTickets.sort((a, b) => {
-                              const aIsClosed = a.status === "Closed" || a.status === "Rejected";
-                              const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                              const aIsClosed =
+                                a.status === "Closed" ||
+                                a.status === "Rejected";
+                              const bIsClosed =
+                                b.status === "Closed" ||
+                                b.status === "Rejected";
                               if (aIsClosed && !bIsClosed) return 1;
                               if (!aIsClosed && bIsClosed) return -1;
                               return 0;
                             });
-                            
+
                             // Update local state with fresh data
                             setTickets(sortedTickets);
                             setCachedTickets(sortedTickets);
-                            
+
                             // Export fresh data
-                            const count = exportTicketsByTimePeriod(sortedTickets, '7d', 'admin_tickets_last_7_days');
-                            toast.success(`Exported ${count} tickets from last 7 days to CSV (fresh data)`);
+                            const count = exportTicketsByTimePeriod(
+                              sortedTickets,
+                              "7d",
+                              "admin_tickets_last_7_days"
+                            );
+                            toast.success(
+                              `Exported ${count} tickets from last 7 days to CSV (fresh data)`
+                            );
                           } catch (error) {
-                            console.error('Error fetching fresh tickets for export:', error);
+                            console.error(
+                              "Error fetching fresh tickets for export:",
+                              error
+                            );
                             // Fallback to cached data
-                            const count = exportTicketsByTimePeriod(tickets, '7d', 'admin_tickets_last_7_days');
-                            toast.success(`Exported ${count} tickets from last 7 days to CSV (cached data)`);
+                            const count = exportTicketsByTimePeriod(
+                              tickets,
+                              "7d",
+                              "admin_tickets_last_7_days"
+                            );
+                            toast.success(
+                              `Exported ${count} tickets from last 7 days to CSV (cached data)`
+                            );
                           }
                         }}
                         disabled={ticketLoading}
                         className="text-sm border border-orange-300 rounded-2xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-orange-700 bg-orange-50 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
                         title="Export tickets from last 7 days (with fresh data)"
                       >
-                        <Download className="h-3 w-3 mr-1" />
-                        7 Days
+                        <Download className="h-3 w-3 mr-1" />7 Days
                       </button>
                       <button
                         onClick={async () => {
@@ -2008,25 +2178,44 @@ export default function AdminPage() {
                             const response = await ticketsAPI.getAll();
                             const freshTickets = response.data.data || [];
                             const sortedTickets = freshTickets.sort((a, b) => {
-                              const aIsClosed = a.status === "Closed" || a.status === "Rejected";
-                              const bIsClosed = b.status === "Closed" || b.status === "Rejected";
+                              const aIsClosed =
+                                a.status === "Closed" ||
+                                a.status === "Rejected";
+                              const bIsClosed =
+                                b.status === "Closed" ||
+                                b.status === "Rejected";
                               if (aIsClosed && !bIsClosed) return 1;
                               if (!aIsClosed && bIsClosed) return -1;
                               return 0;
                             });
-                            
+
                             // Update local state with fresh data
                             setTickets(sortedTickets);
                             setCachedTickets(sortedTickets);
-                            
+
                             // Export fresh data
-                            const count = exportTicketsBySLACompliance(sortedTickets, 'compliant', 'admin_sla_compliant_tickets');
-                            toast.success(`Exported ${count} SLA compliant tickets to CSV (fresh data)`);
+                            const count = exportTicketsBySLACompliance(
+                              sortedTickets,
+                              "compliant",
+                              "admin_sla_compliant_tickets"
+                            );
+                            toast.success(
+                              `Exported ${count} SLA compliant tickets to CSV (fresh data)`
+                            );
                           } catch (error) {
-                            console.error('Error fetching fresh tickets for export:', error);
+                            console.error(
+                              "Error fetching fresh tickets for export:",
+                              error
+                            );
                             // Fallback to cached data
-                            const count = exportTicketsBySLACompliance(tickets, 'compliant', 'admin_sla_compliant_tickets');
-                            toast.success(`Exported ${count} SLA compliant tickets to CSV (cached data)`);
+                            const count = exportTicketsBySLACompliance(
+                              tickets,
+                              "compliant",
+                              "admin_sla_compliant_tickets"
+                            );
+                            toast.success(
+                              `Exported ${count} SLA compliant tickets to CSV (cached data)`
+                            );
                           }
                         }}
                         disabled={ticketLoading}
@@ -2061,17 +2250,20 @@ export default function AdminPage() {
                       No tickets match your filters
                     </h3>
                     <p className="text-base text-slate-500">
-                      Try adjusting your search criteria or clearing some filters.
+                      Try adjusting your search criteria or clearing some
+                      filters.
                     </p>
                     <button
-                      onClick={() => setTicketFilters({
-                        status: 'all',
-                        priority: 'all',
-                        category: 'all',
-                        searchTerm: '',
-                        dateRange: 'all',
-                        assignedTo: 'all'
-                      })}
+                      onClick={() =>
+                        setTicketFilters({
+                          status: "all",
+                          priority: "all",
+                          category: "all",
+                          searchTerm: "",
+                          dateRange: "all",
+                          assignedTo: "all",
+                        })
+                      }
                       className="mt-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 hover:scale-105 text-base font-medium shadow-lg"
                     >
                       Clear All Filters
@@ -2105,16 +2297,20 @@ export default function AdminPage() {
                     <div className="flex items-center space-x-4">
                       {/* Items per page selector */}
                       <div className="flex items-center space-x-3">
-                        <label className="text-base font-medium text-gray-700">Show:</label>
+                        <label className="text-base font-medium text-gray-700">
+                          Show:
+                        </label>
                         <select
                           value={ticketPagination.itemsPerPage}
                           onChange={(e) => {
                             const newItemsPerPage = parseInt(e.target.value);
-                            setTicketPagination(prev => ({
+                            setTicketPagination((prev) => ({
                               ...prev,
                               itemsPerPage: newItemsPerPage,
                               currentPage: 1, // Reset to first page
-                              totalPages: Math.ceil(filteredTickets.length / newItemsPerPage)
+                              totalPages: Math.ceil(
+                                filteredTickets.length / newItemsPerPage
+                              ),
                             }));
                           }}
                           className="px-3 py-2 border border-gray-300 rounded-2xl text-base text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium"
@@ -2125,13 +2321,16 @@ export default function AdminPage() {
                           <option value={16}>16</option>
                           <option value={20}>20</option>
                         </select>
-                        <span className="text-base text-gray-800 font-medium">per page</span>
+                        <span className="text-base text-gray-800 font-medium">
+                          per page
+                        </span>
                       </div>
 
                       {/* Page info */}
                       <div className="text-base text-gray-800 font-medium">
-                        Page {ticketPagination.currentPage} of {ticketPagination.totalPages} 
-                        ({filteredTickets.length} filtered tickets)
+                        Page {ticketPagination.currentPage} of{" "}
+                        {ticketPagination.totalPages}({filteredTickets.length}{" "}
+                        filtered tickets)
                         {hasActiveFilters && (
                           <span className="text-gray-500 ml-1">
                             of {tickets.length} total
@@ -2143,55 +2342,73 @@ export default function AdminPage() {
                     {/* Pagination buttons */}
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => setTicketPagination(prev => ({
-                          ...prev,
-                          currentPage: Math.max(1, prev.currentPage - 1)
-                        }))}
+                        onClick={() =>
+                          setTicketPagination((prev) => ({
+                            ...prev,
+                            currentPage: Math.max(1, prev.currentPage - 1),
+                          }))
+                        }
                         disabled={ticketPagination.currentPage === 1}
                         className="px-4 py-2.5 text-base text-gray-800 border border-gray-300 rounded-2xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105"
                       >
                         Previous
                       </button>
-                      
+
                       {/* Page numbers */}
                       <div className="flex items-center space-x-2">
-                        {Array.from({ length: Math.min(5, ticketPagination.totalPages) }, (_, i) => {
-                          let pageNum;
-                          if (ticketPagination.totalPages <= 5) {
-                            pageNum = i + 1;
-                          } else if (ticketPagination.currentPage <= 3) {
-                            pageNum = i + 1;
-                          } else if (ticketPagination.currentPage >= ticketPagination.totalPages - 2) {
-                            pageNum = ticketPagination.totalPages - 4 + i;
-                          } else {
-                            pageNum = ticketPagination.currentPage - 2 + i;
+                        {Array.from(
+                          { length: Math.min(5, ticketPagination.totalPages) },
+                          (_, i) => {
+                            let pageNum;
+                            if (ticketPagination.totalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (ticketPagination.currentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (
+                              ticketPagination.currentPage >=
+                              ticketPagination.totalPages - 2
+                            ) {
+                              pageNum = ticketPagination.totalPages - 4 + i;
+                            } else {
+                              pageNum = ticketPagination.currentPage - 2 + i;
+                            }
+
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() =>
+                                  setTicketPagination((prev) => ({
+                                    ...prev,
+                                    currentPage: pageNum,
+                                  }))
+                                }
+                                className={`px-4 py-2.5 border rounded-2xl focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105 ${
+                                  pageNum === ticketPagination.currentPage
+                                    ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 shadow-lg"
+                                    : "border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
                           }
-                          
-                          return (
-                            <button
-                              key={pageNum}
-                              onClick={() => setTicketPagination(prev => ({
-                                ...prev,
-                                currentPage: pageNum
-                              }))}
-                              className={`px-4 py-2.5 border rounded-2xl focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105 ${
-                                pageNum === ticketPagination.currentPage
-                                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 shadow-lg'
-                                  : 'border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
-                              }`}
-                            >
-                              {pageNum}
-                            </button>
-                          );
-                        })}
+                        )}
                       </div>
-                      
+
                       <button
-                        onClick={() => setTicketPagination(prev => ({
-                          ...prev,
-                          currentPage: Math.min(prev.totalPages, prev.currentPage + 1)
-                        }))}
-                        disabled={ticketPagination.currentPage === ticketPagination.totalPages}
+                        onClick={() =>
+                          setTicketPagination((prev) => ({
+                            ...prev,
+                            currentPage: Math.min(
+                              prev.totalPages,
+                              prev.currentPage + 1
+                            ),
+                          }))
+                        }
+                        disabled={
+                          ticketPagination.currentPage ===
+                          ticketPagination.totalPages
+                        }
                         className="px-4 py-2.5 text-base text-gray-800 border border-gray-300 rounded-2xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105"
                       >
                         Next
@@ -2204,7 +2421,6 @@ export default function AdminPage() {
               // Assets Tab
               <div ref={assetsSectionRef}>
                 {/* Assets Info */}
-
 
                 {currentAssets.length === 0 ? (
                   <div className="text-center py-12">
@@ -2274,7 +2490,9 @@ export default function AdminPage() {
                       <div className="flex items-center justify-center py-8">
                         <div className="text-center">
                           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                          <p className="text-gray-600 text-sm">Loading page...</p>
+                          <p className="text-gray-600 text-sm">
+                            Loading page...
+                          </p>
                         </div>
                       </div>
                     )}
@@ -2317,7 +2535,8 @@ export default function AdminPage() {
                             {selectedAssets.length > 0 && (
                               <div className="text-sm text-gray-600">
                                 {selectedAssets.length} asset
-                                {selectedAssets.length !== 1 ? "s" : ""} selected
+                                {selectedAssets.length !== 1 ? "s" : ""}{" "}
+                                selected
                               </div>
                             )}
                             {selectedAssets.length > 0 && (
@@ -2383,7 +2602,8 @@ export default function AdminPage() {
                                         </div>
                                         <div>
                                           <h3 className="text-lg font-semibold text-gray-900">
-                                            {item.system?.hostname || "Unknown System"}
+                                            {item.system?.hostname ||
+                                              "Unknown System"}
                                           </h3>
                                           <p className="text-sm text-gray-500">
                                             {item.system?.platform} Software
@@ -2391,9 +2611,12 @@ export default function AdminPage() {
                                         </div>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-xs text-gray-500">MAC Address</p>
+                                        <p className="text-xs text-gray-500">
+                                          MAC Address
+                                        </p>
                                         <p className="text-sm font-mono text-gray-700">
-                                          {item.system?.mac_address || "Unknown"}
+                                          {item.system?.mac_address ||
+                                            "Unknown"}
                                         </p>
                                       </div>
                                     </div>
@@ -2402,44 +2625,62 @@ export default function AdminPage() {
                                       <div className="flex items-center space-x-2">
                                         <Package className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">Installed</p>
-                                          <p className="text-sm font-medium text-gray-900">
-                                            {item.installed_software?.length || 0}
+                                          <p className="text-xs text-gray-500">
+                                            Installed
                                           </p>
-                                          <p className="text-xs text-gray-500">packages</p>
+                                          <p className="text-sm font-medium text-gray-900">
+                                            {item.installed_software?.length ||
+                                              0}
+                                          </p>
+                                          <p className="text-xs text-gray-500">
+                                            packages
+                                          </p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center space-x-2">
                                         <Settings className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">Services</p>
+                                          <p className="text-xs text-gray-500">
+                                            Services
+                                          </p>
                                           <p className="text-sm font-medium text-gray-900">
                                             {item.services?.length || 0}
                                           </p>
-                                          <p className="text-xs text-gray-500">running</p>
+                                          <p className="text-xs text-gray-500">
+                                            running
+                                          </p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center space-x-2">
                                         <Play className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">Startup</p>
+                                          <p className="text-xs text-gray-500">
+                                            Startup
+                                          </p>
                                           <p className="text-sm font-medium text-gray-900">
                                             {item.startup_programs?.length || 0}
                                           </p>
-                                          <p className="text-xs text-gray-500">programs</p>
+                                          <p className="text-xs text-gray-500">
+                                            programs
+                                          </p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center space-x-2">
                                         <Monitor className="h-4 w-4 text-gray-600" />
                                         <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">Total</p>
-                                          <p className="text-sm font-medium text-gray-900">
-                                            {item.scan_metadata?.total_software_count || 0}
+                                          <p className="text-xs text-gray-500">
+                                            Total
                                           </p>
-                                          <p className="text-xs text-gray-500">items</p>
+                                          <p className="text-sm font-medium text-gray-900">
+                                            {item.scan_metadata
+                                              ?.total_software_count || 0}
+                                          </p>
+                                          <p className="text-xs text-gray-500">
+                                            items
+                                          </p>
                                         </div>
                                       </div>
                                     </div>
@@ -2448,12 +2689,15 @@ export default function AdminPage() {
                                       <div className="text-xs text-gray-500">
                                         Last scan:{" "}
                                         {new Date(
-                                          item.scan_metadata?.last_updated || item.updatedAt
+                                          item.scan_metadata?.last_updated ||
+                                            item.updatedAt
                                         ).toLocaleDateString()}
                                       </div>
                                       <div className="flex items-center space-x-1">
                                         <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                                        <span className="text-xs text-gray-600">Scanned</span>
+                                        <span className="text-xs text-gray-600">
+                                          Scanned
+                                        </span>
                                       </div>
                                     </div>
                                   </div>
@@ -2509,57 +2753,86 @@ export default function AdminPage() {
                           >
                             ⏮️
                           </button>
-                          
+
                           <button
-                            onClick={() => handleAssetPageChange(Math.max(1, assetPagination.currentPage - 1))}
+                            onClick={() =>
+                              handleAssetPageChange(
+                                Math.max(1, assetPagination.currentPage - 1)
+                              )
+                            }
                             disabled={assetPagination.currentPage === 1}
                             className="px-4 py-2.5 text-base text-gray-800 border border-gray-300 rounded-2xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105"
                           >
                             Previous
                           </button>
-                          
+
                           {/* Page numbers */}
                           <div className="flex items-center space-x-2">
-                            {Array.from({ length: Math.min(5, assetPagination.totalPages) }, (_, i) => {
-                              let pageNum;
-                              if (assetPagination.totalPages <= 5) {
-                                pageNum = i + 1;
-                              } else if (assetPagination.currentPage <= 3) {
-                                pageNum = i + 1;
-                              } else if (assetPagination.currentPage >= assetPagination.totalPages - 2) {
-                                pageNum = assetPagination.totalPages - 4 + i;
-                              } else {
-                                pageNum = assetPagination.currentPage - 2 + i;
+                            {Array.from(
+                              {
+                                length: Math.min(5, assetPagination.totalPages),
+                              },
+                              (_, i) => {
+                                let pageNum;
+                                if (assetPagination.totalPages <= 5) {
+                                  pageNum = i + 1;
+                                } else if (assetPagination.currentPage <= 3) {
+                                  pageNum = i + 1;
+                                } else if (
+                                  assetPagination.currentPage >=
+                                  assetPagination.totalPages - 2
+                                ) {
+                                  pageNum = assetPagination.totalPages - 4 + i;
+                                } else {
+                                  pageNum = assetPagination.currentPage - 2 + i;
+                                }
+
+                                return (
+                                  <button
+                                    key={pageNum}
+                                    onClick={() =>
+                                      handleAssetPageChange(pageNum)
+                                    }
+                                    className={`px-4 py-2.5 border rounded-2xl focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105 ${
+                                      pageNum === assetPagination.currentPage
+                                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 shadow-lg"
+                                        : "border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+                                    }`}
+                                  >
+                                    {pageNum}
+                                  </button>
+                                );
                               }
-                              
-                              return (
-                                <button
-                                  key={pageNum}
-                                  onClick={() => handleAssetPageChange(pageNum)}
-                                  className={`px-4 py-2.5 border rounded-2xl focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105 ${
-                                    pageNum === assetPagination.currentPage
-                                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 shadow-lg'
-                                      : 'border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
-                                  }`}
-                                >
-                                  {pageNum}
-                                </button>
-                              );
-                            })}
+                            )}
                           </div>
-                          
+
                           <button
-                            onClick={() => handleAssetPageChange(Math.min(assetPagination.totalPages, assetPagination.currentPage + 1))}
-                            disabled={assetPagination.currentPage >= assetPagination.totalPages}
+                            onClick={() =>
+                              handleAssetPageChange(
+                                Math.min(
+                                  assetPagination.totalPages,
+                                  assetPagination.currentPage + 1
+                                )
+                              )
+                            }
+                            disabled={
+                              assetPagination.currentPage >=
+                              assetPagination.totalPages
+                            }
                             className="px-4 py-2.5 text-base text-gray-800 border border-gray-300 rounded-2xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105"
                           >
                             Next
                           </button>
-                          
+
                           {/* Fast Forward to Last Page */}
                           <button
-                            onClick={() => handleAssetPageChange(assetPagination.totalPages)}
-                            disabled={assetPagination.currentPage >= assetPagination.totalPages}
+                            onClick={() =>
+                              handleAssetPageChange(assetPagination.totalPages)
+                            }
+                            disabled={
+                              assetPagination.currentPage >=
+                              assetPagination.totalPages
+                            }
                             className="px-3 py-2.5 text-base text-gray-800 border border-gray-300 rounded-2xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 font-medium transition-all duration-300 hover:scale-105"
                             title="Go to last page"
                           >
@@ -2574,16 +2847,23 @@ export default function AdminPage() {
                             <div className="flex items-center space-x-6">
                               {/* Items per page selector */}
                               <div className="flex items-center space-x-3">
-                                <label className="text-sm font-medium text-gray-700">Show:</label>
+                                <label className="text-sm font-medium text-gray-700">
+                                  Show:
+                                </label>
                                 <select
                                   value={assetPagination.itemsPerPage}
                                   onChange={(e) => {
-                                    const newItemsPerPage = parseInt(e.target.value);
-                                    setAssetPagination(prev => ({
+                                    const newItemsPerPage = parseInt(
+                                      e.target.value
+                                    );
+                                    setAssetPagination((prev) => ({
                                       ...prev,
                                       itemsPerPage: newItemsPerPage,
                                       currentPage: 1, // Reset to first page
-                                      totalPages: Math.ceil(assetPagination.totalItems / newItemsPerPage)
+                                      totalPages: Math.ceil(
+                                        assetPagination.totalItems /
+                                          newItemsPerPage
+                                      ),
                                     }));
                                   }}
                                   className="px-3 py-2 border border-gray-300 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium bg-white"
@@ -2594,46 +2874,71 @@ export default function AdminPage() {
                                   <option value={36}>36</option>
                                   <option value={45}>45</option>
                                 </select>
-                                <span className="text-sm text-gray-600">per page</span>
+                                <span className="text-sm text-gray-600">
+                                  per page
+                                </span>
                               </div>
 
                               {/* Page info */}
                               <div className="text-sm text-gray-700">
-                                <span className="font-medium">Page {assetPagination.currentPage}</span>
-                                <span className="text-gray-500"> of {assetPagination.totalPages}</span>
-                                <span className="text-gray-600 ml-2">({assetPagination.totalItems} {assetType === "hardware" ? "hardware assets" : "software systems"})</span>
+                                <span className="font-medium">
+                                  Page {assetPagination.currentPage}
+                                </span>
+                                <span className="text-gray-500">
+                                  {" "}
+                                  of {assetPagination.totalPages}
+                                </span>
+                                <span className="text-gray-600 ml-2">
+                                  ({assetPagination.totalItems}{" "}
+                                  {assetType === "hardware"
+                                    ? "hardware assets"
+                                    : "software systems"}
+                                  )
+                                </span>
                               </div>
                             </div>
 
                             {/* Right Side - Quick jump */}
                             {assetPagination.totalPages > 10 && (
                               <div className="flex items-center space-x-3">
-                                <span className="text-sm font-medium text-gray-700">Quick Jump:</span>
+                                <span className="text-sm font-medium text-gray-700">
+                                  Quick Jump:
+                                </span>
                                 <div className="flex items-center space-x-2">
                                   <input
                                     type="text"
                                     placeholder="Page #"
                                     className="w-16 px-3 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 text-center bg-white"
                                     onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
+                                      if (e.key === "Enter") {
                                         const page = parseInt(e.target.value);
-                                        if (page >= 1 && page <= assetPagination.totalPages) {
+                                        if (
+                                          page >= 1 &&
+                                          page <= assetPagination.totalPages
+                                        ) {
                                           handleAssetPageChange(page);
-                                          e.target.value = '';
+                                          e.target.value = "";
                                         } else {
-                                          toast.error(`Please enter a page number between 1 and ${assetPagination.totalPages}`);
+                                          toast.error(
+                                            `Please enter a page number between 1 and ${assetPagination.totalPages}`
+                                          );
                                         }
                                       }
                                     }}
                                     onBlur={(e) => {
                                       const page = parseInt(e.target.value);
-                                      if (page >= 1 && page <= assetPagination.totalPages) {
+                                      if (
+                                        page >= 1 &&
+                                        page <= assetPagination.totalPages
+                                      ) {
                                         handleAssetPageChange(page);
-                                        e.target.value = '';
+                                        e.target.value = "";
                                       }
                                     }}
                                   />
-                                  <span className="text-xs text-gray-500">of {assetPagination.totalPages}</span>
+                                  <span className="text-xs text-gray-500">
+                                    of {assetPagination.totalPages}
+                                  </span>
                                 </div>
                               </div>
                             )}
@@ -2646,11 +2951,11 @@ export default function AdminPage() {
                     {!loading && assetPagination.totalItems > 1000 && (
                       <div className="mt-8 text-center text-sm text-gray-500">
                         <div className="text-xs text-blue-600">
-                          💡 Tip: Use search and filters to quickly find specific assets
+                          💡 Tip: Use search and filters to quickly find
+                          specific assets
                         </div>
                       </div>
                     )}
-
                   </div>
                 )}
               </div>
@@ -2666,7 +2971,9 @@ export default function AdminPage() {
                   <div className="p-8 text-center">
                     <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-600">No users found</p>
-                    <p className="text-sm text-gray-500 mt-2">Users will appear here once they are registered</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Users will appear here once they are registered
+                    </p>
                   </div>
                 ) : (
                   <>
@@ -2694,7 +3001,7 @@ export default function AdminPage() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
@@ -2757,14 +3064,16 @@ export default function AdminPage() {
                                 </span>
                                 {user.assignedAssets?.length > 0 && (
                                   <div className="flex flex-wrap gap-1">
-                                    {user.assignedAssets.slice(0, 2).map((mac) => (
-                                      <span
-                                        key={mac}
-                                        className="text-xs bg-gray-100 px-2 py-1 rounded"
-                                      >
-                                        {mac.slice(-6)}
-                                      </span>
-                                    ))}
+                                    {user.assignedAssets
+                                      .slice(0, 2)
+                                      .map((mac) => (
+                                        <span
+                                          key={mac}
+                                          className="text-xs bg-gray-100 px-2 py-1 rounded"
+                                        >
+                                          {mac.slice(-6)}
+                                        </span>
+                                      ))}
                                     {user.assignedAssets.length > 2 && (
                                       <span className="text-xs text-gray-500">
                                         +{user.assignedAssets.length - 2} more
@@ -2789,11 +3098,13 @@ export default function AdminPage() {
                         ))}
                       </tbody>
                     </table>
-                    
+
                     {filteredUsers.length === 0 && searchTerm && (
                       <div className="p-8 text-center">
                         <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-600">No users found matching "{searchTerm}"</p>
+                        <p className="text-gray-600">
+                          No users found matching "{searchTerm}"
+                        </p>
                         <button
                           onClick={handleClearSearch}
                           className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
@@ -2902,14 +3213,14 @@ export default function AdminPage() {
               onUpdate={async () => {
                 // Force refresh tickets data to show updated information
                 await fetchTickets(true);
-                
+
                 // Reset pagination to first page when tickets are updated
-                setTicketPagination(prev => ({ ...prev, currentPage: 1 }));
-                
+                setTicketPagination((prev) => ({ ...prev, currentPage: 1 }));
+
                 // Ensure the UI updates by forcing a re-render
                 // This will recalculate filtered tickets and pagination
-                setTicketFilters(prev => ({ ...prev }));
-                
+                setTicketFilters((prev) => ({ ...prev }));
+
                 // Data has been refreshed silently
               }}
             />
@@ -2958,11 +3269,21 @@ export default function AdminPage() {
             onClose={() => setShowCreateUserModal(false)}
             onUserCreated={(newUser) => {
               // Add the new user to the users list
-              setUsers(prev => [newUser, ...prev]);
+              setUsers((prev) => [newUser, ...prev]);
               // Refresh users to get the updated list
               fetchUsers();
-              toast.success(`User ${newUser.firstName} ${newUser.lastName} created successfully!`);
+              toast.success(
+                `User ${newUser.firstName} ${newUser.lastName} created successfully!`
+              );
             }}
+          />
+        </LazyLoader>
+
+        {/* Scanner Download Modal */}
+        <LazyLoader>
+          <ScannerDownloadModal
+            isOpen={showScannerDownloadModal}
+            onClose={() => setShowScannerDownloadModal(false)}
           />
         </LazyLoader>
       </div>

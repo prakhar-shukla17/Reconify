@@ -357,12 +357,15 @@ export const receiveTelemetry = async (req, res) => {
       });
     }
 
+    // Determine tenant_id: prioritize scanner data, then user context, then default
+    const tenantId = req.body.tenant_id || req.user?.tenant_id || "default";
+
     // Find or create telemetry record
     let telemetry = await Telemetry.findOne({ mac_address });
     if (!telemetry) {
-      telemetry = new Telemetry({ 
+      telemetry = new Telemetry({
         mac_address,
-        tenant_id: req.user?.tenant_id || "default"
+        tenant_id: tenantId,
       });
     }
 

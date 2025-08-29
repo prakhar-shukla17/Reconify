@@ -7,7 +7,7 @@ export const getAll = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12; // Default 12 items per page
     const skip = (page - 1) * limit;
-    
+
     // Get search and filter parameters
     const search = req.query.search;
     const filter = req.query.filter;
@@ -53,16 +53,16 @@ export const getAll = async (req, res) => {
           .sort({ createdAt: -1 }) // Sort by newest first
           .skip(skip)
           .limit(limit)
-          .lean() // Use lean() for better performance
+          .lean(), // Use lean() for better performance
       ]);
-      
+
       totalCount = countResult;
       softwareList = softwareListResult;
     }
     // If user is regular user, get only software for their assigned assets
     else if (req.user && req.user.assignedAssets) {
       query._id = { $in: req.user.assignedAssets }; // MAC addresses
-      
+
       // Use Promise.all to run count and find operations in parallel
       const [countResult, softwareListResult] = await Promise.all([
         Software.countDocuments(query),
@@ -70,9 +70,9 @@ export const getAll = async (req, res) => {
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(limit)
-          .lean() // Use lean() for better performance
+          .lean(), // Use lean() for better performance
       ]);
-      
+
       totalCount = countResult;
       softwareList = softwareListResult;
     }
@@ -107,13 +107,13 @@ export const getAll = async (req, res) => {
 export const getById = async (req, res) => {
   try {
     const { id } = req.params; // MAC address
-    
+
     // Build query with tenant_id filter
     let query = { _id: id };
     if (req.user && req.user.tenant_id) {
       query.tenant_id = req.user.tenant_id;
     }
-    
+
     const software = await Software.findOne(query);
 
     if (!software) {
@@ -159,10 +159,13 @@ export const createOrUpdateSoftware = async (req, res) => {
       last_updated: new Date(),
     };
 
+    // Determine tenant_id: prioritize scanner data, then user context, then default
+    const tenantId = softwareData.tenant_id || req.user?.tenant_id || "default";
+
     // Prepare software document
     const softwareDocument = {
       _id: macAddress,
-      tenant_id: req.user?.tenant_id || "default",
+      tenant_id: tenantId,
       system: softwareData.system,
       installed_software: softwareData.installed_software || [],
       system_software: softwareData.system_software || [],
@@ -253,7 +256,7 @@ export const searchSoftware = async (req, res) => {
     if (req.user && req.user.tenant_id) {
       searchCriteria.tenant_id = req.user.tenant_id;
     }
-    
+
     const results = await Software.find(searchCriteria)
       .select(
         "system.hostname system.mac_address system.platform installed_software"
@@ -283,7 +286,7 @@ export const getSoftwareByVendor = async (req, res) => {
     if (req.user && req.user.tenant_id) {
       matchStage.tenant_id = req.user.tenant_id;
     }
-    
+
     const results = await Software.aggregate([
       { $match: matchStage },
       { $unwind: "$installed_software" },
@@ -336,7 +339,7 @@ export const getOutdatedSoftware = async (req, res) => {
     if (req.user && req.user.tenant_id) {
       matchStage.tenant_id = req.user.tenant_id;
     }
-    
+
     const results = await Software.aggregate([
       { $match: matchStage },
       { $unwind: "$installed_software" },
@@ -409,4 +412,3 @@ export const deleteSoftware = async (req, res) => {
     });
   }
 };
-

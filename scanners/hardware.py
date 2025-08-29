@@ -8,6 +8,10 @@ import socket
 import uuid
 import requests
 
+# Tenant configuration - these will be set by the download system
+TENANT_ID = os.getenv('TENANT_ID', 'default')
+API_TOKEN = os.getenv('API_TOKEN', '')
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3000/api')
 
 # Optional imports for enhanced features
 try:
@@ -54,6 +58,14 @@ class HardwareDetector:
         
         # Power and thermal
         self.hardware_info['power_thermal'] = self._get_power_thermal_info()
+        
+        # Add tenant information at root level for backend compatibility
+        self.hardware_info['tenant_id'] = TENANT_ID
+        self.hardware_info['tenant_info'] = {
+            'tenant_id': TENANT_ID,
+            'scanner_version': '2.0',
+            'configured_at': datetime.now().isoformat()
+        }
         
         # Auto-export hardware info
         # self.export_hardware_info()
@@ -781,10 +793,10 @@ class HardwareDetector:
     #         return None
 
 
-def check_existing_asset(mac_address, api_base_url="http://localhost:3000/api"):
+def check_existing_asset(mac_address, api_base_url=API_BASE_URL):
     """Check if an asset already exists in the database."""
     try:
-        response = requests.get(f"{api_base_url}/hardware/{mac_address}")
+        response = requests.get(f"{api_base_url}/hardware/{mac_address}", headers={'Authorization': f'Bearer {API_TOKEN}'})
         if response.status_code == 200:
             return response.json()
         return None
@@ -858,7 +870,7 @@ def compare_hardware_data(old_data, new_data):
     
     return changes
 
-def create_hardware_alert(mac_address, changes, api_base_url="http://localhost:3000/api"):
+def create_hardware_alert(mac_address, changes, api_base_url=API_BASE_URL):
     """Create an alert for hardware changes."""
     try:
         alert_data = {
@@ -874,7 +886,7 @@ def create_hardware_alert(mac_address, changes, api_base_url="http://localhost:3
             'status': 'active'
         }
         
-        response = requests.post(f"{api_base_url}/alerts", json=alert_data)
+        response = requests.post(f"{api_base_url}/alerts", json=alert_data, headers={'Authorization': f'Bearer {API_TOKEN}'})
         if response.status_code in [200, 201]:  # 200 OK or 201 Created
             print(f"Alert created for hardware changes: {len(changes)} changes detected")
             return True
@@ -885,10 +897,10 @@ def create_hardware_alert(mac_address, changes, api_base_url="http://localhost:3
         print(f"Error creating alert: {e}")
         return False
 
-def update_hardware_asset(mac_address, hardware_data, api_base_url="http://localhost:3000/api"):
+def update_hardware_asset(mac_address, hardware_data, api_base_url=API_BASE_URL):
     """Update existing hardware asset."""
     try:
-        response = requests.put(f"{api_base_url}/hardware/{mac_address}", json=hardware_data)
+        response = requests.put(f"{api_base_url}/hardware/{mac_address}", json=hardware_data, headers={'Authorization': f'Bearer {API_TOKEN}'})
         if response.status_code in [200, 201]:  # 200 OK or 201 Created
             print(f"Hardware asset updated successfully: {mac_address}")
             return True
@@ -899,10 +911,10 @@ def update_hardware_asset(mac_address, hardware_data, api_base_url="http://local
         print(f"Error updating hardware asset: {e}")
         return False
 
-def create_hardware_asset(hardware_data, api_base_url="http://localhost:3000/api"):
+def create_hardware_asset(hardware_data, api_base_url=API_BASE_URL):
     """Create new hardware asset."""
     try:
-        response = requests.post(f"{api_base_url}/hardware", json=hardware_data)
+        response = requests.post(f"{api_base_url}/hardware", json=hardware_data, headers={'Authorization': f'Bearer {API_TOKEN}'})
         if response.status_code in [200, 201]:  # 200 OK or 201 Created
             print(f"Hardware asset created successfully: {hardware_data.get('system', {}).get('mac_address')}")
             return True
@@ -918,7 +930,7 @@ def create_hardware_asset(hardware_data, api_base_url="http://localhost:3000/api
         print(f"Error creating hardware asset: {e}")
         return False
 
-def send_hardware_data(hardware_data, api_base_url="http://localhost:3000/api"):
+def send_hardware_data(hardware_data, api_base_url=API_BASE_URL):
     """Send hardware data with change detection and alerting."""
     mac_address = hardware_data.get('system', {}).get('mac_address')
     
