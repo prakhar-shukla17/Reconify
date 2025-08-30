@@ -202,7 +202,18 @@ const TicketCard = ({ ticket, onClick, isAdmin = false }) => {
             }`} />
             <span className={`text-xs ${
               isClickable ? "text-slate-600" : "text-slate-500"
-            }`}>{isAdmin ? ticket.created_by_name : "You"}</span>
+            }`}>
+              {isAdmin ? (
+                <div className="flex flex-col">
+                  <span>{ticket.created_by_name}</span>
+                  {ticket.created_by_email && (
+                    <span className="text-slate-400 text-xs">{ticket.created_by_email}</span>
+                  )}
+                </div>
+              ) : (
+                "You"
+              )}
+            </span>
           </div>
           <div className="flex items-center space-x-1">
             <Clock className={`h-3 w-3 ${

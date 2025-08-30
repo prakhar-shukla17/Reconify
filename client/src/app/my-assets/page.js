@@ -1250,12 +1250,13 @@ export default function MyAssetsPage() {
                                 {ticket.title}
                               </h4>
                               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                ticket.status === 'open' ? 'bg-blue-100 text-blue-800' :
-                                ticket.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                                ticket.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                                ticket.status === 'Open' ? 'bg-blue-100 text-blue-800' :
+                                ticket.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
+                                ticket.status === 'Resolved' ? 'bg-green-100 text-green-800' :
+                                ticket.status === 'Closed' ? 'bg-gray-100 text-gray-800' :
                                 'bg-gray-100 text-gray-800'
                               }`}>
-                                {ticket.status.replace('_', ' ').toUpperCase()}
+                                {ticket.status}
                               </span>
                               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                                 ticket.priority === 'Low' ? 'bg-green-100 text-green-800' :
@@ -1271,7 +1272,6 @@ export default function MyAssetsPage() {
                             </p>
                                                           <div className="flex items-center space-x-4 text-sm text-gray-500">
                                 <span>Category: {ticket.category}</span>
-                                <span>Created: {formatDate(ticket.createdAt)}</span>
                                 {ticket.updatedAt && ticket.updatedAt !== ticket.createdAt && (
                                   <span>Updated: {formatDate(ticket.updatedAt)}</span>
                                 )}
@@ -1280,33 +1280,33 @@ export default function MyAssetsPage() {
                               {/* Status Update Buttons */}
                               <div className="mt-4 flex items-center space-x-2">
                                 <span className="text-sm font-medium text-gray-700">Update Status:</span>
-                                {ticket.status === 'open' && (
+                                {ticket.status === 'Open' && (
                                   <button
-                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'in_progress')}
+                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'In Progress')}
                                     className="px-3 py-1.5 bg-yellow-100 text-yellow-800 text-xs rounded-full hover:bg-yellow-200 transition-colors"
                                   >
                                     Mark In Progress
                                   </button>
                                 )}
-                                {ticket.status === 'open' && (
+                                {ticket.status === 'Open' && (
                                   <button
-                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'resolved')}
+                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'Resolved')}
                                     className="px-3 py-1.5 bg-green-100 text-green-800 text-xs rounded-full hover:bg-green-200 transition-colors"
                                   >
                                     Mark Resolved
                                   </button>
                                 )}
-                                {ticket.status === 'in_progress' && (
+                                {ticket.status === 'In Progress' && (
                                   <button
-                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'resolved')}
+                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'Resolved')}
                                     className="px-3 py-1.5 bg-green-100 text-green-800 text-xs rounded-full hover:bg-green-200 transition-colors"
                                   >
                                     Mark Resolved
                                   </button>
                                 )}
-                                {ticket.status === 'resolved' && (
+                                {ticket.status === 'Resolved' && (
                                   <button
-                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'closed')}
+                                    onClick={() => handleTicketStatusUpdate(ticket._id, 'Closed')}
                                     className="px-3 py-1.5 bg-gray-100 text-gray-800 text-xs rounded-full hover:bg-gray-200 transition-colors"
                                   >
                                     Close Ticket

@@ -6,7 +6,6 @@ import { generateTenantId } from "../utils/tenantUtils.js";
 export const register = async (req, res) => {
   try {
     const {
-      username,
       email,
       password,
       firstName,
@@ -16,14 +15,12 @@ export const register = async (req, res) => {
       company,
     } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({
-      $or: [{ email }, { username }],
-    });
+    // Check if user already exists within the same tenant
+    const existingUser = await checkUserExistsInTenant(email, req.user?.tenant_id);
 
     if (existingUser) {
       return res.status(400).json({
-        error: "User with this email or username already exists",
+        error: "User with this email already exists",
       });
     }
 
@@ -51,9 +48,11 @@ export const register = async (req, res) => {
       tenantId = generateTenantId(company);
     }
 
+    // Store plain password for email (before hashing)
+    const plainPassword = password;
+
     // Create new user
     const user = new User({
-      username,
       email,
       password,
       firstName,
@@ -64,6 +63,23 @@ export const register = async (req, res) => {
     });
 
     await user.save();
+
+    // Send credentials email if user was created by admin (in background)
+    if (req.user && (req.user.role === "admin" || req.user.role === "superadmin")) {
+      setImmediate(async () => {
+        try {
+          const { sendUserCredentials } = await import("../utils/emailService.js");
+          await sendUserCredentials({
+            ...user.toObject(),
+            plainPassword: plainPassword
+          });
+          console.log("User credentials email sent successfully");
+        } catch (emailError) {
+          console.error("Failed to send credentials email:", emailError);
+          // Don't fail user creation if email fails
+        }
+      });
+    }
 
     // Generate token with user data
     const token = generateToken(user._id, {
@@ -78,7 +94,6 @@ export const register = async (req, res) => {
     // Return user data (excluding password)
     const userResponse = {
       id: user._id,
-      username: user.username,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -100,14 +115,31 @@ export const register = async (req, res) => {
   }
 };
 
+// Helper function to check if user exists within tenant
+const checkUserExistsInTenant = async (email, tenantId) => {
+  if (tenantId) {
+    // Check within specific tenant
+    return await User.findOne({
+      email: email,
+      tenant_id: tenantId,
+    });
+  } else {
+    // For public registration, we need to check if email exists in any tenant
+    // This prevents conflicts when generating new tenant_id
+    return await User.findOne({
+      email: email,
+    });
+  }
+};
+
 // Login user
 export const login = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
 
-    // Find user by username or email
+    // Find user by email
     const user = await User.findOne({
-      $or: [{ username }, { email: username }],
+      email: email,
     });
 
     if (!user) {
@@ -137,7 +169,6 @@ export const login = async (req, res) => {
     // Return user data (excluding password)
     const userResponse = {
       id: user._id,
-      username: user.username,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -164,7 +195,6 @@ export const getProfile = async (req, res) => {
   try {
     const userResponse = {
       id: req.user._id,
-      username: req.user.username,
       email: req.user.email,
       firstName: req.user.firstName,
       lastName: req.user.lastName,
@@ -195,7 +225,6 @@ export const updateProfile = async (req, res) => {
 
     const userResponse = {
       id: user._id,
-      username: user.username,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -231,7 +260,6 @@ export const getAllUsers = async (req, res) => {
 
     const usersResponse = users.map((user) => ({
       id: user._id,
-      username: user.username,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -286,10 +314,9 @@ export const assignAsset = async (req, res) => {
     }
 
     res.json({
-      message: `${newAssignments} asset(s) assigned successfully to ${user.role} ${user.username}`,
+      message: `${newAssignments} asset(s) assigned successfully to ${user.role} ${user.firstName} ${user.lastName}`,
       user: {
         id: user._id,
-        username: user.username,
         fullName: user.fullName,
         role: user.role,
         department: user.department,
@@ -340,10 +367,9 @@ export const removeAsset = async (req, res) => {
     }
 
     res.json({
-      message: `${removedCount} asset(s) removed successfully from ${user.role} ${user.username}`,
+      message: `${removedCount} asset(s) removed successfully from ${user.role} ${user.firstName} ${user.lastName}`,
       user: {
         id: user._id,
-        username: user.username,
         fullName: user.fullName,
         role: user.role,
         department: user.department,
@@ -408,7 +434,7 @@ export const bulkAssignAssets = async (req, res) => {
 
       results.push({
         userId: user._id,
-        username: user.username,
+        fullName: user.fullName,
         role: user.role,
         newAssignments,
         totalAssets: user.assignedAssets.length,
@@ -433,7 +459,7 @@ export const getAssignmentStatistics = async (req, res) => {
   try {
     const users = await User.find(
       {},
-      "username role assignedAssets department"
+      "firstName lastName role assignedAssets department"
     );
 
     const stats = {
@@ -542,7 +568,6 @@ export const getUnassignedAssets = async (req, res) => {
 export const createUser = async (req, res) => {
   try {
     const {
-      username,
       email,
       password,
       firstName,
@@ -552,14 +577,12 @@ export const createUser = async (req, res) => {
       company,
     } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({
-      $or: [{ email }, { username }],
-    });
+    // Check if user already exists within the same tenant
+    const existingUser = await checkUserExistsInTenant(email, req.user.tenant_id);
 
     if (existingUser) {
       return res.status(400).json({
-        error: "User with this email or username already exists",
+        error: "User with this email already exists",
       });
     }
 
@@ -578,9 +601,11 @@ export const createUser = async (req, res) => {
       });
     }
 
+    // Store plain password for email (before hashing)
+    const plainPassword = password;
+
     // Create new user
     const user = new User({
-      username,
       email,
       password,
       firstName,
@@ -593,10 +618,24 @@ export const createUser = async (req, res) => {
 
     await user.save();
 
+    // Send credentials email to the new user (in background)
+    setImmediate(async () => {
+      try {
+        const { sendUserCredentials } = await import("../utils/emailService.js");
+        await sendUserCredentials({
+          ...user.toObject(),
+          plainPassword: plainPassword
+        });
+        console.log("User credentials email sent successfully");
+      } catch (emailError) {
+        console.error("Failed to send credentials email:", emailError);
+        // Don't fail user creation if email fails
+      }
+    });
+
     // Return user data (excluding password)
     const userResponse = {
       id: user._id,
-      username: user.username,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -616,5 +655,107 @@ export const createUser = async (req, res) => {
   } catch (error) {
     console.error("Create user error:", error);
     res.status(500).json({ error: "Failed to create user" });
+  }
+};
+
+// Send email to users
+export const sendEmailToUsers = async (req, res) => {
+  try {
+    const { subject, message, recipients, includeCredentials } = req.body;
+
+    // Validate required fields
+    if (!subject || !message || !recipients || recipients.length === 0) {
+      return res.status(400).json({
+        error: "Subject, message, and recipients are required",
+      });
+    }
+
+    // Get users based on recipient selection
+    let usersToEmail = [];
+    
+    if (recipients === "all") {
+      usersToEmail = await User.find({ tenant_id: req.user.tenant_id });
+    } else if (recipients === "active") {
+      usersToEmail = await User.find({ 
+        tenant_id: req.user.tenant_id, 
+        isActive: true 
+      });
+    } else if (Array.isArray(recipients)) {
+      // Custom recipient list (array of email addresses)
+      usersToEmail = await User.find({
+        email: { $in: recipients },
+        tenant_id: req.user.tenant_id
+      });
+    }
+
+    if (usersToEmail.length === 0) {
+      return res.status(400).json({
+        error: "No valid recipients found",
+      });
+    }
+
+    // Send emails to each user in background
+    const { sendUserCredentials, sendCustomEmail } = await import("../utils/emailService.js");
+    
+    // Start sending emails in background and return immediately
+    setImmediate(async () => {
+      const emailResults = [];
+      
+      for (const user of usersToEmail) {
+        try {
+          let emailResult;
+          
+          if (includeCredentials) {
+            // Send email with credentials (for password resets, etc.)
+            emailResult = await sendUserCredentials({
+              ...user.toObject(),
+              plainPassword: "Please contact your administrator for password reset"
+            });
+          } else {
+            // Send custom email
+            emailResult = await sendCustomEmail({
+              to: user.email,
+              subject: subject,
+              message: message,
+              userName: `${user.firstName} ${user.lastName}`
+            });
+          }
+
+          emailResults.push({
+            user: user.email,
+            success: emailResult.success,
+            messageId: emailResult.messageId,
+            error: emailResult.error
+          });
+        } catch (error) {
+          emailResults.push({
+            user: user.email,
+            success: false,
+            error: error.message
+          });
+        }
+      }
+
+      // Log results after all emails are sent
+      const successfulEmails = emailResults.filter(r => r.success).length;
+      const failedEmails = emailResults.filter(r => !r.success).length;
+      
+      console.log(`Bulk email completed: ${successfulEmails} successful, ${failedEmails} failed`);
+      console.log('Email results:', emailResults);
+    });
+
+    // Return immediately - emails are being sent in background
+    res.json({
+      success: true,
+      message: `Bulk email process started for ${usersToEmail.length} users. Emails are being sent in the background.`,
+      results: {
+        total: usersToEmail.length,
+        status: "Processing in background"
+      }
+    });
+
+  } catch (error) {
+    console.error('Send email to users error:', error);
+    res.status(500).json({ error: "Failed to send emails to users" });
   }
 };

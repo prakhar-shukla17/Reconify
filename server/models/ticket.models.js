@@ -221,7 +221,7 @@ TicketSchema.methods.updateStatus = function (newStatus, updatedBy) {
   if (newStatus === "Resolved" || newStatus === "Closed") {
     this.resolved_at = new Date();
     this.resolved_by = updatedBy._id;
-    this.resolved_by_name = updatedBy.username;
+    this.resolved_by_name = `${updatedBy.firstName} ${updatedBy.lastName}`;
   }
 
   return this.save();

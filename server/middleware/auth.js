@@ -41,7 +41,7 @@ export const verifyToken = async (req, res, next) => {
     console.log(
       "User found:",
       user
-        ? { id: user._id, username: user.username, role: user.role }
+        ? { id: user._id, email: user.email, role: user.role }
         : "No user"
     );
 
@@ -58,7 +58,7 @@ export const verifyToken = async (req, res, next) => {
     req.user = user;
     console.log("User set in req.user:", {
       id: req.user._id,
-      username: req.user.username,
+      email: req.user.email,
       role: req.user.role,
     });
     next();

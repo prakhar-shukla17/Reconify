@@ -55,7 +55,7 @@ export const createTicket = async (req, res) => {
       priority: priority || "Medium",
       category,
       created_by: user._id,
-      created_by_name: user.username,
+      created_by_name: `${user.firstName} ${user.lastName}`,
       created_by_email: user.email,
       asset_id,
       asset_hostname: asset.system?.hostname || "Unknown",
@@ -110,9 +110,9 @@ export const getAllTickets = async (req, res) => {
       .sort({ created_at: -1 })
       .skip(skip)
       .limit(parseInt(limit))
-      .populate("created_by", "username email")
-      .populate("assigned_to", "username email")
-      .populate("resolved_by", "username email");
+      .populate("created_by", "firstName lastName email")
+      .populate("assigned_to", "firstName lastName email")
+      .populate("resolved_by", "firstName lastName email");
 
     const total = await Ticket.countDocuments(filter);
 
@@ -148,9 +148,9 @@ export const getTicketById = async (req, res) => {
     }
     
     const ticket = await Ticket.findOne(query)
-      .populate("created_by", "username email")
-      .populate("assigned_to", "username email")
-      .populate("resolved_by", "username email");
+      .populate("created_by", "firstName lastName email")
+      .populate("assigned_to", "firstName lastName email")
+      .populate("resolved_by", "firstName lastName email");
 
     if (!ticket) {
       return res.status(404).json({
@@ -243,7 +243,7 @@ export const updateTicket = async (req, res) => {
           });
         }
         ticket.assigned_to = assigned_to;
-        ticket.assigned_to_name = assignedUser.username;
+        ticket.assigned_to_name = `${assignedUser.firstName} ${assignedUser.lastName}`;
       }
     }
 
@@ -252,7 +252,7 @@ export const updateTicket = async (req, res) => {
       if (originalStatus !== "Resolved" && originalStatus !== "Closed") {
         ticket.resolved_at = new Date();
         ticket.resolved_by = user._id;
-        ticket.resolved_by_name = user.username;
+        ticket.resolved_by_name = `${user.firstName} ${user.lastName}`;
       }
     } else if (originalStatus === "Resolved" || originalStatus === "Closed") {
       // Ticket was reopened
@@ -266,9 +266,9 @@ export const updateTicket = async (req, res) => {
 
     // Populate the response
     const populatedTicket = await Ticket.findOne({ _id: updatedTicket._id })
-      .populate("created_by", "username email")
-      .populate("assigned_to", "username email")
-      .populate("resolved_by", "username email");
+      .populate("created_by", "firstName lastName email")
+      .populate("assigned_to", "firstName lastName email")
+      .populate("resolved_by", "firstName lastName email");
 
     res.json({
       success: true,
@@ -330,7 +330,7 @@ export const addComment = async (req, res) => {
     const commentData = {
       comment: comment.trim(),
       commented_by: user._id,
-      commented_by_name: user.username,
+      commented_by_name: `${user.firstName} ${user.lastName}`,
       is_internal: isInternalComment,
     };
 
@@ -494,7 +494,7 @@ export const updateTicketStatus = async (req, res) => {
       if (originalStatus !== "Resolved" && originalStatus !== "Closed") {
         ticket.resolved_at = new Date();
         ticket.resolved_by = user._id;
-        ticket.resolved_by_name = user.username;
+        ticket.resolved_by_name = `${user.firstName} ${user.lastName}`;
       }
     } else if (originalStatus === "Resolved" || originalStatus === "Closed") {
       // Ticket was reopened
@@ -567,7 +567,7 @@ export const assignTicket = async (req, res) => {
         });
       }
       ticket.assigned_to = assigned_to;
-      ticket.assigned_to_name = assignedUser.username;
+      ticket.assigned_to_name = `${assignedUser.firstName} ${assignedUser.lastName}`;
     }
 
     ticket.updated_at = new Date();
@@ -603,8 +603,8 @@ export const getAdminUsers = async (req, res) => {
     }
     
     const admins = await User.find(query)
-      .select("_id username email")
-      .sort({ username: 1 });
+      .select("_id firstName lastName email")
+      .sort({ firstName: 1 });
 
     res.json({
       success: true,
@@ -650,16 +650,16 @@ export const closeTicket = async (req, res) => {
     ticket.resolution = resolution.trim();
     ticket.resolved_at = new Date();
     ticket.resolved_by = user._id;
-    ticket.resolved_by_name = user.username;
+    ticket.resolved_by_name = `${user.firstName} ${user.lastName}`;
     ticket.updated_at = new Date();
 
     const updatedTicket = await ticket.save();
 
     // Populate the response
     const populatedTicket = await Ticket.findOne({ _id: updatedTicket._id })
-      .populate("created_by", "username email")
-      .populate("assigned_to", "username email")
-      .populate("resolved_by", "username email");
+      .populate("created_by", "firstName lastName email")
+      .populate("assigned_to", "firstName lastName email")
+      .populate("resolved_by", "firstName lastName email");
 
     res.json({
       success: true,

@@ -18,6 +18,7 @@ import HealthDashboard from "../../components/lazy/HealthDashboard.lazy";
 import MLServiceControlPanel from "../../components/lazy/MLServiceControlPanel.lazy";
 import CreateUserModal from "../../components/CreateUserModal";
 import ScannerDownloadModal from "../../components/ScannerDownloadModal";
+import SendEmailModal from "../../components/SendEmailModal";
 
 import LazyLoader from "../../components/LazyLoader";
 import Pagination from "../../components/Pagination";
@@ -61,6 +62,7 @@ import {
   Clock,
   Download,
   Info,
+  Mail,
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -101,6 +103,7 @@ export default function AdminPage() {
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [showScannerDownloadModal, setShowScannerDownloadModal] =
     useState(false);
+  const [showSendEmailModal, setShowSendEmailModal] = useState(false);
 
   // Enhanced ticket filtering and pagination state
   const [ticketFilters, setTicketFilters] = useState({
@@ -750,7 +753,6 @@ export default function AdminPage() {
       // Ensure user objects have the expected structure
       const normalizedUsers = usersData.map((user) => ({
         id: user._id || user.id,
-        username: user.username || user.email,
         email: user.email,
         firstName:
           user.firstName ||
@@ -871,7 +873,6 @@ export default function AdminPage() {
 
   const filteredUsers = users.filter(
     (user) =>
-      user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.lastName?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -2984,6 +2985,14 @@ export default function AdminPage() {
                         </h3>
                         <div className="flex items-center space-x-2">
                           <button
+                            onClick={() => setShowSendEmailModal(true)}
+                            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                            title="Send email to users"
+                          >
+                            <Mail className="h-4 w-4" />
+                            <span>Send Email</span>
+                          </button>
+                          <button
                             onClick={() => setShowCreateUserModal(true)}
                             className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors flex items-center space-x-2"
                             title="Create new user"
@@ -3286,6 +3295,13 @@ export default function AdminPage() {
             onClose={() => setShowScannerDownloadModal(false)}
           />
         </LazyLoader>
+
+        {/* Send Email Modal */}
+        <SendEmailModal
+          isOpen={showSendEmailModal}
+          onClose={() => setShowSendEmailModal(false)}
+          users={users}
+        />
       </div>
     </ProtectedRoute>
   );

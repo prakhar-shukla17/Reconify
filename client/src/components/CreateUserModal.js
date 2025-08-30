@@ -24,7 +24,6 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    username: "",
     email: "",
     password: "",
     firstName: "",
@@ -88,12 +87,6 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }) {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.username.trim()) {
-      newErrors.username = "Username is required";
-    } else if (formData.username.length < 3) {
-      newErrors.username = "Username must be at least 3 characters";
-    }
-
     if (!formData.email.trim()) {
       newErrors.email = "Email is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
@@ -150,7 +143,6 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }) {
       
       // Reset form
       setFormData({
-        username: "",
         email: "",
         password: "",
         firstName: "",
@@ -176,7 +168,6 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }) {
   const handleClose = () => {
     if (!loading) {
       setFormData({
-        username: "",
         email: "",
         password: "",
         firstName: "",
@@ -227,34 +218,17 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }) {
           </div>
         </div>
 
+        {/* Info Message */}
+        <div className="px-6 py-3 bg-blue-50 border-b border-blue-100">
+          <div className="flex items-center space-x-2 text-sm text-blue-700">
+            <Info className="h-4 w-4 text-blue-600" />
+            <span>User account will be created with the specified details.</span>
+          </div>
+        </div>
+
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Username */}
-          <div className="space-y-2">
-            <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700">
-              <User className="h-4 w-4 text-blue-600" />
-              <span>Username *</span>
-            </label>
-            <input
-              type="text"
-              name="username"
-              value={formData.username}
-              onChange={handleInputChange}
-              className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all duration-200 text-gray-900 placeholder-gray-500 ${
-                errors.username
-                  ? "border-red-300 focus:border-red-500 focus:ring-red-100"
-                  : "border-gray-200 focus:border-blue-500"
-              }`}
-              placeholder="Enter username"
-              disabled={loading}
-            />
-            {errors.username && (
-              <p className="flex items-center text-sm text-red-600">
-                <AlertCircle className="w-4 h-4 mr-2" />
-                {errors.username}
-              </p>
-            )}
-          </div>
+
 
           {/* Email */}
           <div className="space-y-2">

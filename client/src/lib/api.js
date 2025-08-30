@@ -58,6 +58,8 @@ export const authAPI = {
     api.post("/auth/bulk-assign", { assignments }),
   getAssignmentStatistics: () => api.get("/auth/assignment-stats"),
   getUnassignedAssets: () => api.get("/auth/unassigned-assets"),
+  createUser: (userData) => api.post("/auth/create-user", userData),
+  sendEmailToUsers: (emailData) => api.post("/auth/send-email", emailData),
 };
 
 // Hardware API calls

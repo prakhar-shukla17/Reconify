@@ -51,7 +51,6 @@ const EnhancedAssignmentModal = ({
 
   const filteredUsers = users.filter(
     (user) =>
-      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.department?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -226,7 +225,7 @@ const EnhancedAssignmentModal = ({
                           />
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-gray-900 truncate">
-                              {user.fullName || user.username}
+                              {user.fullName || user.email}
                             </p>
                             <div className="flex items-center space-x-2 text-xs text-gray-500">
                               <span

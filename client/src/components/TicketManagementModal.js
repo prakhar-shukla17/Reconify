@@ -398,6 +398,9 @@ const TicketManagementModal = ({ ticket, onClose, onUpdate }) => {
                     <div>
                       <p className="text-sm font-medium text-slate-900">Created by</p>
                       <p className="text-slate-600">{ticket.created_by_name}</p>
+                      {ticket.created_by_email && (
+                        <p className="text-xs text-slate-500">{ticket.created_by_email}</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">

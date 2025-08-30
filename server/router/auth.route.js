@@ -11,7 +11,9 @@ import {
   getAssignmentStatistics,
   getUnassignedAssets,
   createUser,
+  sendEmailToUsers,
 } from "../controllers/auth.controller.js";
+import { testEmailConfig } from "../utils/emailService.js";
 import { verifyToken, requireAdmin } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -42,5 +44,22 @@ router.get(
   requireAdmin,
   getUnassignedAssets
 );
+
+// Test email configuration (admin only)
+router.get("/test-email", verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await testEmailConfig();
+    if (result.success) {
+      res.json({ success: true, message: "Email configuration is working correctly" });
+    } else {
+      res.status(500).json({ success: false, error: result.error });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Send email to users (admin only)
+router.post("/send-email", verifyToken, requireAdmin, sendEmailToUsers);
 
 export default router;
