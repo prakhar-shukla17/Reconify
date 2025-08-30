@@ -1,5 +1,79 @@
 import Hardware from "../models/hardware.models.js";
 
+// Update MAC address for an asset
+export const updateMacAddress = async (req, res) => {
+  try {
+    const { id } = req.params; // Current MAC address
+    const { newMacAddress } = req.body;
+
+    // Validate MAC address format
+    const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
+    if (!macRegex.test(newMacAddress)) {
+      return res.status(400).json({
+        error: "Invalid MAC address format. Use format: XX:XX:XX:XX:XX:XX",
+      });
+    }
+
+    // Normalize MAC address to uppercase
+    const normalizedNewMac = newMacAddress.toUpperCase();
+
+    // Build query with tenant_id filter
+    let query = { _id: id };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+
+    // Check if asset exists
+    const existingAsset = await Hardware.findOne(query);
+    if (!existingAsset) {
+      return res.status(404).json({ error: "Asset not found" });
+    }
+
+    // Check if new MAC address already exists
+    const duplicateQuery = { _id: normalizedNewMac };
+    if (req.user && req.user.tenant_id) {
+      duplicateQuery.tenant_id = req.user.tenant_id;
+    }
+
+    const duplicateAsset = await Hardware.findOne(duplicateQuery);
+    if (duplicateAsset) {
+      return res.status(409).json({
+        error: "Asset with this MAC address already exists",
+      });
+    }
+
+    // Update the asset with new MAC address
+    const updatedAsset = await Hardware.findOneAndUpdate(
+      query,
+      {
+        $set: {
+          _id: normalizedNewMac,
+          "system.mac_address": normalizedNewMac,
+          "asset_info.last_updated": new Date(),
+          "asset_info.updated_by": req.user?.username || "admin",
+        },
+      },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "MAC address updated successfully",
+      data: {
+        oldMacAddress: id,
+        newMacAddress: normalizedNewMac,
+        asset: updatedAsset,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating MAC address:", error);
+    return res.status(500).json({
+      error: "Failed to update MAC address",
+      details: error.message,
+    });
+  }
+};
+
 export const getAll = async (req, res) => {
   try {
     // Get pagination parameters from query
@@ -1244,8 +1318,11 @@ export const importCsvAssets = async (req, res) => {
           asset_info: {
             purchase_date: null,
             warranty_expiry:
-              warrantyExpiry && warrantyExpiry !== "-"
-                ? new Date(warrantyExpiry)
+              warrantyExpiry && warrantyExpiry !== "-" && warrantyExpiry !== ""
+                ? (() => {
+                    const date = new Date(warrantyExpiry);
+                    return isNaN(date.getTime()) ? null : date;
+                  })()
                 : null,
             vendor: vendor || make || "Unknown",
             model: model || "Unknown",

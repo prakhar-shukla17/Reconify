@@ -15,6 +15,7 @@ import {
   getUnassignedAssets,
   importCsvAssets,
   getDashboardStats,
+  updateMacAddress,
 } from "../controllers/hardware.controller.js";
 import {
   verifyToken,
@@ -94,7 +95,12 @@ router.get("/:id", verifyToken, canAccessAsset, getById);
 router.put("/:id/asset-info", verifyToken, requireAdmin, updateAssetInfo);
 
 // PUT route to update asset information for user's own assets
-router.put("/:id/user-asset-info", verifyToken, canAccessAsset, updateUserAssetInfo);
+router.put(
+  "/:id/user-asset-info",
+  verifyToken,
+  canAccessAsset,
+  updateUserAssetInfo
+);
 
 // PUT route to update component warranty information (admin only)
 router.put(
@@ -111,5 +117,8 @@ router.put(
   canAccessAsset,
   updateUserComponentWarranty
 );
+
+// PUT route to update MAC address (admin only)
+router.put("/:id/mac-address", verifyToken, requireAdmin, updateMacAddress);
 
 export default router;
