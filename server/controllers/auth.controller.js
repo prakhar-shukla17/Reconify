@@ -759,3 +759,215 @@ export const sendEmailToUsers = async (req, res) => {
     res.status(500).json({ error: "Failed to send emails to users" });
   }
 };
+
+// Send warranty alert email to specific user
+export const sendWarrantyAlertEmail = async (req, res) => {
+  try {
+    const { alertId, userId, alertData } = req.body;
+
+    // Validate required fields
+    if (!alertId || !userId || !alertData) {
+      return res.status(400).json({
+        error: "Alert ID, user ID, and alert data are required",
+      });
+    }
+
+    // Check if user exists and belongs to the same tenant
+    const user = await User.findOne({
+      _id: userId,
+      tenant_id: req.user.tenant_id
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found"
+      });
+    }
+
+    // Send warranty alert email in background
+    const { sendWarrantyAlertEmail } = await import("../utils/emailService.js");
+    
+    setImmediate(async () => {
+      try {
+        const emailResult = await sendWarrantyAlertEmail(alertData, user);
+        
+        if (emailResult.success) {
+          console.log(`Warranty alert email sent successfully to ${user.email} for alert ${alertId}`);
+        } else {
+          console.error(`Failed to send warranty alert email to ${user.email}:`, emailResult.error);
+        }
+      } catch (error) {
+        console.error(`Error sending warranty alert email to ${user.email}:`, error);
+      }
+    });
+
+    // Return immediately - email is being sent in background
+    res.json({
+      success: true,
+      message: `Warranty alert email is being sent to ${user.email}`,
+      results: {
+        user: user.email,
+        alertId: alertId,
+        status: "Processing in background"
+      }
+    });
+
+  } catch (error) {
+    console.error('Send warranty alert email error:', error);
+    res.status(500).json({ error: "Failed to send warranty alert email" });
+  }
+};
+
+// Delete user
+export const deleteUser = async (req, res) => {
+  try {
+    console.log("=== deleteUser called ===");
+    console.log("Request params:", req.params);
+    console.log("Request body:", req.body);
+    console.log("Request user:", req.user);
+    
+    const { userId } = req.params;
+
+    // Check if user exists and belongs to the same tenant
+    const user = await User.findOne({
+      _id: userId,
+      tenant_id: req.user.tenant_id
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found"
+      });
+    }
+
+    // Prevent deletion of superadmin accounts (unless by another superadmin)
+    if (user.role === "superadmin" && req.user.role !== "superadmin") {
+      return res.status(403).json({
+        error: "Only superadmins can delete superadmin accounts"
+      });
+    }
+
+    // Prevent deletion of own account
+    if (user._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({
+        error: "Cannot delete your own account"
+      });
+    }
+
+    // Check if user has assigned assets
+    if (user.assignedAssets && user.assignedAssets.length > 0) {
+      return res.status(400).json({
+        error: "Cannot delete user with assigned assets. Please remove all asset assignments first."
+      });
+    }
+
+    // Delete the user
+    await User.findByIdAndDelete(userId);
+
+    res.json({
+      success: true,
+      message: "User deleted successfully"
+    });
+
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: "Failed to delete user" });
+  }
+};
+
+// Update user
+export const updateUser = async (req, res) => {
+  try {
+    console.log("=== updateUser called ===");
+    console.log("Request params:", req.params);
+    console.log("Request body:", req.body);
+    console.log("Request user:", req.user);
+    
+    const { userId } = req.params;
+    const updateData = req.body;
+
+    // Check if user exists and belongs to the same tenant
+    const user = await User.findOne({
+      _id: userId,
+      tenant_id: req.user.tenant_id
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found"
+      });
+    }
+
+    // Prevent updating superadmin accounts (unless by another superadmin)
+    if (user.role === "superadmin" && req.user.role !== "superadmin") {
+      return res.status(403).json({
+        error: "Only superadmins can modify superadmin accounts"
+      });
+    }
+
+    // Prevent role escalation (regular admins can't create other admins)
+    if (req.user.role === "admin" && updateData.role === "admin") {
+      return res.status(403).json({
+        error: "Regular admins cannot create or modify admin accounts"
+      });
+    }
+
+    // Fields that can be updated
+    const allowedFields = ['firstName', 'lastName', 'email', 'department', 'role', 'isActive'];
+    const filteredUpdateData = {};
+
+    allowedFields.forEach(field => {
+      if (updateData[field] !== undefined) {
+        filteredUpdateData[field] = updateData[field];
+      }
+    });
+
+    // Check if email is being updated and if it already exists
+    if (updateData.email && updateData.email !== user.email) {
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(updateData.email)) {
+        return res.status(400).json({
+          error: "Invalid email format"
+        });
+      }
+
+      const existingUserWithEmail = await User.findOne({
+        email: updateData.email,
+        tenant_id: req.user.tenant_id,
+        _id: { $ne: userId } // Exclude current user from check
+      });
+
+      if (existingUserWithEmail) {
+        return res.status(400).json({
+          error: "Email address is already in use by another user"
+        });
+      }
+    }
+
+    // Update the user
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      filteredUpdateData,
+      { new: true, runValidators: true }
+    );
+
+    res.json({
+      success: true,
+      message: "User updated successfully",
+      user: {
+        id: updatedUser._id,
+        email: updatedUser.email,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        role: updatedUser.role,
+        department: updatedUser.department,
+        isActive: updatedUser.isActive
+      }
+    });
+
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: "Failed to update user" });
+  }
+};

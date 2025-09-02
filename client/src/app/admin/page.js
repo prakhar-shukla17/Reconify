@@ -7,7 +7,6 @@ import Navbar from "../../components/Navbar";
 import HardwareCard from "../../components/HardwareCard";
 import HardwareDetails from "../../components/HardwareDetails";
 import SoftwareDetails from "../../components/SoftwareDetails";
-import AlertsWidget from "../../components/AlertsWidget";
 import AlertsPanel from "../../components/AlertsPanel";
 import EnhancedAssignmentModal from "../../components/EnhancedAssignmentModal";
 import ManualAssetModal from "../../components/lazy/ManualAssetModal.lazy";
@@ -17,6 +16,8 @@ import TicketManagementModal from "../../components/lazy/TicketManagementModal.l
 import HealthDashboard from "../../components/lazy/HealthDashboard.lazy";
 import MLServiceControlPanel from "../../components/lazy/MLServiceControlPanel.lazy";
 import CreateUserModal from "../../components/CreateUserModal";
+import EditUserModal from "../../components/EditUserModal";
+import DeleteConfirmationModal from "../../components/DeleteConfirmationModal";
 import ScannerDownloadModal from "../../components/ScannerDownloadModal";
 import SendEmailModal from "../../components/SendEmailModal";
 
@@ -68,6 +69,36 @@ import {
 export default function AdminPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("assets");
+  
+  // Global error handler
+  useEffect(() => {
+    const handleGlobalError = (event) => {
+      console.error("Global error caught:", event.error);
+      if (event.error && event.error.message && event.error.message.includes("API Error")) {
+        console.error("API Error details:", {
+          error: event.error,
+          message: event.error.message,
+          stack: event.error.stack
+        });
+      }
+    };
+
+    window.addEventListener('error', handleGlobalError);
+    window.addEventListener('unhandledrejection', (event) => {
+      console.error("Unhandled promise rejection:", event.reason);
+      if (event.reason && event.reason.message && event.reason.message.includes("API Error")) {
+        console.error("API Promise rejection details:", {
+          reason: event.reason,
+          message: event.reason.message,
+          stack: event.reason.stack
+        });
+      }
+    });
+
+    return () => {
+      window.removeEventListener('error', handleGlobalError);
+    };
+  }, []);
   const [hardware, setHardware] = useState([]);
   const [software, setSoftware] = useState([]);
   const [assetType, setAssetType] = useState("hardware"); // "hardware" or "software"
@@ -101,6 +132,11 @@ export default function AdminPage() {
     low: 0,
   });
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [updatingUsers, setUpdatingUsers] = useState(new Set());
   const [showScannerDownloadModal, setShowScannerDownloadModal] =
     useState(false);
   const [showSendEmailModal, setShowSendEmailModal] = useState(false);
@@ -807,10 +843,22 @@ export default function AdminPage() {
       } else {
         fetchSoftware(); // Refresh software if that's what we're viewing
       }
+      // Refresh alerts to update any user-related alerts
+      await fetchAlerts();
       setShowAssignModal(false);
     } catch (error) {
       console.error("Assignment error:", error);
-      toast.error(error.response?.data?.error || "Failed to assign asset");
+      console.error("Error userMessage:", error.userMessage);
+      console.error("Error errorStatus:", error.errorStatus);
+      
+      const errorMessage = error.userMessage || 
+                          (error.response?.data?.error) || 
+                          (error.response?.status === 404 ? "User or asset not found" : 
+                           error.response?.status === 403 ? "Permission denied" :
+                           error.response?.status === 400 ? "Invalid request" :
+                           "Failed to assign asset");
+      
+      toast.error(errorMessage);
     }
   };
 
@@ -841,7 +889,7 @@ export default function AdminPage() {
     setShowEnhancedAssignModal(true);
   };
 
-  const handleAssignmentComplete = () => {
+  const handleAssignmentComplete = async () => {
     setSelectedAssets([]);
     fetchUsers();
     if (assetType === "hardware") {
@@ -849,6 +897,8 @@ export default function AdminPage() {
     } else {
       fetchSoftware(assetPagination.currentPage, assetPagination.itemsPerPage);
     }
+    // Refresh alerts to update any user-related alerts
+    await fetchAlerts();
   };
 
   const handleRemoveAsset = async (userId, macAddress) => {
@@ -856,9 +906,114 @@ export default function AdminPage() {
       await authAPI.removeAsset(userId, macAddress);
       toast.success("Asset removed successfully");
       fetchUsers();
+      // Refresh alerts to update any user-related alerts
+      await fetchAlerts();
     } catch (error) {
-      toast.error("Failed to remove asset");
+      console.error("Remove asset error:", error);
+      console.error("Error userMessage:", error.userMessage);
+      console.error("Error errorStatus:", error.errorStatus);
+      
+      const errorMessage = error.userMessage || 
+                          (error.response?.data?.error) || 
+                          (error.response?.status === 404 ? "User or asset not found" : 
+                           error.response?.status === 403 ? "Permission denied" :
+                           error.response?.status === 400 ? "Invalid request" :
+                           "Failed to remove asset");
+      
+      toast.error(errorMessage);
     }
+  };
+
+  const handleDeleteUser = (user) => {
+    setUserToDelete(user);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    const userId = userToDelete.id;
+    
+    try {
+      console.log("Attempting to delete user with ID:", userId);
+      console.log("User object:", userToDelete);
+      
+      // Set loading state
+      setUpdatingUsers(prev => new Set(prev).add(userId));
+      
+      // Optimistically remove user from the list immediately
+      setUsers(prev => prev.filter(user => user.id !== userId));
+      
+      console.log("About to call deleteUser API...");
+      const response = await authAPI.deleteUser(userId);
+      console.log("Delete response:", response);
+      console.log("Delete response data:", response?.data);
+      console.log("Delete response status:", response?.status);
+      
+      toast.success("User deleted successfully");
+      
+      // Refresh alerts to update any user-related alerts
+      await fetchAlerts();
+      
+      // If there was an error, restore the user to the list
+      if (!response.data.success) {
+        setUsers(prev => [...prev, userToDelete]);
+        toast.error("Failed to delete user. User restored to list.");
+      }
+    } catch (error) {
+      console.error("Delete user error details:", error);
+      console.error("Error response:", error.response);
+      console.error("Error userMessage:", error.userMessage);
+      console.error("Error errorStatus:", error.errorStatus);
+      console.error("Error errorData:", error.errorData);
+      
+      // Use enhanced error message with fallback
+      const errorMessage = error.userMessage || 
+                          (error.response?.data?.error) || 
+                          (error.response?.status === 404 ? "User not found" : 
+                           error.response?.status === 403 ? "Permission denied" :
+                           error.response?.status === 400 ? "Invalid request" :
+                           "Failed to delete user");
+      
+      toast.error(errorMessage);
+      
+      // Restore the user to the list if deletion failed
+      setUsers(prev => [...prev, userToDelete]);
+    } finally {
+      // Clear loading state
+      setUpdatingUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
+      
+      // Close modal and reset state
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+    }
+  };
+
+  const handleEditUser = (user) => {
+    setSelectedUser(user);
+    setShowEditUserModal(true);
+  };
+
+  const handleUserUpdated = async (updatedUser) => {
+    // Update the users list immediately with the new data
+    setUsers(prev => prev.map(user => 
+      user.id === updatedUser.id ? {
+        ...user,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        email: updatedUser.email,
+        department: updatedUser.department,
+        role: updatedUser.role,
+        isActive: updatedUser.isActive
+      } : user
+    ));
+    
+    // Refresh alerts to update any user-related alerts
+    await fetchAlerts();
   };
 
   const isAssetAssigned = (macAddress) => {
@@ -2005,7 +2160,7 @@ export default function AdminPage() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               </div>
             ) : activeTab === "alerts" ? (
-              <AlertsPanel />
+              <AlertsPanel users={users} />
             ) : activeTab === "tickets" ? (
               // Tickets Tab
               <div className="p-8 bg-white rounded-3xl border border-gray-200 shadow-sm">
@@ -3024,16 +3179,18 @@ export default function AdminPage() {
                             Department
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Assigned Assets
+                            Status
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
+                            Actions
                           </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {filteredUsers.map((user) => (
-                          <tr key={user.id} className="hover:bg-gray-50">
+                          <tr key={user.id} className={`hover:bg-gray-50 transition-colors ${
+                            updatingUsers.has(user.id) ? 'bg-blue-50' : ''
+                          }`}>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div className="h-10 w-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center">
@@ -3066,32 +3223,6 @@ export default function AdminPage() {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {user.department || "Not specified"}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              <div className="flex items-center space-x-2">
-                                <span className="font-medium">
-                                  {user.assignedAssets?.length || 0} assets
-                                </span>
-                                {user.assignedAssets?.length > 0 && (
-                                  <div className="flex flex-wrap gap-1">
-                                    {user.assignedAssets
-                                      .slice(0, 2)
-                                      .map((mac) => (
-                                        <span
-                                          key={mac}
-                                          className="text-xs bg-gray-100 px-2 py-1 rounded"
-                                        >
-                                          {mac.slice(-6)}
-                                        </span>
-                                      ))}
-                                    {user.assignedAssets.length > 2 && (
-                                      <span className="text-xs text-gray-500">
-                                        +{user.assignedAssets.length - 2} more
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span
                                 className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -3102,6 +3233,39 @@ export default function AdminPage() {
                               >
                                 {user.isActive ? "Active" : "Inactive"}
                               </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => handleEditUser(user)}
+                                  disabled={updatingUsers.has(user.id)}
+                                  className={`inline-flex items-center px-3 py-1.5 border border-blue-300 text-xs font-medium rounded-lg transition-colors ${
+                                    updatingUsers.has(user.id)
+                                      ? "text-gray-400 bg-gray-100 border-gray-200 cursor-not-allowed"
+                                      : "text-blue-700 bg-blue-50 hover:bg-blue-100 hover:border-blue-400"
+                                  }`}
+                                  title={updatingUsers.has(user.id) ? "User is being updated..." : "Edit user"}
+                                >
+                                  <Settings className="h-3 w-3 mr-1" />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteUser(user)}
+                                  disabled={updatingUsers.has(user.id)}
+                                  className={`inline-flex items-center px-3 py-1.5 border border-red-300 text-xs font-medium rounded-lg transition-colors ${
+                                    updatingUsers.has(user.id)
+                                      ? "text-gray-400 bg-gray-100 border-gray-200 cursor-not-allowed"
+                                      : "text-red-700 bg-red-50 hover:bg-red-100 hover:border-red-400"
+                                  }`}
+                                  title={updatingUsers.has(user.id) ? "User is being updated..." : "Delete user"}
+                                >
+                                  <X className="h-3 w-3 mr-1" />
+                                  Remove
+                                </button>
+                                {updatingUsers.has(user.id) && (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -3126,7 +3290,7 @@ export default function AdminPage() {
                 )}
               </div>
             ) : activeTab === "alerts" ? (
-              <AlertsPanel />
+              <AlertsPanel users={users} />
             ) : (
               <HealthDashboard
                 isOpen={showHealthDashboard}
@@ -3276,17 +3440,52 @@ export default function AdminPage() {
           <CreateUserModal
             isOpen={showCreateUserModal}
             onClose={() => setShowCreateUserModal(false)}
-            onUserCreated={(newUser) => {
-              // Add the new user to the users list
-              setUsers((prev) => [newUser, ...prev]);
-              // Refresh users to get the updated list
-              fetchUsers();
+            onUserCreated={async (newUser) => {
+              // Add the new user to the users list immediately
+              const normalizedNewUser = {
+                id: newUser.id || newUser._id,
+                email: newUser.email,
+                firstName: newUser.firstName || newUser.first_name || "Unknown",
+                lastName: newUser.lastName || newUser.last_name || "Unknown",
+                role: newUser.role || "user",
+                department: newUser.department || "Not specified",
+                assignedAssets: newUser.assignedAssets || newUser.assigned_assets || [],
+                isActive: newUser.isActive !== undefined ? newUser.isActive : true,
+              };
+              
+              setUsers((prev) => [normalizedNewUser, ...prev]);
+              // Refresh alerts to update any user-related alerts
+              await fetchAlerts();
+              // Single toast message for user creation
               toast.success(
-                `User ${newUser.firstName} ${newUser.lastName} created successfully!`
+                `User ${normalizedNewUser.firstName} ${normalizedNewUser.lastName} created successfully!`
               );
             }}
           />
         </LazyLoader>
+
+        {/* Edit User Modal */}
+        <EditUserModal
+          isOpen={showEditUserModal}
+          onClose={() => {
+            setShowEditUserModal(false);
+            setSelectedUser(null);
+          }}
+          user={selectedUser}
+          onUserUpdated={handleUserUpdated}
+        />
+
+        {/* Delete Confirmation Modal */}
+        <DeleteConfirmationModal
+          isOpen={showDeleteModal}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setUserToDelete(null);
+          }}
+          onConfirm={confirmDeleteUser}
+          user={userToDelete}
+          loading={userToDelete ? updatingUsers.has(userToDelete.id) : false}
+        />
 
         {/* Scanner Download Modal */}
         <LazyLoader>

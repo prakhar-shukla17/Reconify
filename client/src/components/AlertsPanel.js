@@ -21,16 +21,22 @@ import {
   HardDrive,
   X,
   Zap,
+  Mail,
 } from "lucide-react";
 import { alertsAPI } from "../lib/api";
 import toast from "react-hot-toast";
+import AlertEmailModal from "./AlertEmailModal";
 
-const AlertsPanel = ({ className = "" }) => {
+const AlertsPanel = ({ className = "", users = [] }) => {
   // Core state
   const [alerts, setAlerts] = useState([]);
   const [summary, setSummary] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Email modal state
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState(null);
   
   // Filter state
   const [filter, setFilter] = useState("all");
@@ -70,6 +76,12 @@ const AlertsPanel = ({ className = "" }) => {
         cacheRef.current.delete(key);
       }
     }
+  }, []);
+
+  // Handle email alert
+  const handleEmailAlert = useCallback((alert) => {
+    setSelectedAlert(alert);
+    setShowEmailModal(true);
   }, []);
 
   // Fetch alerts with caching
@@ -624,11 +636,130 @@ const AlertsPanel = ({ className = "" }) => {
             />
           </div>
         </div>
+
+        {/* Alerts List */}
+        <div className="mt-8">
+          <h4 className="text-xl font-semibold text-gray-900 mb-6">
+            Active Warranty Alerts ({alerts.length})
+          </h4>
+          
+          {alerts.length === 0 ? (
+            <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300">
+              <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+              <h5 className="text-lg font-medium text-gray-900 mb-2">All Good!</h5>
+              <p className="text-gray-600">No warranty alerts for the selected time period.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {alerts.map((alert, index) => {
+                const severityColor = alert.severity === 'critical' ? 'border-red-200 bg-red-50' :
+                                    alert.severity === 'high' ? 'border-orange-200 bg-orange-50' :
+                                    alert.severity === 'medium' ? 'border-yellow-200 bg-yellow-50' :
+                                    'border-blue-200 bg-blue-50';
+                
+                const severityTextColor = alert.severity === 'critical' ? 'text-red-800 bg-red-100' :
+                                        alert.severity === 'high' ? 'text-orange-800 bg-orange-100' :
+                                        alert.severity === 'medium' ? 'text-yellow-800 bg-yellow-100' :
+                                        'text-blue-800 bg-blue-100';
+
+                return (
+                  <div
+                    key={alert.id}
+                    className={`${severityColor} rounded-2xl p-6 border transition-all duration-300 hover:shadow-lg hover:scale-[1.01]`}
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center">
+                          <AlertTriangle className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900 text-lg">
+                            {alert.hostname || "Unknown Device"}
+                          </h4>
+                          {alert.macAddress && (
+                            <p className="text-sm text-gray-600 font-mono">
+                              MAC: {alert.macAddress}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className={`px-3 py-1 text-sm font-medium rounded-full ${severityTextColor}`}>
+                          {alert.severity.toUpperCase()}
+                        </span>
+                        <button
+                          onClick={() => handleEmailAlert(alert)}
+                          className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                          title="Send alert email to users"
+                        >
+                          <Mail className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div className="bg-white rounded-lg p-3 border border-gray-200">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <HardDrive className="h-4 w-4 text-blue-600" />
+                          <span className="font-medium text-gray-700">Component</span>
+                        </div>
+                        <p className="text-gray-900">
+                          {alert.component?.name || "Asset"}
+                        </p>
+                        {alert.component?.type && (
+                          <p className="text-xs text-gray-500 capitalize">
+                            Type: {alert.component.type}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="bg-white rounded-lg p-3 border border-gray-200">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <AlertTriangle className="h-4 w-4 text-orange-600" />
+                          <span className="font-medium text-gray-700">Expires</span>
+                        </div>
+                        <p className="text-gray-900">
+                          {new Date(alert.expiryDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                      
+                      <div className="bg-white rounded-lg p-3 border border-gray-200">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <AlertTriangle className="h-4 w-4 text-red-600" />
+                          <span className="font-medium text-gray-700">Time Remaining</span>
+                        </div>
+                        <p className={`font-medium ${
+                          alert.daysUntilExpiry <= 7 ? 'text-red-600' :
+                          alert.daysUntilExpiry <= 14 ? 'text-orange-600' :
+                          'text-yellow-600'
+                        }`}>
+                          {alert.daysUntilExpiry === 0 ? 'Today' : `${alert.daysUntilExpiry} days`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       <ComponentModal />
+      
+      {/* Alert Email Modal */}
+      <AlertEmailModal
+        isOpen={showEmailModal}
+        onClose={() => {
+          setShowEmailModal(false);
+          setSelectedAlert(null);
+        }}
+        alert={selectedAlert}
+        users={users}
+      />
     </div>
-  ), [alerts, summary, componentCounts, ComponentAlertTile, ComponentModal, handleAlertDaysChange, handleFilterChange, className, loading, fetchAlerts]);
+  ), [alerts, summary, componentCounts, ComponentAlertTile, ComponentModal, handleAlertDaysChange, handleFilterChange, className, loading, fetchAlerts, showEmailModal, selectedAlert, users, handleEmailAlert]);
 
   // Render based on state
   if (loading && alerts.length === 0) {

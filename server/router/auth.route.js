@@ -12,6 +12,9 @@ import {
   getUnassignedAssets,
   createUser,
   sendEmailToUsers,
+  sendWarrantyAlertEmail,
+  deleteUser,
+  updateUser,
 } from "../controllers/auth.controller.js";
 import { testEmailConfig } from "../utils/emailService.js";
 import { verifyToken, requireAdmin } from "../middleware/auth.js";
@@ -61,5 +64,12 @@ router.get("/test-email", verifyToken, requireAdmin, async (req, res) => {
 
 // Send email to users (admin only)
 router.post("/send-email", verifyToken, requireAdmin, sendEmailToUsers);
+
+// Send warranty alert email (admin only)
+router.post("/send-warranty-alert-email", verifyToken, requireAdmin, sendWarrantyAlertEmail);
+
+// User management routes (admin only)
+router.delete("/users/:userId", verifyToken, requireAdmin, deleteUser);
+router.put("/users/:userId", verifyToken, requireAdmin, updateUser);
 
 export default router;

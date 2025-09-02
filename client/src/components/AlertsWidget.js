@@ -9,13 +9,17 @@ import {
   Clock,
   ChevronRight,
   Shield,
+  Mail,
 } from "lucide-react";
 import { alertsAPI } from "../lib/api";
+import AlertEmailModal from "./AlertEmailModal";
 
-const AlertsWidget = ({ onViewAll }) => {
+const AlertsWidget = ({ onViewAll, users = [] }) => {
   const [alerts, setAlerts] = useState([]);
   const [summary, setSummary] = useState({});
   const [loading, setLoading] = useState(true);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState(null);
 
   useEffect(() => {
     fetchAlerts();
@@ -32,6 +36,11 @@ const AlertsWidget = ({ onViewAll }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEmailAlert = (alert) => {
+    setSelectedAlert(alert);
+    setShowEmailModal(true);
   };
 
   const getSeverityConfig = (severity) => {
@@ -161,11 +170,20 @@ const AlertsWidget = ({ onViewAll }) => {
                           expires in {alert.daysUntilExpiry} days
                         </p>
                       </div>
-                      <span
-                        className={`text-xs font-medium ${severityConfig.color}`}
-                      >
-                        {alert.daysUntilExpiry}d
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span
+                          className={`text-xs font-medium ${severityConfig.color}`}
+                        >
+                          {alert.daysUntilExpiry}d
+                        </span>
+                        <button
+                          onClick={() => handleEmailAlert(alert)}
+                          className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Send alert email to users"
+                        >
+                          <Mail className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -183,6 +201,17 @@ const AlertsWidget = ({ onViewAll }) => {
           </div>
         )}
       </div>
+
+      {/* Alert Email Modal */}
+      <AlertEmailModal
+        isOpen={showEmailModal}
+        onClose={() => {
+          setShowEmailModal(false);
+          setSelectedAlert(null);
+        }}
+        alert={selectedAlert}
+        users={users}
+      />
     </div>
   );
 };

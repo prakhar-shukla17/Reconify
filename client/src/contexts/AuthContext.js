@@ -39,7 +39,8 @@ export const AuthProvider = ({ children }) => {
           const response = await authAPI.getProfile();
           setUser(response.data.user);
         } catch (error) {
-          // Token invalid, clear auth
+          console.log("Token validation failed:", error.response?.status);
+          // Token invalid or expired, clear auth
           logout();
         }
       }

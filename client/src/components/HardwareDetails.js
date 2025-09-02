@@ -29,6 +29,7 @@ import {
 import { hardwareAPI } from "../lib/api";
 import toast from "react-hot-toast";
 import MLPredictionsPanel from "./MLPredictionsPanel";
+import MacAddressEditor from "./MacAddressEditor";
 
 const HardwareDetails = ({ hardware, onHardwareUpdate }) => {
   const { user } = useAuth();
@@ -255,10 +256,11 @@ const HardwareDetails = ({ hardware, onHardwareUpdate }) => {
       };
 
       // Use appropriate API based on user role
-      const apiFunction = user?.role === 'admin' 
-        ? hardwareAPI.updateAssetInfo 
-        : hardwareAPI.updateUserAssetInfo;
-      
+      const apiFunction =
+        user?.role === "admin"
+          ? hardwareAPI.updateAssetInfo
+          : hardwareAPI.updateUserAssetInfo;
+
       const response = await apiFunction(hardware._id, assetInfoData);
       toast.success("Asset information updated successfully");
       setEditingAssetInfo(false);
@@ -268,12 +270,15 @@ const HardwareDetails = ({ hardware, onHardwareUpdate }) => {
         const updatedHardware = { ...hardware };
         updatedHardware.asset_info = {
           ...updatedHardware.asset_info,
-          ...assetInfoData
+          ...assetInfoData,
         };
-        
+
         // Update the hardware prop by calling a callback if provided
-        if (typeof onHardwareUpdate === 'function') {
-          console.log('Calling onHardwareUpdate from saveAssetInfo with:', updatedHardware);
+        if (typeof onHardwareUpdate === "function") {
+          console.log(
+            "Calling onHardwareUpdate from saveAssetInfo with:",
+            updatedHardware
+          );
           onHardwareUpdate(updatedHardware);
         }
       }
@@ -286,66 +291,85 @@ const HardwareDetails = ({ hardware, onHardwareUpdate }) => {
   const saveComponentWarranty = async () => {
     try {
       // Use appropriate API based on user role
-      const apiFunction = user?.role === 'admin' 
-        ? hardwareAPI.updateComponentWarranty 
-        : hardwareAPI.updateUserComponentWarranty;
-      
+      const apiFunction =
+        user?.role === "admin"
+          ? hardwareAPI.updateComponentWarranty
+          : hardwareAPI.updateUserComponentWarranty;
+
       const response = await apiFunction(
         hardware._id,
         editingComponent.type,
         editingComponent.index,
         warrantyForm
       );
-      console.log('API Response:', response);
+      console.log("API Response:", response);
       toast.success("Component warranty updated successfully!");
       cancelEditing();
-      
-              // Update the local hardware state with the new warranty data
-        if (response.data && response.data.data) {
-          // Update the specific component's warranty info in the local state
-          const updatedHardware = { ...hardware };
-          if (editingComponent.type === 'cpu' && updatedHardware.cpu) {
-            // CPU is a single object, not an array, so update it directly
-            updatedHardware.cpu = {
-              ...updatedHardware.cpu,
-              component_info: {
-                ...updatedHardware.cpu.component_info,
-                ...warrantyForm
-              }
-            };
-          } else if (editingComponent.type === 'memory' && updatedHardware.memory && updatedHardware.memory.slots) {
+
+      // Update the local hardware state with the new warranty data
+      if (response.data && response.data.data) {
+        // Update the specific component's warranty info in the local state
+        const updatedHardware = { ...hardware };
+        if (editingComponent.type === "cpu" && updatedHardware.cpu) {
+          // CPU is a single object, not an array, so update it directly
+          updatedHardware.cpu = {
+            ...updatedHardware.cpu,
+            component_info: {
+              ...updatedHardware.cpu.component_info,
+              ...warrantyForm,
+            },
+          };
+        } else if (
+          editingComponent.type === "memory" &&
+          updatedHardware.memory &&
+          updatedHardware.memory.slots
+        ) {
           updatedHardware.memory.slots[editingComponent.index] = {
             ...updatedHardware.memory.slots[editingComponent.index],
             component_info: {
-              ...updatedHardware.memory.slots[editingComponent.index].component_info,
-              ...warrantyForm
-            }
+              ...updatedHardware.memory.slots[editingComponent.index]
+                .component_info,
+              ...warrantyForm,
+            },
           };
-        } else if (editingComponent.type === 'storage' && updatedHardware.storage && updatedHardware.storage.drives) {
+        } else if (
+          editingComponent.type === "storage" &&
+          updatedHardware.storage &&
+          updatedHardware.storage.drives
+        ) {
           updatedHardware.storage.drives[editingComponent.index] = {
             ...updatedHardware.storage.drives[editingComponent.index],
             component_info: {
-              ...updatedHardware.storage.drives[editingComponent.index].component_info,
-              ...warrantyForm
-            }
+              ...updatedHardware.storage.drives[editingComponent.index]
+                .component_info,
+              ...warrantyForm,
+            },
           };
-        } else if (editingComponent.type === 'gpu' && updatedHardware.graphics && updatedHardware.graphics.gpus) {
+        } else if (
+          editingComponent.type === "gpu" &&
+          updatedHardware.graphics &&
+          updatedHardware.graphics.gpus
+        ) {
           updatedHardware.graphics.gpus[editingComponent.index] = {
             ...updatedHardware.graphics.gpus[editingComponent.index],
             component_info: {
-              ...updatedHardware.graphics.gpus[editingComponent.index].component_info,
-              ...warrantyForm
-            }
+              ...updatedHardware.graphics.gpus[editingComponent.index]
+                .component_info,
+              ...warrantyForm,
+            },
           };
         }
-        
-        console.log('Updated hardware object:', updatedHardware);
-        console.log('Component type:', editingComponent.type);
-        console.log('Component index:', editingComponent.index);
-        
+
+        console.log("Updated hardware object:", updatedHardware);
+        console.log("Component type:", editingComponent.type);
+        console.log("Component index:", editingComponent.index);
+
         // Update the hardware prop by calling a callback if provided
-        if (typeof onHardwareUpdate === 'function') {
-          console.log('Calling onHardwareUpdate from saveComponentWarranty with:', updatedHardware);
+        if (typeof onHardwareUpdate === "function") {
+          console.log(
+            "Calling onHardwareUpdate from saveComponentWarranty with:",
+            updatedHardware
+          );
           onHardwareUpdate(updatedHardware);
         }
       }
@@ -925,10 +949,26 @@ const HardwareDetails = ({ hardware, onHardwareUpdate }) => {
             <h1 className="text-xl font-bold text-gray-900">
               {hardware.system?.hostname || "Unknown Device"}
             </h1>
-            <p className="text-gray-600">
+            <div className="text-gray-600">
               {hardware.system?.platform} {hardware.system?.platform_release} •
-              MAC: {hardware.system?.mac_address}
-            </p>
+              MAC:{" "}
+              <MacAddressEditor
+                macAddress={hardware.system?.mac_address}
+                assetId={hardware._id}
+                onUpdate={(newMacAddress) => {
+                  if (onHardwareUpdate) {
+                    onHardwareUpdate({
+                      ...hardware,
+                      _id: newMacAddress,
+                      system: {
+                        ...hardware.system,
+                        mac_address: newMacAddress,
+                      },
+                    });
+                  }
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -953,6 +993,27 @@ const HardwareDetails = ({ hardware, onHardwareUpdate }) => {
           </div>
           <div>
             <DataRow label="Hostname" value={hardware.system?.hostname} />
+            <DataRow
+              label="MAC Address"
+              value={
+                <MacAddressEditor
+                  macAddress={hardware.system?.mac_address}
+                  assetId={hardware._id}
+                  onUpdate={(newMacAddress) => {
+                    if (onHardwareUpdate) {
+                      onHardwareUpdate({
+                        ...hardware,
+                        _id: newMacAddress,
+                        system: {
+                          ...hardware.system,
+                          mac_address: newMacAddress,
+                        },
+                      });
+                    }
+                  }}
+                />
+              }
+            />
             <DataRow label="Processor" value={hardware.system?.processor} />
             <DataRow label="Boot Time" value={hardware.system?.boot_time} />
             <DataRow label="Uptime" value={hardware.system?.uptime} />

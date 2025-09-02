@@ -9,6 +9,8 @@ import {
   CheckCircle,
   Loader2,
 } from "lucide-react";
+import Cookies from "js-cookie";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function CsvImportModal({ isOpen, onClose, onImportComplete }) {
   const [file, setFile] = useState(null);
@@ -17,6 +19,7 @@ export default function CsvImportModal({ isOpen, onClose, onImportComplete }) {
   const [importResults, setImportResults] = useState(null);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
+  const { user, logout } = useAuth();
 
   const handleFileSelect = (event) => {
     const selectedFile = event.target.files[0];
@@ -63,19 +66,43 @@ export default function CsvImportModal({ isOpen, onClose, onImportComplete }) {
     setImportResults(null);
 
     try {
+      // Get token from cookies
+      const token = Cookies.get("token");
+
+      if (!token) {
+        setError("Authentication required. Please log in again.");
+        logout();
+        return;
+      }
+
       const formData = new FormData();
       formData.append("csvFile", file);
 
-      const response = await fetch(
-        "http://localhost:3000/api/hardware/import/csv",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: formData,
-        }
+      console.log("Sending CSV import request...");
+      const response = await fetch("/api/hardware/import/csv", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      console.log("Response status:", response.status);
+      console.log(
+        "Response headers:",
+        Object.fromEntries(response.headers.entries())
       );
+
+      // Check if response is JSON
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("Non-JSON response:", text.substring(0, 500));
+        setError(
+          `Server error: Expected JSON but got ${contentType}. Please check if the backend server is running.`
+        );
+        return;
+      }
 
       const result = await response.json();
 
@@ -84,10 +111,14 @@ export default function CsvImportModal({ isOpen, onClose, onImportComplete }) {
         if (onImportComplete) {
           onImportComplete(result);
         }
+      } else if (response.status === 401) {
+        setError("Session expired. Please log in again.");
+        logout();
       } else {
         setError(result.error || "Import failed");
       }
     } catch (err) {
+      console.error("CSV import error:", err);
       setError("Network error: " + err.message);
     } finally {
       setImporting(false);
@@ -108,11 +139,11 @@ export default function CsvImportModal({ isOpen, onClose, onImportComplete }) {
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
       onClick={onClose}
     >
-      <div 
+      <div
         className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
