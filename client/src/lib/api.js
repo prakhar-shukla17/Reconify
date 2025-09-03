@@ -1,7 +1,10 @@
-
 import axios from "axios";
 import Cookies from "js-cookie";
-import { createCache, createRequestBatcher, debounce } from "../utils/performance.js";
+import {
+  createCache,
+  createRequestBatcher,
+  debounce,
+} from "../utils/performance.js";
 
 const API_BASE_URL = "/api";
 
@@ -9,7 +12,7 @@ const API_BASE_URL = "/api";
 const apiCache = createCache({
   maxSize: 200,
   ttl: 5 * 60 * 1000, // 5 minutes
-  cleanupInterval: 60 * 1000
+  cleanupInterval: 60 * 1000,
 });
 
 // Create request batcher for bulk operations
@@ -31,16 +34,19 @@ const handleApiError = (error) => {
   console.log("error.response:", error.response);
   console.log("error.request:", error.request);
   console.log("error.message:", error.message);
-  
+
   // Handle different types of errors
   if (error.response) {
     // Server responded with error status
     const errorData = error.response.data;
     console.log("Server error response data:", errorData);
     return {
-      userMessage: errorData?.error || errorData?.message || `Server error (${error.response.status})`,
+      userMessage:
+        errorData?.error ||
+        errorData?.message ||
+        `Server error (${error.response.status})`,
       status: error.response.status,
-      data: errorData
+      data: errorData,
     };
   } else if (error.request) {
     // Request was made but no response received
@@ -48,7 +54,7 @@ const handleApiError = (error) => {
     return {
       userMessage: "No response from server. Please check your connection.",
       status: null,
-      data: null
+      data: null,
     };
   } else {
     // Something else happened
@@ -56,7 +62,7 @@ const handleApiError = (error) => {
     return {
       userMessage: error.message || "An unexpected error occurred",
       status: null,
-      data: null
+      data: null,
     };
   }
 };
@@ -73,7 +79,7 @@ api.interceptors.request.use(
       url: config.url,
       data: config.data,
       headers: config.headers,
-      token: token ? "Present" : "Missing"
+      token: token ? "Present" : "Missing",
     });
     return config;
   },
@@ -89,27 +95,37 @@ api.interceptors.response.use(
       status: response.status,
       url: response.config.url,
       data: response.data,
-      headers: response.headers
+      headers: response.headers,
     });
     return response;
   },
   (error) => {
+    // Enhanced error logging
+    console.error("=== API ERROR DETAILS ===");
+    console.error("Error object:", error);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+    console.error("Error config:", error.config);
+    console.error("Error response:", error.response);
+    console.error("Error request:", error.request);
+    console.error("==========================");
+
     // Use enhanced error handling
     const errorInfo = handleApiError(error);
-    
-    console.error("API Error:", {
+
+    console.error("API Error Info:", {
       status: errorInfo.status,
       url: error.config?.url,
       data: errorInfo.data,
       message: errorInfo.userMessage,
-      fullError: error
+      fullError: error,
     });
-    
+
     // Add enhanced error information to the error object
     error.userMessage = errorInfo.userMessage;
     error.errorStatus = errorInfo.status;
     error.errorData = errorInfo.data;
-    
+
     if (error.response?.status === 401) {
       // Token expired or invalid
       Cookies.remove("token");
@@ -123,65 +139,65 @@ api.interceptors.response.use(
 // Optimized API wrapper with caching
 const createOptimizedAPI = (endpoint, options = {}) => {
   const { cacheKey, ttl = 5 * 60 * 1000, enableCache = true } = options;
-  
+
   return {
     get: async (params = {}) => {
       const key = cacheKey ? `${endpoint}_${JSON.stringify(params)}` : null;
-      
+
       if (enableCache && key && apiCache.has(key)) {
         return apiCache.get(key);
       }
-      
+
       const response = await api.get(endpoint, { params });
-      
+
       if (enableCache && key) {
         apiCache.set(key, response);
       }
-      
+
       return response;
     },
-    
+
     post: async (data) => {
       const response = await api.post(endpoint, data);
-      
+
       // Invalidate related caches
       if (enableCache) {
-        const keysToInvalidate = Array.from(apiCache.keys()).filter(key => 
-          key.includes(endpoint.split('/')[0])
+        const keysToInvalidate = Array.from(apiCache.keys()).filter((key) =>
+          key.includes(endpoint.split("/")[0])
         );
-        keysToInvalidate.forEach(key => apiCache.delete(key));
+        keysToInvalidate.forEach((key) => apiCache.delete(key));
       }
-      
+
       return response;
     },
-    
+
     put: async (data) => {
       const response = await api.put(endpoint, data);
-      
+
       // Invalidate related caches
       if (enableCache) {
-        const keysToInvalidate = Array.from(apiCache.keys()).filter(key => 
-          key.includes(endpoint.split('/')[0])
+        const keysToInvalidate = Array.from(apiCache.keys()).filter((key) =>
+          key.includes(endpoint.split("/")[0])
         );
-        keysToInvalidate.forEach(key => apiCache.delete(key));
+        keysToInvalidate.forEach((key) => apiCache.delete(key));
       }
-      
+
       return response;
     },
-    
+
     delete: async () => {
       const response = await api.delete(endpoint);
-      
+
       // Invalidate related caches
       if (enableCache) {
-        const keysToInvalidate = Array.from(apiCache.keys()).filter(key => 
-          key.includes(endpoint.split('/')[0])
+        const keysToInvalidate = Array.from(apiCache.keys()).filter((key) =>
+          key.includes(endpoint.split("/")[0])
         );
-        keysToInvalidate.forEach(key => apiCache.delete(key));
+        keysToInvalidate.forEach((key) => apiCache.delete(key));
       }
-      
+
       return response;
-    }
+    },
   };
 };
 
@@ -189,15 +205,17 @@ const createOptimizedAPI = (endpoint, options = {}) => {
 export const authAPI = {
   login: (credentials) => api.post("/auth/login", credentials),
   register: (userData) => api.post("/auth/register", userData),
-  getProfile: () => createOptimizedAPI("/auth/profile", { 
-    cacheKey: "profile", 
-    ttl: 15 * 60 * 1000 
-  }).get(),
+  getProfile: () =>
+    createOptimizedAPI("/auth/profile", {
+      cacheKey: "profile",
+      ttl: 15 * 60 * 1000,
+    }).get(),
   updateProfile: (userData) => api.put("/auth/profile", userData),
-  getAllUsers: () => createOptimizedAPI("/auth/users", { 
-    cacheKey: "users", 
-    ttl: 10 * 60 * 1000 
-  }).get(),
+  getAllUsers: () =>
+    createOptimizedAPI("/auth/users", {
+      cacheKey: "users",
+      ttl: 10 * 60 * 1000,
+    }).get(),
   assignAsset: (userId, macAddress) =>
     api.post("/auth/assign-asset", { userId, macAddress }),
   assignMultipleAssets: (userId, macAddresses) =>
@@ -208,31 +226,36 @@ export const authAPI = {
     api.post("/auth/remove-asset", { userId, macAddresses }),
   bulkAssignAssets: (assignments) =>
     api.post("/auth/bulk-assign", { assignments }),
-  getAssignmentStatistics: () => createOptimizedAPI("/auth/assignment-stats", { 
-    cacheKey: "assignment_stats", 
-    ttl: 5 * 60 * 1000 
-  }).get(),
-  getUnassignedAssets: () => createOptimizedAPI("/auth/unassigned-assets", { 
-    cacheKey: "unassigned_assets", 
-    ttl: 2 * 60 * 1000 
-  }).get(),
+  getAssignmentStatistics: () =>
+    createOptimizedAPI("/auth/assignment-stats", {
+      cacheKey: "assignment_stats",
+      ttl: 5 * 60 * 1000,
+    }).get(),
+  getUnassignedAssets: () =>
+    createOptimizedAPI("/auth/unassigned-assets", {
+      cacheKey: "unassigned_assets",
+      ttl: 2 * 60 * 1000,
+    }).get(),
   createUser: (userData) => api.post("/auth/create-user", userData),
   sendEmailToUsers: (emailData) => api.post("/auth/send-email", emailData),
-  sendWarrantyAlertEmail: (alertData) => api.post("/auth/send-warranty-alert-email", alertData),
+  sendWarrantyAlertEmail: (alertData) =>
+    api.post("/auth/send-warranty-alert-email", alertData),
   deleteUser: (userId) => api.delete(`/auth/users/${userId}`),
   updateUser: (userId, userData) => api.put(`/auth/users/${userId}`, userData),
 };
 
 // Hardware API calls with caching
 export const hardwareAPI = {
-  getAll: (params = {}) => createOptimizedAPI("/hardware", { 
-    cacheKey: "hardware_all", 
-    ttl: 10 * 60 * 1000 
-  }).get(params),
-  getById: (id) => createOptimizedAPI(`/hardware/${id}`, { 
-    cacheKey: `hardware_${id}`, 
-    ttl: 15 * 60 * 1000 
-  }).get(),
+  getAll: (params = {}) =>
+    createOptimizedAPI("/hardware", {
+      cacheKey: "hardware_all",
+      ttl: 10 * 60 * 1000,
+    }).get(params),
+  getById: (id) =>
+    createOptimizedAPI(`/hardware/${id}`, {
+      cacheKey: `hardware_${id}`,
+      ttl: 15 * 60 * 1000,
+    }).get(),
   create: (hardwareData) => api.post("/hardware", hardwareData),
   updateAssetInfo: (id, assetInfo) =>
     api.put(`/hardware/${id}/asset-info`, assetInfo),
@@ -256,71 +279,85 @@ export const hardwareAPI = {
       warrantyInfo,
     }),
   getExpiringWarranties: (days = 30) =>
-    createOptimizedAPI(`/hardware/admin/expiring-warranties?days=${days}`, { 
-      cacheKey: `warranties_${days}`, 
-      ttl: 5 * 60 * 1000 
+    createOptimizedAPI(`/hardware/admin/expiring-warranties?days=${days}`, {
+      cacheKey: `warranties_${days}`,
+      ttl: 5 * 60 * 1000,
     }).get(),
-  getWarrantyStats: () => createOptimizedAPI("/hardware/admin/warranty-stats", { 
-    cacheKey: "warranty_stats", 
-    ttl: 10 * 60 * 1000 
-  }).get(),
-  getStats: () => createOptimizedAPI("/hardware/stats", { 
-    cacheKey: "hardware_stats", 
-    ttl: 5 * 60 * 1000 
-  }).get(),
+  getWarrantyStats: () =>
+    createOptimizedAPI("/hardware/admin/warranty-stats", {
+      cacheKey: "warranty_stats",
+      ttl: 10 * 60 * 1000,
+    }).get(),
+  getStats: () =>
+    createOptimizedAPI("/hardware/stats", {
+      cacheKey: "hardware_stats",
+      ttl: 5 * 60 * 1000,
+    }).get(),
   // Manual asset entry functions
   createManualAsset: (assetData) => api.post("/hardware/manual", assetData),
-  getManualEntries: () => createOptimizedAPI("/hardware/admin/manual-entries", { 
-    cacheKey: "manual_entries", 
-    ttl: 10 * 60 * 1000 
-  }).get(),
-  getUnassignedAssets: () => createOptimizedAPI("/hardware/admin/unassigned", { 
-    cacheKey: "hardware_unassigned", 
-    ttl: 5 * 60 * 1000 
-  }).get(),
+  getManualEntries: () =>
+    createOptimizedAPI("/hardware/admin/manual-entries", {
+      cacheKey: "manual_entries",
+      ttl: 10 * 60 * 1000,
+    }).get(),
+  getUnassignedAssets: () =>
+    createOptimizedAPI("/hardware/admin/unassigned", {
+      cacheKey: "hardware_unassigned",
+      ttl: 5 * 60 * 1000,
+    }).get(),
 };
 
 // Software API calls with caching
 export const softwareAPI = {
-  getAll: (params = {}) => createOptimizedAPI("/software", { 
-    cacheKey: "software_all", 
-    ttl: 10 * 60 * 1000 
-  }).get(params),
-  getById: (id) => createOptimizedAPI(`/software/${id}`, { 
-    cacheKey: `software_${id}`, 
-    ttl: 15 * 60 * 1000 
-  }).get(),
+  getAll: (params = {}) =>
+    createOptimizedAPI("/software", {
+      cacheKey: "software_all",
+      ttl: 10 * 60 * 1000,
+    }).get(params),
+  getById: (id) =>
+    createOptimizedAPI(`/software/${id}`, {
+      cacheKey: `software_${id}`,
+      ttl: 15 * 60 * 1000,
+    }).get(),
   create: (softwareData) => api.post("/software", softwareData),
-  getStatistics: () => createOptimizedAPI("/software/admin/statistics", { 
-    cacheKey: "software_stats", 
-    ttl: 10 * 60 * 1000 
-  }).get(),
-  search: (params) => createOptimizedAPI("/software/admin/search", { 
-    cacheKey: `software_search_${JSON.stringify(params)}`, 
-    ttl: 5 * 60 * 1000 
-  }).get(params),
-  getByVendor: (vendor) => createOptimizedAPI(`/software/admin/vendor/${vendor}`, { 
-    cacheKey: `software_vendor_${vendor}`, 
-    ttl: 15 * 60 * 1000 
-  }).get(),
-  getOutdated: () => createOptimizedAPI("/software/admin/outdated", { 
-    cacheKey: "software_outdated", 
-    ttl: 5 * 60 * 1000 
-  }).get(),
+  getStatistics: () =>
+    createOptimizedAPI("/software/admin/statistics", {
+      cacheKey: "software_stats",
+      ttl: 10 * 60 * 1000,
+    }).get(),
+  search: (params) =>
+    createOptimizedAPI("/software/admin/search", {
+      cacheKey: `software_search_${JSON.stringify(params)}`,
+      ttl: 5 * 60 * 1000,
+    }).get(params),
+  getByVendor: (vendor) =>
+    createOptimizedAPI(`/software/admin/vendor/${vendor}`, {
+      cacheKey: `software_vendor_${vendor}`,
+      ttl: 15 * 60 * 1000,
+    }).get(),
+  getOutdated: () =>
+    createOptimizedAPI("/software/admin/outdated", {
+      cacheKey: "software_outdated",
+      ttl: 5 * 60 * 1000,
+    }).get(),
   delete: (id) => api.delete(`/software/${id}`),
 };
 
 // Alerts API calls with caching
 export const alertsAPI = {
   getWarrantyAlerts: (days = 30, page = 1, limit = 20, filter = "all") =>
-    createOptimizedAPI(`/alerts/warranty?days=${days}&page=${page}&limit=${limit}&filter=${filter}`, { 
-      cacheKey: `alerts_warranty_${days}_${page}_${limit}_${filter}`, 
-      ttl: 2 * 60 * 1000 
+    createOptimizedAPI(
+      `/alerts/warranty?days=${days}&page=${page}&limit=${limit}&filter=${filter}`,
+      {
+        cacheKey: `alerts_warranty_${days}_${page}_${limit}_${filter}`,
+        ttl: 2 * 60 * 1000,
+      }
+    ).get(),
+  getStatistics: () =>
+    createOptimizedAPI("/alerts/statistics", {
+      cacheKey: "alerts_stats",
+      ttl: 5 * 60 * 1000,
     }).get(),
-  getStatistics: () => createOptimizedAPI("/alerts/statistics", { 
-    cacheKey: "alerts_stats", 
-    ttl: 5 * 60 * 1000 
-  }).get(),
 };
 
 // Tickets API calls with caching
@@ -329,31 +366,34 @@ export const ticketsAPI = {
   getAll: (params = {}, forceRefresh = false) => {
     if (forceRefresh) {
       // Clear tickets cache before making the request
-      const keysToInvalidate = Array.from(apiCache.keys()).filter(key => 
-        key.includes('tickets')
+      const keysToInvalidate = Array.from(apiCache.keys()).filter((key) =>
+        key.includes("tickets")
       );
-      keysToInvalidate.forEach(key => apiCache.delete(key));
+      keysToInvalidate.forEach((key) => apiCache.delete(key));
     }
-    return createOptimizedAPI("/tickets", { 
-      cacheKey: `tickets_all_${JSON.stringify(params)}`, 
-      ttl: 2 * 60 * 1000 
+    return createOptimizedAPI("/tickets", {
+      cacheKey: `tickets_all_${JSON.stringify(params)}`,
+      ttl: 2 * 60 * 1000,
     }).get(params);
   },
-  getById: (id) => createOptimizedAPI(`/tickets/${id}`, { 
-    cacheKey: `ticket_${id}`, 
-    ttl: 5 * 60 * 1000 
-  }).get(),
+  getById: (id) =>
+    createOptimizedAPI(`/tickets/${id}`, {
+      cacheKey: `ticket_${id}`,
+      ttl: 5 * 60 * 1000,
+    }).get(),
   update: (id, updateData) => api.put(`/tickets/${id}`, updateData),
   addComment: (id, commentData) =>
     api.post(`/tickets/${id}/comments`, commentData),
-  getStatistics: () => createOptimizedAPI("/tickets/admin/statistics", { 
-    cacheKey: "tickets_stats", 
-    ttl: 5 * 60 * 1000 
-  }).get(),
-  getUserAssets: () => createOptimizedAPI("/tickets/user-assets", { 
-    cacheKey: "tickets_user_assets", 
-    ttl: 10 * 60 * 1000 
-  }).get(),
+  getStatistics: () =>
+    createOptimizedAPI("/tickets/admin/statistics", {
+      cacheKey: "tickets_stats",
+      ttl: 5 * 60 * 1000,
+    }).get(),
+  getUserAssets: () =>
+    createOptimizedAPI("/tickets/user-assets", {
+      cacheKey: "tickets_user_assets",
+      ttl: 10 * 60 * 1000,
+    }).get(),
 
   // Admin management endpoints
   updateStatus: (id, statusData) =>
@@ -361,30 +401,51 @@ export const ticketsAPI = {
   assignTicket: (id, assignmentData) =>
     api.patch(`/tickets/${id}/assign`, assignmentData),
   closeTicket: (id, closeData) => api.post(`/tickets/${id}/close`, closeData),
-  getAdminUsers: () => createOptimizedAPI("/tickets/admin/users", { 
-    cacheKey: "tickets_admin_users", 
-    ttl: 15 * 60 * 1000 
-  }).get(),
+  getAdminUsers: () =>
+    createOptimizedAPI("/tickets/admin/users", {
+      cacheKey: "tickets_admin_users",
+      ttl: 15 * 60 * 1000,
+    }).get(),
 };
 
 // Telemetry API calls with caching
 export const telemetryAPI = {
-  getTelemetry: (macAddress) => createOptimizedAPI(`/telemetry/${macAddress}`, { 
-    cacheKey: `telemetry_${macAddress}`, 
-    ttl: 1 * 60 * 1000 
-  }).get(),
-  getHealthSummary: () => createOptimizedAPI("/telemetry/health-summary", { 
-    cacheKey: "telemetry_health", 
-    ttl: 2 * 60 * 1000 
-  }).get(),
+  getTelemetry: async (macAddress) => {
+    try {
+      const response = await createOptimizedAPI(`/telemetry/${macAddress}`, {
+        cacheKey: `telemetry_${macAddress}`,
+        ttl: 1 * 60 * 1000,
+      }).get();
+      return response;
+    } catch (error) {
+      // Handle 404 gracefully - no telemetry data is normal
+      if (error.response?.status === 404) {
+        return {
+          data: {
+            success: false,
+            message: "No telemetry data available for this device",
+            status: "no_data",
+            mac_address: macAddress,
+          },
+        };
+      }
+      throw error; // Re-throw other errors
+    }
+  },
+  getHealthSummary: () =>
+    createOptimizedAPI("/telemetry/health-summary", {
+      cacheKey: "telemetry_health",
+      ttl: 2 * 60 * 1000,
+    }).get(),
 };
 
 // Scanner API calls
 export const scannerAPI = {
-  getPlatforms: () => createOptimizedAPI("/scanner/platforms", { 
-    cacheKey: "scanner_platforms", 
-    ttl: 60 * 60 * 1000 // 1 hour - platforms don't change often
-  }).get(),
+  getPlatforms: () =>
+    createOptimizedAPI("/scanner/platforms", {
+      cacheKey: "scanner_platforms",
+      ttl: 60 * 60 * 1000, // 1 hour - platforms don't change often
+    }).get(),
   downloadScanner: (platform) =>
     api.get(`/scanner/download?platform=${platform}`, {
       responseType: "blob",
@@ -395,15 +456,15 @@ export const scannerAPI = {
 export const cacheUtils = {
   clearAll: () => apiCache.clear(),
   clearByPattern: (pattern) => {
-    const keysToDelete = Array.from(apiCache.keys()).filter(key => 
+    const keysToDelete = Array.from(apiCache.keys()).filter((key) =>
       key.includes(pattern)
     );
-    keysToDelete.forEach(key => apiCache.delete(key));
+    keysToDelete.forEach((key) => apiCache.delete(key));
   },
   getCacheStats: () => ({
     size: apiCache.size,
-    keys: Array.from(apiCache.keys())
-  })
+    keys: Array.from(apiCache.keys()),
+  }),
 };
 
 export default api;

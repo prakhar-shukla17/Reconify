@@ -464,7 +464,14 @@ export const getTelemetry = async (req, res) => {
 
     const telemetry = await Telemetry.findOne(query);
     if (!telemetry) {
-      return res.status(404).json({ error: "Telemetry data not found" });
+      // Return 200 with no_data status instead of 404 error
+      return res.json({
+        success: false,
+        status: "no_data",
+        message: "No telemetry data available for this device",
+        mac_address: mac_address,
+        data: null
+      });
     }
 
     res.json({
