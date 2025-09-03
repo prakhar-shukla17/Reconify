@@ -120,7 +120,7 @@ const TicketCard = ({ ticket, onClick, isAdmin = false }) => {
   return (
     <div
       onClick={handleClick}
-      className={`border border-slate-200 rounded-lg p-3 transition-all duration-200 ${
+      className={`border border-slate-200 rounded-lg p-3 transition-all duration-200 overflow-hidden h-fit max-h-80 ${
         isClickable 
           ? "bg-white hover:shadow-lg hover:border-slate-300 cursor-pointer group bg-gradient-to-br from-white to-slate-50" 
           : "bg-slate-100 cursor-not-allowed opacity-75"
@@ -143,11 +143,14 @@ const TicketCard = ({ ticket, onClick, isAdmin = false }) => {
               {ticket.priority}
             </span>
           </div>
-          <h3 className={`text-sm font-semibold line-clamp-2 leading-tight ${
-            isClickable 
-              ? "text-slate-900 group-hover:text-blue-600 transition-colors" 
-              : "text-slate-600"
-          }`}>
+          <h3 
+            className={`text-sm font-semibold line-clamp-1 leading-tight truncate ${
+              isClickable 
+                ? "text-slate-900 group-hover:text-blue-600 transition-colors" 
+                : "text-slate-600"
+            }`}
+            title={ticket.title}
+          >
             {ticket.title}
           </h3>
         </div>
@@ -164,9 +167,12 @@ const TicketCard = ({ ticket, onClick, isAdmin = false }) => {
       </div>
 
       {/* Description - Smaller */}
-      <p className={`text-xs mb-2 line-clamp-2 leading-tight ${
-        isClickable ? "text-slate-600" : "text-slate-500"
-      }`}>
+      <p 
+        className={`text-xs mb-2 line-clamp-1 leading-tight truncate ${
+          isClickable ? "text-slate-600" : "text-slate-500"
+        }`}
+        title={ticket.description}
+      >
         {ticket.description}
       </p>
 
@@ -180,42 +186,42 @@ const TicketCard = ({ ticket, onClick, isAdmin = false }) => {
           isClickable ? "text-blue-500" : "text-slate-400"
         }`} />
         <div className="flex-1 min-w-0">
-          <p className={`text-xs font-medium truncate ${
-            isClickable ? "text-slate-900" : "text-slate-600"
-          }`}>
+          <p 
+            className={`text-xs font-medium truncate ${
+              isClickable ? "text-slate-900" : "text-slate-600"
+            }`}
+            title={ticket.asset_hostname}
+          >
             {ticket.asset_hostname}
           </p>
-          <p className={`text-xs truncate ${
-            isClickable ? "text-slate-500" : "text-slate-400"
-          }`}>
+          <p 
+            className={`text-xs truncate ${
+              isClickable ? "text-slate-500" : "text-slate-400"
+            }`}
+            title={`${ticket.asset_model} • ${ticket.asset_id}`}
+          >
             {ticket.asset_model} • {ticket.asset_id}
           </p>
         </div>
       </div>
 
       {/* Footer - Compact */}
-      <div className="flex items-center justify-between text-xs text-slate-500">
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-1">
-            <User className={`h-3 w-3 ${
+      <div className="flex items-center justify-between text-xs text-slate-500 gap-2">
+        <div className="flex items-center space-x-3 min-w-0 flex-1">
+          <div className="flex items-center space-x-1 min-w-0">
+            <User className={`h-3 w-3 flex-shrink-0 ${
               isClickable ? "text-blue-500" : "text-slate-400"
             }`} />
-            <span className={`text-xs ${
-              isClickable ? "text-slate-600" : "text-slate-500"
-            }`}>
-              {isAdmin ? (
-                <div className="flex flex-col">
-                  <span>{ticket.created_by_name}</span>
-                  {ticket.created_by_email && (
-                    <span className="text-slate-400 text-xs">{ticket.created_by_email}</span>
-                  )}
-                </div>
-              ) : (
-                "You"
-              )}
+            <span 
+              className={`text-xs min-w-0 truncate ${
+                isClickable ? "text-slate-600" : "text-slate-500"
+              }`}
+              title={isAdmin && ticket.created_by_email ? `${ticket.created_by_name} (${ticket.created_by_email})` : ticket.created_by_name}
+            >
+              {isAdmin ? ticket.created_by_name : "You"}
             </span>
           </div>
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-1 flex-shrink-0">
             <Clock className={`h-3 w-3 ${
               isClickable ? "text-amber-500" : "text-slate-400"
             }`} />
@@ -224,7 +230,7 @@ const TicketCard = ({ ticket, onClick, isAdmin = false }) => {
             }`}>{formatDate(ticket.created_at)}</span>
           </div>
         </div>
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center space-x-1 flex-shrink-0">
           <span className={`text-xs font-medium px-2 py-0.5 rounded ${
             isClickable 
               ? "text-slate-700 bg-slate-100" 
@@ -243,8 +249,8 @@ const TicketCard = ({ ticket, onClick, isAdmin = false }) => {
               ? "text-blue-600 bg-blue-50" 
               : "text-slate-500 bg-slate-200"
           }`}>
-            <User className="h-3 w-3" />
-            <span className="text-xs">Assigned to: {ticket.assigned_to_name}</span>
+            <User className="h-3 w-3 flex-shrink-0" />
+            <span className="text-xs truncate">Assigned to: {ticket.assigned_to_name}</span>
           </div>
         </div>
       )}
@@ -277,7 +283,7 @@ const TicketCard = ({ ticket, onClick, isAdmin = false }) => {
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-800 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 max-w-xs">
                   <div className="text-center">
                     <div className="font-medium mb-1">Resolution:</div>
-                    <div className="text-slate-200 leading-relaxed">{ticket.resolution}</div>
+                    <div className="text-slate-200 leading-relaxed break-words">{ticket.resolution}</div>
                   </div>
                   {/* Arrow */}
                   <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-800"></div>

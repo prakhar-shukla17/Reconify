@@ -22,22 +22,7 @@ const api = axios.create({
     "Content-Type": "application/json",
   },
   timeout: 30000, // 30 seconds
-  // Enable HTTP/2 multiplexing
-  httpAgent: new (require('http').Agent)({
-    keepAlive: true,
-    maxSockets: 50,
-    maxFreeSockets: 10,
-    timeout: 60000,
-    freeSocketTimeout: 30000
-  }),
-  // Enable HTTPS agent for better performance
-  httpsAgent: new (require('https').Agent)({
-    keepAlive: true,
-    maxSockets: 50,
-    maxFreeSockets: 10,
-    timeout: 60000,
-    freeSocketTimeout: 30000
-  })
+  // Note: HTTP agents are not needed in browser environment
 });
 
 // Enhanced error handling wrapper

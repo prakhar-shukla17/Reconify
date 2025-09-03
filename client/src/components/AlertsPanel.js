@@ -180,21 +180,32 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
 
   // Update local state when props change
   useEffect(() => {
-    setAlerts(propAlerts);
-    setSummary(propSummary);
+    if (propAlerts.length > 0 || Object.keys(propSummary).length > 0) {
+      setAlerts(propAlerts);
+      setSummary(propSummary);
+      console.log("AlertsPanel: Updated from props", { alerts: propAlerts.length, summary: propSummary });
+    }
   }, [propAlerts, propSummary]);
 
   // Initial load effect
   useEffect(() => {
     if (isInitialLoad.current) {
       if (onRefresh) {
-        onRefresh();
+        // If we have props data, use it; otherwise call onRefresh
+        if (propAlerts.length > 0 || Object.keys(propSummary).length > 0) {
+          console.log("AlertsPanel: Using initial props data", { alerts: propAlerts.length, summary: propSummary });
+          setAlerts(propAlerts);
+          setSummary(propSummary);
+        } else {
+          console.log("AlertsPanel: No props data, calling onRefresh");
+          onRefresh();
+        }
       } else {
         fetchAlerts();
       }
       isInitialLoad.current = false;
     }
-  }, [onRefresh]); // Only run once on mount
+  }, [onRefresh, propAlerts, propSummary]); // Include props in dependencies
 
   // Cleanup effect
   useEffect(() => {

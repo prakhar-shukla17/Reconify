@@ -282,8 +282,16 @@ export default function AdminPage() {
     try {
       setLoading(true);
       console.log("Fetching alerts...");
-      const response = await alertsAPI.getWarrantyAlerts(30, 1, 1000, "all"); // 30 days, first page, large limit, all severities
+      // Use same API call as dashboard to ensure consistency
+      const response = await alertsAPI.getWarrantyAlerts(30); // 30 days, use defaults for other params
       console.log("Alerts response:", response);
+      console.log("Alerts data structure:", {
+        hasData: !!response.data,
+        hasAlerts: !!response.data?.alerts,
+        alertsLength: response.data?.alerts?.length || 0,
+        hasSummary: !!response.data?.summary,
+        summaryKeys: Object.keys(response.data?.summary || {})
+      });
       setAlerts(response.data.alerts || []);
       setAlertsSummary(response.data.summary || {});
       console.log("Alerts summary set:", response.data.summary || {});

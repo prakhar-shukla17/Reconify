@@ -259,7 +259,7 @@ export const createHardware = async (req, res) => {
         req.user?.tenant_id ||
         "default";
 
-      // Update existing asset with scanner data
+      // Update existing asset with scanner data while preserving warranty information
       let updatedData = {
         ...hardwareData,
         tenant_id: tenantId, // Ensure tenant_id is preserved/updated
@@ -271,6 +271,49 @@ export const createHardware = async (req, res) => {
             hardwareData.scan_metadata?.scanner_version || "v1.0",
         },
       };
+
+      // Preserve existing component warranty information
+      console.log("Scanner update: Preserving existing warranty information for asset", id);
+      if (existingHardware.cpu?.component_info) {
+        console.log("Preserving CPU warranty info:", existingHardware.cpu.component_info);
+        updatedData.cpu = {
+          ...updatedData.cpu,
+          component_info: existingHardware.cpu.component_info
+        };
+      }
+      
+      if (existingHardware.memory?.slots) {
+        console.log("Preserving memory warranty info for", existingHardware.memory.slots.length, "slots");
+        updatedData.memory = {
+          ...updatedData.memory,
+          slots: updatedData.memory.slots.map((slot, index) => ({
+            ...slot,
+            component_info: existingHardware.memory.slots[index]?.component_info || slot.component_info
+          }))
+        };
+      }
+      
+      if (existingHardware.storage?.drives) {
+        console.log("Preserving storage warranty info for", existingHardware.storage.drives.length, "drives");
+        updatedData.storage = {
+          ...updatedData.storage,
+          drives: updatedData.storage.drives.map((drive, index) => ({
+            ...drive,
+            component_info: existingHardware.storage.drives[index]?.component_info || drive.component_info
+          }))
+        };
+      }
+      
+      if (existingHardware.graphics?.gpus) {
+        console.log("Preserving graphics warranty info for", existingHardware.graphics.gpus.length, "GPUs");
+        updatedData.graphics = {
+          ...updatedData.graphics,
+          gpus: updatedData.graphics.gpus.map((gpu, index) => ({
+            ...gpu,
+            component_info: existingHardware.graphics.gpus[index]?.component_info || gpu.component_info
+          }))
+        };
+      }
 
       // If it's a manual entry, preserve manual entry specific fields
       if (existingHardware.asset_info?.entry_type === "manual") {
@@ -744,6 +787,7 @@ export const updateComponentWarranty = async (req, res) => {
     }
 
     // Update the hardware document
+    console.log("Updating component warranty for:", { id, componentType, componentIndex, warrantyInfo });
     const updatedHardware = await Hardware.findOneAndUpdate(
       query,
       updateQuery,
@@ -754,9 +798,11 @@ export const updateComponentWarranty = async (req, res) => {
     );
 
     if (!updatedHardware) {
+      console.error("Hardware not found for warranty update:", { id, query });
       return res.status(404).json({ error: "Hardware not found" });
     }
 
+    console.log("Component warranty updated successfully for asset:", id);
     return res.status(200).json({
       message: "Component warranty information updated successfully",
       data: updatedHardware,
@@ -874,6 +920,7 @@ export const updateUserComponentWarranty = async (req, res) => {
     }
 
     // Update the hardware document
+    console.log("Updating user component warranty for:", { id, componentType, componentIndex, warrantyInfo, userId });
     const updatedHardware = await Hardware.findOneAndUpdate(
       query,
       updateQuery,
@@ -884,9 +931,11 @@ export const updateUserComponentWarranty = async (req, res) => {
     );
 
     if (!updatedHardware) {
+      console.error("Hardware not found for user warranty update:", { id, query, userId });
       return res.status(404).json({ error: "Hardware not found" });
     }
 
+    console.log("User component warranty updated successfully for asset:", id);
     return res.status(200).json({
       message: "Component warranty information updated successfully",
       data: updatedHardware,
