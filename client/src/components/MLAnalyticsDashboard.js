@@ -56,7 +56,7 @@ const MLAnalyticsDashboard = () => {
 
   const checkMLServiceStatus = async () => {
     try {
-      const response = await fetch("http://localhost:5000/health");
+      const response = await fetch("http://localhost:3000/health");
       if (response.ok) {
         const data = await response.json();
         setMLServiceStatus("online");
@@ -442,7 +442,7 @@ const MLAnalyticsDashboard = () => {
                     <div className="flex justify-between items-center">
                       <span className="text-gray-600">Endpoint:</span>
                       <span className="font-medium text-gray-900">
-                        localhost:5000
+                        localhost:3000
                       </span>
                     </div>
                   </div>
@@ -490,7 +490,7 @@ const MLAnalyticsDashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button
                   onClick={() =>
-                    window.open("http://localhost:5000/health", "_blank")
+                    window.open("http://localhost:3000/health", "_blank")
                   }
                   className="flex items-center justify-center px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
                 >
@@ -500,7 +500,7 @@ const MLAnalyticsDashboard = () => {
 
                 <button
                   onClick={() =>
-                    window.open("http://localhost:5000/model_info", "_blank")
+                    window.open("http://localhost:3000/model_info", "_blank")
                   }
                   className="flex items-center justify-center px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
                 >

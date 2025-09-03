@@ -36,7 +36,7 @@ const MLPredictionsPanel = ({ macAddress }) => {
 
       // Also check if Python ML service is available
       try {
-        const mlHealthResponse = await fetch("http://localhost:5000/health");
+        const mlHealthResponse = await fetch("http://localhost:3000/health");
         if (mlHealthResponse.ok) {
           console.log("✅ Python ML service is available");
         }

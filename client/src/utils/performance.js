@@ -253,6 +253,13 @@ export const createCache = (options = {}) => {
       return timestamp && Date.now() - timestamp < ttl;
     },
     
+    delete: (key) => {
+      cache.delete(key);
+      timestamps.delete(key);
+    },
+    
+    keys: () => cache.keys(),
+    
     clear: () => {
       cache.clear();
       timestamps.clear();

@@ -27,10 +27,10 @@ import { alertsAPI } from "../lib/api";
 import toast from "react-hot-toast";
 import AlertEmailModal from "./AlertEmailModal";
 
-const AlertsPanel = ({ className = "", users = [] }) => {
+const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], alertsSummary: propSummary = {}, onRefresh, isAutoRefreshing = false }) => {
   // Core state
-  const [alerts, setAlerts] = useState([]);
-  const [summary, setSummary] = useState({});
+  const [alerts, setAlerts] = useState(propAlerts);
+  const [summary, setSummary] = useState(propSummary);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
@@ -86,6 +86,21 @@ const AlertsPanel = ({ className = "", users = [] }) => {
 
   // Fetch alerts with caching
   const fetchAlerts = useCallback(async (forceRefresh = false) => {
+    // If onRefresh callback is provided, use it instead of making direct API calls
+    if (onRefresh) {
+      try {
+        setLoading(true);
+        setError(null);
+        await onRefresh();
+      } catch (err) {
+        console.error("Error refreshing alerts:", err);
+        setError("Failed to refresh warranty alerts");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     // Check cache first (unless forcing refresh)
     if (!forceRefresh && isCacheValid(cacheKey)) {
       const cached = cacheRef.current.get(cacheKey);
@@ -131,7 +146,7 @@ const AlertsPanel = ({ className = "", users = [] }) => {
     } finally {
       setLoading(false);
     }
-  }, [alertDays, filter, cacheKey, isCacheValid]);
+  }, [alertDays, filter, cacheKey, isCacheValid, onRefresh]);
 
   // Debounced filter change handler
   const handleFilterChange = useCallback((newFilter) => {
@@ -163,13 +178,23 @@ const AlertsPanel = ({ className = "", users = [] }) => {
     }, DEBOUNCE_DELAY);
   }, [fetchAlerts]);
 
+  // Update local state when props change
+  useEffect(() => {
+    setAlerts(propAlerts);
+    setSummary(propSummary);
+  }, [propAlerts, propSummary]);
+
   // Initial load effect
   useEffect(() => {
     if (isInitialLoad.current) {
-      fetchAlerts();
+      if (onRefresh) {
+        onRefresh();
+      } else {
+        fetchAlerts();
+      }
       isInitialLoad.current = false;
     }
-  }, []); // Only run once on mount
+  }, [onRefresh]); // Only run once on mount
 
   // Cleanup effect
   useEffect(() => {
@@ -242,16 +267,21 @@ const AlertsPanel = ({ className = "", users = [] }) => {
         const cached = cacheRef.current.get(allCacheKey);
         allAlerts = cached.alerts;
       } else {
-        // Fetch all alerts for this component type
-        const response = await alertsAPI.getWarrantyAlerts(alertDays, 1, 1000, "all");
-        allAlerts = response.data.alerts;
-        
-        // Cache this response
-        cacheRef.current.set(allCacheKey, {
-          alerts: response.data.alerts,
-          summary: response.data.summary,
-          timestamp: Date.now()
-        });
+        // If onRefresh callback is provided, use the current alerts data
+        if (onRefresh) {
+          allAlerts = alerts; // Use current alerts data
+        } else {
+          // Fetch all alerts for this component type
+          const response = await alertsAPI.getWarrantyAlerts(alertDays, 1, 1000, "all");
+          allAlerts = response.data.alerts;
+          
+          // Cache this response
+          cacheRef.current.set(allCacheKey, {
+            alerts: response.data.alerts,
+            summary: response.data.summary,
+            timestamp: Date.now()
+          });
+        }
       }
       
       // Filter alerts for the specific component type
@@ -537,6 +567,18 @@ const AlertsPanel = ({ className = "", users = [] }) => {
   // Main content component
   const MainContent = useCallback(() => (
     <div className={`bg-white rounded-3xl border border-gray-200 shadow-sm ${className}`}>
+      {/* Auto-refresh indicator */}
+      {isAutoRefreshing && (
+        <div className="px-8 pt-6 pb-2">
+          <div className="flex items-center justify-center">
+            <div className="flex items-center space-x-2 text-sm text-blue-600 bg-blue-50 px-4 py-2 rounded-full">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              <span>Auto-refreshing alerts...</span>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="px-8 py-6 border-b border-gray-100">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
@@ -589,13 +631,13 @@ const AlertsPanel = ({ className = "", users = [] }) => {
 
             <button
               onClick={() => fetchAlerts(true)}
-              disabled={loading}
+              disabled={loading || isAutoRefreshing}
               className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl hover:from-blue-700 hover:to-blue-800 focus:ring-2 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl flex items-center space-x-2"
             >
-              {loading ? (
+              {loading || isAutoRefreshing ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span className="font-medium">Loading...</span>
+                  <span className="font-medium">{isAutoRefreshing ? 'Auto-refreshing...' : 'Loading...'}</span>
                 </>
               ) : (
                 <>
@@ -606,6 +648,10 @@ const AlertsPanel = ({ className = "", users = [] }) => {
                 </>
               )}
             </button>
+            
+            {isAutoRefreshing && (
+              <span className="text-xs text-gray-500">Auto-refresh active (60s)</span>
+            )}
           </div>
         </div>
 
@@ -759,7 +805,7 @@ const AlertsPanel = ({ className = "", users = [] }) => {
         users={users}
       />
     </div>
-  ), [alerts, summary, componentCounts, ComponentAlertTile, ComponentModal, handleAlertDaysChange, handleFilterChange, className, loading, fetchAlerts, showEmailModal, selectedAlert, users, handleEmailAlert]);
+  ), [alerts, summary, componentCounts, ComponentAlertTile, ComponentModal, handleAlertDaysChange, handleFilterChange, className, loading, fetchAlerts, showEmailModal, selectedAlert, users, handleEmailAlert, isAutoRefreshing]);
 
   // Render based on state
   if (loading && alerts.length === 0) {

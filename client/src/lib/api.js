@@ -1,3 +1,4 @@
+
 import axios from "axios";
 import Cookies from "js-cookie";
 import { createCache, createRequestBatcher, debounce } from "../utils/performance.js";
@@ -340,10 +341,19 @@ export const alertsAPI = {
 // Tickets API calls with caching
 export const ticketsAPI = {
   create: (ticketData) => api.post("/tickets", ticketData),
-  getAll: (params = {}) => createOptimizedAPI("/tickets", { 
-    cacheKey: `tickets_all_${JSON.stringify(params)}`, 
-    ttl: 2 * 60 * 1000 
-  }).get(params),
+  getAll: (params = {}, forceRefresh = false) => {
+    if (forceRefresh) {
+      // Clear tickets cache before making the request
+      const keysToInvalidate = Array.from(apiCache.keys()).filter(key => 
+        key.includes('tickets')
+      );
+      keysToInvalidate.forEach(key => apiCache.delete(key));
+    }
+    return createOptimizedAPI("/tickets", { 
+      cacheKey: `tickets_all_${JSON.stringify(params)}`, 
+      ttl: 2 * 60 * 1000 
+    }).get(params);
+  },
   getById: (id) => createOptimizedAPI(`/tickets/${id}`, { 
     cacheKey: `ticket_${id}`, 
     ttl: 5 * 60 * 1000 

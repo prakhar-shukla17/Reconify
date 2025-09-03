@@ -131,6 +131,10 @@ export default function AdminPage() {
     medium: 0,
     low: 0,
   });
+  const [autoRefreshStatus, setAutoRefreshStatus] = useState({
+    tickets: false,
+    alerts: false,
+  });
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -222,7 +226,9 @@ export default function AdminPage() {
         setTicketLoading(true);
         setTicketError(null);
 
-        const response = await ticketsAPI.getAll({ page: 1, limit: 10000 }); // Increased limit to ensure all tickets are fetched
+        console.log("Fetching tickets with params:", { page: 1, limit: 10000, forceRefresh });
+        const response = await ticketsAPI.getAll({ page: 1, limit: 10000 }, forceRefresh); // Pass forceRefresh parameter
+        console.log("Tickets API response:", response);
         const ticketsData = response.data.data || [];
 
         // Sort tickets: active tickets first, closed tickets last
@@ -255,14 +261,39 @@ export default function AdminPage() {
         setLastTicketFetch(Date.now());
       } catch (error) {
         console.error("Error fetching tickets:", error);
+        console.error("Error details:", {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          userMessage: error.userMessage
+        });
         setTicketError("Failed to load tickets");
-        toast.error("Failed to load tickets");
+        toast.error(`Failed to load tickets: ${error.userMessage || error.message || 'Unknown error'}`);
       } finally {
         setTicketLoading(false);
       }
     },
     [getCachedTickets, setCachedTickets]
   );
+
+  // Fetch alerts function
+  const fetchAlerts = useCallback(async () => {
+    try {
+      setLoading(true);
+      console.log("Fetching alerts...");
+      const response = await alertsAPI.getWarrantyAlerts(30, 1, 1000, "all"); // 30 days, first page, large limit, all severities
+      console.log("Alerts response:", response);
+      setAlerts(response.data.alerts || []);
+      setAlertsSummary(response.data.summary || {});
+      console.log("Alerts summary set:", response.data.summary || {});
+    } catch (error) {
+      console.error("Error fetching alerts:", error);
+      toast.error("Failed to load alerts");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Check if any filters are active
   const hasActiveFilters = useMemo(() => {
@@ -520,16 +551,36 @@ export default function AdminPage() {
     }
   }, [activeTab, assetType, assetPagination.itemsPerPage]);
 
-  // Auto-refresh tickets every 30 seconds when on tickets tab
+  // Auto-refresh tickets and alerts when on their respective tabs
   useEffect(() => {
+    let interval;
+    
     if (activeTab === "tickets") {
-      const interval = setInterval(() => {
-        fetchTickets(true); // Force refresh every 30 seconds
+      interval = setInterval(async () => {
+        setAutoRefreshStatus(prev => ({ ...prev, tickets: true }));
+        try {
+          await fetchTickets(true); // Force refresh every 30 seconds
+        } finally {
+          setAutoRefreshStatus(prev => ({ ...prev, tickets: false }));
+        }
       }, 30000); // 30 seconds
-
-      return () => clearInterval(interval);
+    } else if (activeTab === "alerts") {
+      interval = setInterval(async () => {
+        setAutoRefreshStatus(prev => ({ ...prev, alerts: true }));
+        try {
+          await fetchAlerts(); // Force refresh every 60 seconds
+        } finally {
+          setAutoRefreshStatus(prev => ({ ...prev, alerts: false }));
+        }
+      }, 60000); // 60 seconds
     }
-  }, [activeTab, fetchTickets]);
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [activeTab, fetchTickets, fetchAlerts]);
 
   // Refetch data when search or filter changes
   useEffect(() => {
@@ -816,22 +867,7 @@ export default function AdminPage() {
     }
   };
 
-  const fetchAlerts = async () => {
-    try {
-      setLoading(true);
-      console.log("Fetching alerts...");
-      const response = await alertsAPI.getWarrantyAlerts(30, 1, 1000, "all"); // 30 days, first page, large limit, all severities
-      console.log("Alerts response:", response);
-      setAlerts(response.data.alerts || []);
-      setAlertsSummary(response.data.summary || {});
-      console.log("Alerts summary set:", response.data.summary || {});
-    } catch (error) {
-      console.error("Error fetching alerts:", error);
-      toast.error("Failed to load alerts");
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const handleAssignAsset = async (userId, macAddress) => {
     try {
@@ -2160,13 +2196,52 @@ export default function AdminPage() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               </div>
             ) : activeTab === "alerts" ? (
-              <AlertsPanel users={users} />
+              <AlertsPanel users={users} alerts={alerts} alertsSummary={alertsSummary} onRefresh={fetchAlerts} isAutoRefreshing={autoRefreshStatus.alerts} />
             ) : activeTab === "tickets" ? (
               // Tickets Tab
               <div className="p-8 bg-white rounded-3xl border border-gray-200 shadow-sm">
-                {/* Export Buttons */}
-                {tickets.length > 0 && (
-                  <div className="mb-8 flex items-center justify-end space-x-3">
+                {/* Auto-refresh indicator */}
+                {autoRefreshStatus.tickets && (
+                  <div className="mb-4 flex items-center justify-center">
+                    <div className="flex items-center space-x-2 text-sm text-blue-600 bg-blue-50 px-4 py-2 rounded-full">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      <span>Auto-refreshing tickets...</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Manual refresh and Export Buttons */}
+                <div className="mb-8 flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={async () => {
+                        console.log("Manual refresh button clicked");
+                        try {
+                          setTicketLoading(true);
+                          await fetchTickets(true);
+                          console.log("Manual refresh completed successfully");
+                          toast.success("Tickets refreshed successfully");
+                        } catch (error) {
+                          console.error("Manual refresh failed:", error);
+                          toast.error("Failed to refresh tickets");
+                        } finally {
+                          setTicketLoading(false);
+                        }
+                      }}
+                      disabled={ticketLoading || autoRefreshStatus.tickets}
+                      className="text-sm border border-blue-300 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
+                      title="Manually refresh tickets"
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${(ticketLoading || autoRefreshStatus.tickets) ? 'animate-spin' : ''}`} />
+                      Refresh Tickets
+                    </button>
+                    {autoRefreshStatus.tickets && (
+                      <span className="text-xs text-gray-500">Auto-refresh active (30s)</span>
+                    )}
+                  </div>
+                  
+                  {tickets.length > 0 && (
+                    <div className="flex items-center space-x-3">
                     <button
                       onClick={() => {
                         exportTicketsToCSV(tickets, "admin_all_tickets");
@@ -2226,7 +2301,7 @@ export default function AdminPage() {
                         onClick={async () => {
                           // Always fetch fresh data before export
                           try {
-                            const response = await ticketsAPI.getAll();
+                            const response = await ticketsAPI.getAll({}, true); // Force refresh for export
                             const freshTickets = response.data.data || [];
                             const sortedTickets = freshTickets.sort((a, b) => {
                               const aIsClosed =
@@ -2278,7 +2353,7 @@ export default function AdminPage() {
                         onClick={async () => {
                           // Always fetch fresh data before export
                           try {
-                            const response = await ticketsAPI.getAll();
+                            const response = await ticketsAPI.getAll({}, true); // Force refresh for export
                             const freshTickets = response.data.data || [];
                             const sortedTickets = freshTickets.sort((a, b) => {
                               const aIsClosed =
@@ -2331,7 +2406,7 @@ export default function AdminPage() {
                         onClick={async () => {
                           // Always fetch fresh data before export
                           try {
-                            const response = await ticketsAPI.getAll();
+                            const response = await ticketsAPI.getAll({}, true); // Force refresh for export
                             const freshTickets = response.data.data || [];
                             const sortedTickets = freshTickets.sort((a, b) => {
                               const aIsClosed =
@@ -2383,7 +2458,8 @@ export default function AdminPage() {
                       </button>
                     </div>
                   </div>
-                )}
+                  )}
+                </div>
 
                 {tickets.length === 0 ? (
                   <div className="text-center py-8">
@@ -3290,7 +3366,7 @@ export default function AdminPage() {
                 )}
               </div>
             ) : activeTab === "alerts" ? (
-              <AlertsPanel users={users} />
+              <AlertsPanel users={users} alerts={alerts} alertsSummary={alertsSummary} onRefresh={fetchAlerts} isAutoRefreshing={autoRefreshStatus.alerts} />
             ) : (
               <HealthDashboard
                 isOpen={showHealthDashboard}

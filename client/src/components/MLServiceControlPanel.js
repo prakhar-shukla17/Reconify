@@ -36,7 +36,7 @@ const MLServiceControlPanel = ({ isOpen, onClose }) => {
 
   const checkServiceStatus = async () => {
     try {
-      const response = await fetch("http://localhost:5000/health");
+      const response = await fetch("http://localhost:3000/health");
       if (response.ok) {
         const data = await response.json();
         setServiceStatus("online");
@@ -53,7 +53,7 @@ const MLServiceControlPanel = ({ isOpen, onClose }) => {
 
   const fetchModelInfo = async () => {
     try {
-      const response = await fetch("http://localhost:5000/model_info");
+      const response = await fetch("http://localhost:3000/model_info");
       if (response.ok) {
         const data = await response.json();
         setModelInfo(data);
@@ -96,7 +96,7 @@ const MLServiceControlPanel = ({ isOpen, onClose }) => {
         ],
       };
 
-      const response = await fetch("http://localhost:5000/predict", {
+      const response = await fetch("http://localhost:3000/predict", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -216,7 +216,7 @@ const MLServiceControlPanel = ({ isOpen, onClose }) => {
                       <p className="text-green-600 font-medium">
                         Service Running
                       </p>
-                      <p className="text-sm text-gray-500">localhost:5000</p>
+                      <p className="text-sm text-gray-500">localhost:3000</p>
                     </div>
                   </div>
                 </div>
@@ -226,7 +226,7 @@ const MLServiceControlPanel = ({ isOpen, onClose }) => {
                     <WifiOff className="h-16 w-16 text-red-600 mx-auto mb-2" />
                     <p className="text-red-600 font-medium">Service Offline</p>
                     <p className="text-sm text-gray-500">
-                      Cannot connect to localhost:5000
+                      Cannot connect to localhost:3000
                     </p>
                   </div>
                 </div>
@@ -313,7 +313,7 @@ const MLServiceControlPanel = ({ isOpen, onClose }) => {
 
                 <button
                   onClick={() =>
-                    window.open("http://localhost:5000/model_info", "_blank")
+                    window.open("http://localhost:3000/model_info", "_blank")
                   }
                   disabled={serviceStatus !== "online"}
                   className="flex items-center justify-center px-4 py-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -435,7 +435,7 @@ const MLServiceControlPanel = ({ isOpen, onClose }) => {
                     <p className="text-gray-600">
                       Service should be accessible at{" "}
                       <code className="bg-gray-100 px-2 py-1 rounded">
-                        http://localhost:5000
+                        http://localhost:3000
                       </code>
                     </p>
                   </div>
