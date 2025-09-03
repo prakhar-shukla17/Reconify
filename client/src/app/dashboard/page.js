@@ -6,7 +6,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import Navbar from "../../components/Navbar";
 import AlertsWidget from "../../components/AlertsWidget";
-import AlertsPanel from "../../components/AlertsPanel";
+
 import { hardwareAPI, softwareAPI, ticketsAPI, authAPI } from "../../lib/api";
 import toast from "react-hot-toast";
 

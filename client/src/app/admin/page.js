@@ -8,6 +8,7 @@ import HardwareCard from "../../components/HardwareCard";
 import HardwareDetails from "../../components/HardwareDetails";
 import SoftwareDetails from "../../components/SoftwareDetails";
 import AlertsPanel from "../../components/AlertsPanel";
+import AlertEmailModal from "../../components/AlertEmailModal";
 import EnhancedAssignmentModal from "../../components/EnhancedAssignmentModal";
 import ManualAssetModal from "../../components/lazy/ManualAssetModal.lazy";
 import CsvImportModal from "../../components/lazy/CsvImportModal.lazy";
@@ -144,6 +145,9 @@ export default function AdminPage() {
   const [showScannerDownloadModal, setShowScannerDownloadModal] =
     useState(false);
   const [showSendEmailModal, setShowSendEmailModal] = useState(false);
+  const [showAlertEmailModal, setShowAlertEmailModal] = useState(false);
+  const [selectedAlertType, setSelectedAlertType] = useState(null);
+  const [filteredAlerts, setFilteredAlerts] = useState([]);
 
   // Enhanced ticket filtering and pagination state
   const [ticketFilters, setTicketFilters] = useState({
@@ -302,6 +306,39 @@ export default function AdminPage() {
       setLoading(false);
     }
   }, []);
+
+  // Handle statistics tile click to show filtered alerts with email functionality
+  const handleStatsTileClick = (alertType) => {
+    let filtered = [];
+    
+    switch (alertType) {
+      case 'total':
+        filtered = alerts;
+        break;
+      case 'critical':
+        filtered = alerts.filter(alert => alert.severity === 'critical');
+        break;
+      case 'high':
+        filtered = alerts.filter(alert => alert.severity === 'high');
+        break;
+      case 'medium':
+        filtered = alerts.filter(alert => alert.severity === 'medium');
+        break;
+      case 'low':
+        filtered = alerts.filter(alert => alert.severity === 'low');
+        break;
+      default:
+        filtered = alerts;
+    }
+    
+    if (filtered.length > 0) {
+      setFilteredAlerts(filtered);
+      setSelectedAlertType(alertType);
+      setShowAlertEmailModal(true);
+    } else {
+      toast.info(`No ${alertType === 'total' ? '' : alertType + ' priority '}alerts found`);
+    }
+  };
 
   // Check if any filters are active
   const hasActiveFilters = useMemo(() => {
@@ -573,14 +610,9 @@ export default function AdminPage() {
         }
       }, 30000); // 30 seconds
     } else if (activeTab === "alerts") {
-      interval = setInterval(async () => {
-        setAutoRefreshStatus(prev => ({ ...prev, alerts: true }));
-        try {
-          await fetchAlerts(); // Force refresh every 60 seconds
-        } finally {
-          setAutoRefreshStatus(prev => ({ ...prev, alerts: false }));
-        }
-      }, 60000); // 60 seconds
+      // Alerts now use real-time polling (5s intervals) in AlertsPanel
+      // No need for additional auto-refresh here
+      console.log("Alerts tab active - real-time polling enabled in AlertsPanel");
     }
 
     return () => {
@@ -1560,7 +1592,10 @@ export default function AdminPage() {
                 </>
               ) : activeTab === "alerts" ? (
                 <>
-                  <div className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50">
+                  <div 
+                    className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleStatsTileClick('total')}
+                  >
                     <div className="flex items-center justify-between mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
                         <Bell className="h-6 w-6 text-white" />
@@ -1577,7 +1612,10 @@ export default function AdminPage() {
                     <p className="text-xs text-gray-500">All active alerts</p>
                   </div>
 
-                  <div className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50">
+                  <div 
+                    className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleStatsTileClick('critical')}
+                  >
                     <div className="flex items-center justify-between mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-red-600 to-red-700 rounded-2xl flex items-center justify-center shadow-lg">
                         <AlertCircle className="h-6 w-6 text-white" />
@@ -1596,7 +1634,10 @@ export default function AdminPage() {
                     </p>
                   </div>
 
-                  <div className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50">
+                  <div 
+                    className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleStatsTileClick('high')}
+                  >
                     <div className="flex items-center justify-between mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
                         <AlertTriangle className="h-6 w-6 text-white" />
@@ -1615,7 +1656,10 @@ export default function AdminPage() {
                     </p>
                   </div>
 
-                  <div className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50">
+                  <div 
+                    className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleStatsTileClick('medium')}
+                  >
                     <div className="flex items-center justify-between mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-2xl flex items-center justify-center shadow-lg">
                         <Clock className="h-6 w-6 text-white" />
@@ -1632,7 +1676,10 @@ export default function AdminPage() {
                     <p className="text-xs text-gray-500">Monitor closely</p>
                   </div>
 
-                  <div className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50">
+                  <div 
+                    className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleStatsTileClick('low')}
+                  >
                     <div className="flex items-center justify-between mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
                         <Shield className="h-6 w-6 text-white" />
@@ -1772,6 +1819,7 @@ export default function AdminPage() {
                     <Monitor className="h-5 w-5 inline mr-3" />
                     Assets
                   </button>
+
                   <button
                     onClick={() => setActiveTab("users")}
                     className={`py-4 px-6 border-b-2 font-medium text-sm transition-all duration-300 rounded-t-2xl ${
@@ -3585,6 +3633,20 @@ export default function AdminPage() {
           onClose={() => setShowSendEmailModal(false)}
           users={users}
         />
+
+        {/* Alert Email Modal */}
+        {showAlertEmailModal && filteredAlerts.length > 0 && (
+          <AlertEmailModal
+            isOpen={showAlertEmailModal}
+            onClose={() => {
+              setShowAlertEmailModal(false);
+              setSelectedAlertType(null);
+              setFilteredAlerts([]);
+            }}
+            alert={filteredAlerts[0]} // Show first alert as representative
+            users={users}
+          />
+        )}
       </div>
     </ProtectedRoute>
   );

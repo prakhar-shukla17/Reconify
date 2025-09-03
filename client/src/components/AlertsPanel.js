@@ -53,13 +53,41 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
   const abortControllerRef = useRef(null);
   const filterTimeoutRef = useRef(null);
   const isInitialLoad = useRef(true);
+  const realTimePollingRef = useRef(null);
+  const lastDataHashRef = useRef(null);
 
   // Cache configuration
-  const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+  const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes (reduced for real-time updates)
   const DEBOUNCE_DELAY = 300; // 300ms debounce for filter changes
+  const REAL_TIME_POLLING_INTERVAL = 5 * 1000; // 5 seconds for real-time updates
 
   // Memoized cache key
   const cacheKey = useMemo(() => `${alertDays}-${filter}`, [alertDays, filter]);
+
+  // Generate data hash for change detection
+  const generateDataHash = useCallback((alertsData, summaryData) => {
+    return JSON.stringify({
+      alerts: alertsData.map(alert => ({
+        id: alert.id,
+        severity: alert.severity,
+        daysUntilExpiry: alert.daysUntilExpiry,
+        expiryDate: alert.expiryDate,
+        hostname: alert.hostname,
+        component: alert.component
+      })),
+      summary: summaryData
+    });
+  }, []);
+
+  // Check if data has changed
+  const hasDataChanged = useCallback((newAlerts, newSummary) => {
+    const newHash = generateDataHash(newAlerts, newSummary);
+    const hasChanged = lastDataHashRef.current !== newHash;
+    if (hasChanged) {
+      lastDataHashRef.current = newHash;
+    }
+    return hasChanged;
+  }, [generateDataHash]);
 
   // Check if cache is valid
   const isCacheValid = useCallback((key) => {
@@ -78,25 +106,88 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
     }
   }, []);
 
+  // Memoized component name getter
+  const getComponentName = useMemo(() => ({
+    cpu: "CPU",
+    gpu: "GPU",
+    memory: "Memory",
+    storage: "Storage",
+    asset: "Asset",
+  }), []);
+
   // Handle email alert
   const handleEmailAlert = useCallback((alert) => {
     setSelectedAlert(alert);
     setShowEmailModal(true);
   }, []);
 
-  // Fetch alerts with caching
-  const fetchAlerts = useCallback(async (forceRefresh = false) => {
+  // Handle email alerts for a specific component type
+  const handleComponentEmailAlert = useCallback((componentType) => {
+    // Find all alerts for this component type
+    const componentAlerts = alerts.filter(alert => {
+      if (componentType === 'asset') {
+        return alert.type === 'asset_warranty';
+      }
+      return alert.component?.type === componentType;
+    });
+    
+    if (componentAlerts.length > 0) {
+      // Create a summary alert for the component type
+      const summaryAlert = {
+        id: `component-${componentType}-summary`,
+        hostname: `${getComponentName[componentType]} Components`,
+        component: {
+          name: getComponentName[componentType],
+          type: componentType
+        },
+        severity: componentAlerts.some(alert => alert.severity === 'critical') ? 'critical' :
+                 componentAlerts.some(alert => alert.severity === 'high') ? 'high' :
+                 componentAlerts.some(alert => alert.severity === 'medium') ? 'medium' : 'low',
+        componentAlerts: componentAlerts,
+        isComponentSummary: true
+      };
+      setSelectedAlert(summaryAlert);
+      setShowEmailModal(true);
+    }
+  }, [alerts, getComponentName]);
+
+  // Fetch alerts with caching and real-time updates
+  const fetchAlerts = useCallback(async (forceRefresh = false, isRealTimePoll = false) => {
     // If onRefresh callback is provided, use it instead of making direct API calls
     if (onRefresh) {
       try {
+        if (!isRealTimePoll) {
         setLoading(true);
+        }
         setError(null);
+        
+        // Store previous data for comparison
+        const previousAlerts = [...alerts];
+        const previousSummary = { ...summary };
+        
         await onRefresh();
+        
+        // Check if data changed (for real-time polling)
+        if (isRealTimePoll) {
+          const changed = hasDataChanged(previousAlerts, previousSummary);
+          if (changed) {
+            console.log("Real-time update: New warranty alerts detected");
+            toast.success("New warranty alerts detected!", { 
+              duration: 3000,
+              icon: "🔔"
+            });
+          }
+        }
       } catch (err) {
         console.error("Error refreshing alerts:", err);
         setError("Failed to refresh warranty alerts");
+        if (isRealTimePoll) {
+          console.warn("Real-time polling error:", err);
+        }
       } finally {
+        if (!isRealTimePoll) {
         setLoading(false);
+        }
       }
       return;
     }
@@ -146,7 +237,7 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
     } finally {
       setLoading(false);
     }
-  }, [alertDays, filter, cacheKey, isCacheValid, onRefresh]);
+  }, [alertDays, filter, cacheKey, isCacheValid, onRefresh, alerts, summary, hasDataChanged]);
 
   // Debounced filter change handler
   const handleFilterChange = useCallback((newFilter) => {
@@ -207,6 +298,22 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
     }
   }, [onRefresh, propAlerts, propSummary]); // Include props in dependencies
 
+  // Real-time polling effect
+  useEffect(() => {
+    if (onRefresh) {
+      // Start real-time polling
+      realTimePollingRef.current = setInterval(() => {
+        fetchAlerts(true, true); // Force refresh for real-time polling
+      }, REAL_TIME_POLLING_INTERVAL);
+    }
+
+    return () => {
+      if (realTimePollingRef.current) {
+        clearInterval(realTimePollingRef.current);
+      }
+    };
+  }, [onRefresh, fetchAlerts]);
+
   // Cleanup effect
   useEffect(() => {
     const cleanupInterval = setInterval(cleanupCache, 5 * 60 * 1000); // Clean every 5 minutes
@@ -218,6 +325,9 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
       }
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
+      }
+      if (realTimePollingRef.current) {
+        clearInterval(realTimePollingRef.current);
       }
     };
   }, [cleanupCache]);
@@ -254,14 +364,7 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
     return counts;
   }, [alerts]);
 
-  // Memoized component name getter
-  const getComponentName = useMemo(() => ({
-    cpu: "CPU",
-    gpu: "GPU",
-    memory: "Memory",
-    storage: "Storage",
-    asset: "Asset",
-  }), []);
+
 
   // Open component modal with smart caching
   const openComponentModal = useCallback(async (componentType) => {
@@ -343,33 +446,49 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
     };
 
     return (
-      <div className={`border-2 rounded-3xl p-6 transition-all duration-300 hover:shadow-xl hover:scale-105 cursor-pointer ${getTileColor()}`}>
-        <button
-          onClick={() => openComponentModal(componentType)}
-          className="w-full text-left"
-        >
+      <div className={`border-2 rounded-3xl p-6 transition-all duration-300 hover:shadow-xl hover:scale-105 ${getTileColor()}`}>
+        <div className="w-full">
           <div className="flex items-center justify-between mb-4">
             <div className={`w-12 h-12 ${getIconBgColor()} rounded-2xl flex items-center justify-center`}>
               <ComponentIcon className={`h-6 w-6 ${getTextColor()}`} />
             </div>
+            <div className="flex items-center space-x-3">
             <span className={`text-3xl font-bold ${getTextColor()}`}>
               {safeCount}
             </span>
+              {safeCount > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleComponentEmailAlert(componentType);
+                  }}
+                  className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                  title="Send email alerts for this component type"
+                >
+                  <Mail className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
           <div>
+            <button
+              onClick={() => openComponentModal(componentType)}
+              className="w-full text-left"
+            >
             <h4 className={`text-lg font-semibold ${getTextColor()} mb-2`}>
               {getComponentName[componentType]} Alerts
             </h4>
             <p className="text-sm text-gray-600">
               {safeCount === 0 ? 'No alerts' : `${safeCount} alert${safeCount !== 1 ? 's' : ''} detected`}
             </p>
-          </div>
         </button>
+          </div>
+        </div>
       </div>
     );
-  }, [getComponentIcon, getComponentName, openComponentModal]);
+  }, [getComponentIcon, getComponentName, openComponentModal, handleComponentEmailAlert]);
 
-  const ComponentModal = () => {
+  const ComponentModal = useCallback(() => {
     if (!showComponentModal || !selectedComponentType) return null;
 
     const componentAlerts = componentModalAlerts;
@@ -421,6 +540,16 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
                   </p>
                 </div>
               </div>
+              <div className="flex items-center space-x-3">
+                {componentAlerts.length > 0 && (
+                  <button
+                    onClick={() => handleComponentEmailAlert(selectedComponentType)}
+                    className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300 hover:scale-110"
+                    title="Send email alerts for all components"
+                  >
+                    <Mail className="h-5 w-5" />
+                  </button>
+                )}
               <button
                 onClick={closeComponentModal}
                 className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300 hover:scale-110"
@@ -428,6 +557,7 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
               >
                 <X className="h-5 w-5" />
               </button>
+              </div>
             </div>
           </div>
 
@@ -470,6 +600,7 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
                           </p>
                         </div>
                       </div>
+                      <div className="flex items-center space-x-3">
                       <span className={`px-3 py-1 text-sm font-medium rounded-full transition-colors duration-200 ${
                         alert.severity === 'critical' ? 'bg-red-100 text-red-800' :
                         alert.severity === 'high' ? 'bg-orange-100 text-orange-800' :
@@ -477,6 +608,14 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
                       }`}>
                         {alert.severity.toUpperCase()}
                       </span>
+                        <button
+                          onClick={() => handleEmailAlert(alert)}
+                          className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                          title="Send alert email to users"
+                        >
+                          <Mail className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -522,7 +661,7 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
         </div>
       </div>
     );
-  };
+  }, [showComponentModal, selectedComponentType, componentModalAlerts, getComponentIcon, getComponentName, closeComponentModal, handleComponentEmailAlert, handleEmailAlert, modalLoading]);
 
   // Loading skeleton component
   const LoadingSkeleton = useCallback(() => (
@@ -578,17 +717,7 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
   // Main content component
   const MainContent = useCallback(() => (
     <div className={`bg-white rounded-3xl border border-gray-200 shadow-sm ${className}`}>
-      {/* Auto-refresh indicator */}
-      {isAutoRefreshing && (
-        <div className="px-8 pt-6 pb-2">
-          <div className="flex items-center justify-center">
-            <div className="flex items-center space-x-2 text-sm text-blue-600 bg-blue-50 px-4 py-2 rounded-full">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-              <span>Auto-refreshing alerts...</span>
-            </div>
-          </div>
-        </div>
-      )}
+      
       
       <div className="px-8 py-6 border-b border-gray-100">
         <div className="flex items-center justify-between mb-6">
@@ -640,29 +769,27 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
               <option value="low">Low</option>
             </select>
 
-            <button
-              onClick={() => fetchAlerts(true)}
-              disabled={loading || isAutoRefreshing}
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl hover:from-blue-700 hover:to-blue-800 focus:ring-2 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl flex items-center space-x-2"
-            >
-              {loading || isAutoRefreshing ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span className="font-medium">{isAutoRefreshing ? 'Auto-refreshing...' : 'Loading...'}</span>
-                </>
-              ) : (
-                <>
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  <span className="font-medium">Refresh</span>
-                </>
-              )}
-            </button>
-            
-            {isAutoRefreshing && (
-              <span className="text-xs text-gray-500">Auto-refresh active (60s)</span>
-            )}
+                         <button
+               onClick={() => fetchAlerts(true)}
+               disabled={loading}
+               className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl hover:from-blue-700 hover:to-blue-800 focus:ring-2 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl flex items-center space-x-2"
+               title="Check for new warranty alerts immediately"
+             >
+               {loading ? (
+                 <>
+                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                   <span className="font-medium">Checking...</span>
+                 </>
+               ) : (
+                 <>
+                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                   </svg>
+                   <span className="font-medium">Check Now</span>
+                 </>
+               )}
+             </button>
+
           </div>
         </div>
 
@@ -694,113 +821,7 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
           </div>
         </div>
 
-        {/* Alerts List */}
-        <div className="mt-8">
-          <h4 className="text-xl font-semibold text-gray-900 mb-6">
-            Active Warranty Alerts ({alerts.length})
-          </h4>
-          
-          {alerts.length === 0 ? (
-            <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300">
-              <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-              <h5 className="text-lg font-medium text-gray-900 mb-2">All Good!</h5>
-              <p className="text-gray-600">No warranty alerts for the selected time period.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {alerts.map((alert, index) => {
-                const severityColor = alert.severity === 'critical' ? 'border-red-200 bg-red-50' :
-                                    alert.severity === 'high' ? 'border-orange-200 bg-orange-50' :
-                                    alert.severity === 'medium' ? 'border-yellow-200 bg-yellow-50' :
-                                    'border-blue-200 bg-blue-50';
-                
-                const severityTextColor = alert.severity === 'critical' ? 'text-red-800 bg-red-100' :
-                                        alert.severity === 'high' ? 'text-orange-800 bg-orange-100' :
-                                        alert.severity === 'medium' ? 'text-yellow-800 bg-yellow-100' :
-                                        'text-blue-800 bg-blue-100';
 
-                return (
-                  <div
-                    key={alert.id}
-                    className={`${severityColor} rounded-2xl p-6 border transition-all duration-300 hover:shadow-lg hover:scale-[1.01]`}
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center">
-                          <AlertTriangle className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-gray-900 text-lg">
-                            {alert.hostname || "Unknown Device"}
-                          </h4>
-                          {alert.macAddress && (
-                            <p className="text-sm text-gray-600 font-mono">
-                              MAC: {alert.macAddress}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className={`px-3 py-1 text-sm font-medium rounded-full ${severityTextColor}`}>
-                          {alert.severity.toUpperCase()}
-                        </span>
-                        <button
-                          onClick={() => handleEmailAlert(alert)}
-                          className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
-                          title="Send alert email to users"
-                        >
-                          <Mail className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div className="bg-white rounded-lg p-3 border border-gray-200">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <HardDrive className="h-4 w-4 text-blue-600" />
-                          <span className="font-medium text-gray-700">Component</span>
-                        </div>
-                        <p className="text-gray-900">
-                          {alert.component?.name || "Asset"}
-                        </p>
-                        {alert.component?.type && (
-                          <p className="text-xs text-gray-500 capitalize">
-                            Type: {alert.component.type}
-                          </p>
-                        )}
-                      </div>
-                      
-                      <div className="bg-white rounded-lg p-3 border border-gray-200">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <AlertTriangle className="h-4 w-4 text-orange-600" />
-                          <span className="font-medium text-gray-700">Expires</span>
-                        </div>
-                        <p className="text-gray-900">
-                          {new Date(alert.expiryDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                      
-                      <div className="bg-white rounded-lg p-3 border border-gray-200">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <AlertTriangle className="h-4 w-4 text-red-600" />
-                          <span className="font-medium text-gray-700">Time Remaining</span>
-                        </div>
-                        <p className={`font-medium ${
-                          alert.daysUntilExpiry <= 7 ? 'text-red-600' :
-                          alert.daysUntilExpiry <= 14 ? 'text-orange-600' :
-                          'text-yellow-600'
-                        }`}>
-                          {alert.daysUntilExpiry === 0 ? 'Today' : `${alert.daysUntilExpiry} days`}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
       </div>
 
       <ComponentModal />
@@ -816,7 +837,7 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
         users={users}
       />
     </div>
-  ), [alerts, summary, componentCounts, ComponentAlertTile, ComponentModal, handleAlertDaysChange, handleFilterChange, className, loading, fetchAlerts, showEmailModal, selectedAlert, users, handleEmailAlert, isAutoRefreshing]);
+  ), [alerts, summary, componentCounts, ComponentAlertTile, ComponentModal, handleAlertDaysChange, handleFilterChange, className, loading, fetchAlerts, showEmailModal, selectedAlert, users, handleEmailAlert]);
 
   // Render based on state
   if (loading && alerts.length === 0) {
