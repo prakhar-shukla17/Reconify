@@ -67,20 +67,25 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
   // Generate data hash for change detection
   const generateDataHash = useCallback((alertsData, summaryData) => {
     return JSON.stringify({
-      alerts: alertsData.map(alert => ({
+      alerts: Array.isArray(alertsData) ? alertsData.map(alert => ({
         id: alert.id,
         severity: alert.severity,
         daysUntilExpiry: alert.daysUntilExpiry,
         expiryDate: alert.expiryDate,
         hostname: alert.hostname,
         component: alert.component
-      })),
-      summary: summaryData
+      })) : [],
+      summary: summaryData || {}
     });
   }, []);
 
   // Check if data has changed
   const hasDataChanged = useCallback((newAlerts, newSummary) => {
+    // Ensure we have valid data before comparing
+    if (!Array.isArray(newAlerts) || !newSummary) {
+      return false;
+    }
+    
     const newHash = generateDataHash(newAlerts, newSummary);
     const hasChanged = lastDataHashRef.current !== newHash;
     if (hasChanged) {
@@ -124,12 +129,12 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
   // Handle email alerts for a specific component type
   const handleComponentEmailAlert = useCallback((componentType) => {
     // Find all alerts for this component type
-    const componentAlerts = alerts.filter(alert => {
+    const componentAlerts = Array.isArray(alerts) ? alerts.filter(alert => {
       if (componentType === 'asset') {
         return alert.type === 'asset_warranty';
       }
       return alert.component?.type === componentType;
-    });
+    }) : [];
     
     if (componentAlerts.length > 0) {
       // Create a summary alert for the component type
@@ -161,9 +166,9 @@ const AlertsPanel = ({ className = "", users = [], alerts: propAlerts = [], aler
         }
         setError(null);
         
-        // Store previous data for comparison
-        const previousAlerts = [...alerts];
-        const previousSummary = { ...summary };
+                 // Store previous data for comparison
+         const previousAlerts = Array.isArray(alerts) ? [...alerts] : [];
+         const previousSummary = summary ? { ...summary } : {};
         
         await onRefresh();
         
