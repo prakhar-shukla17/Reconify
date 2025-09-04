@@ -117,6 +117,9 @@ const HardwareSchema = new mongoose.Schema(
     // Tenant ID for multi-tenancy
     tenant_id: { type: String, required: true, index: true },
     
+    // Tag ID for asset identification
+    tagId: { type: String, unique: true, sparse: true },
+    
     // System Information
     _id: String,
     system: {

@@ -363,9 +363,17 @@ export const createHardware = async (req, res) => {
     // Determine tenant_id: prioritize scanner data, then user context, then default
     const tenantId = hardwareData.tenant_id || req.user?.tenant_id || "default";
 
+    // Generate random Tag ID
+    const generateTagId = () => {
+      const prefix = "TAG";
+      const randomNumber = Math.floor(Math.random() * 900000) + 100000; // 6-digit number
+      return `${prefix}-${randomNumber}`;
+    };
+
     const dataWithCustomId = {
       _id: macAddressString,
       tenant_id: tenantId,
+      tagId: generateTagId(), // Add Tag ID
       ...hardwareData,
       asset_info: {
         ...hardwareData.asset_info,
@@ -986,10 +994,18 @@ export const createManualAsset = async (req, res) => {
       });
     }
 
+    // Generate random Tag ID
+    const generateTagId = () => {
+      const prefix = "TAG";
+      const randomNumber = Math.floor(Math.random() * 900000) + 100000; // 6-digit number
+      return `${prefix}-${randomNumber}`;
+    };
+
     // Create minimal manual entry
     const manualAssetData = {
       _id: normalizedMacAddress,
       tenant_id: req.user?.tenant_id || "default",
+      tagId: generateTagId(), // Add Tag ID
       system: {
         mac_address: normalizedMacAddress,
         hostname: hostname || `Manual-${normalizedMacAddress.slice(-6)}`,
