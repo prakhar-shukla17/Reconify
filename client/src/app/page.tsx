@@ -2,13 +2,20 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Monitor, Shield, Users, Package, ArrowRight, Activity, Lock } from "lucide-react"
+import { Monitor, Shield, Users, Package, ArrowRight, Activity, Lock, ExternalLink } from "lucide-react"
+import GRCModal from "../components/GRCModal"
 
 export default function HomePage() {
   const [scrollY, setScrollY] = useState(0)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [isGRCModalOpen, setIsGRCModalOpen] = useState(false)
+  const [videoError, setVideoError] = useState(false)
+  const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
+    // Set client-side flag to prevent hydration issues
+    setIsClient(true)
+    
     const handleScroll = () => setScrollY(window.scrollY)
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY })
@@ -93,6 +100,18 @@ export default function HomePage() {
                   <span className="ml-3 text-gray-400 font-medium">Network Monitoring</span>
                 </div>
               </Link>
+
+              {/* GRC Application */}
+              <button
+                onClick={() => setIsGRCModalOpen(true)}
+                className="block w-full text-left"
+              >
+                <div className="flex items-center p-3 rounded-2xl hover:bg-gray-900/80 transition-colors duration-200 group">
+                  <Shield className="h-6 w-6 text-gray-400 " />
+                  <span className="ml-3 text-gray-400 font-medium ">QS GRC</span>
+                  
+                </div>
+              </button>
             </div>
           </div>
         </div>
@@ -171,6 +190,7 @@ export default function HomePage() {
               </div>
             </div>
           </div>
+
 
           <div className="py-24">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -255,6 +275,80 @@ export default function HomePage() {
               </div>
             </div>
           </div>
+
+          {/* Video Demo Section */}
+          <div className="py-24">
+            <div className="fade-in opacity-0 translate-y-8">
+              <div className="text-center mb-16">
+                <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+                  See It In Action
+                </h2>
+                <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                  Watch how our IT Asset Management system transforms your organization's 
+                  asset tracking and monitoring capabilities in just minutes.
+                </p>
+              </div>
+
+              <div className="max-w-6xl mx-auto">
+                <div className="relative bg-gradient-to-br from-gray-900 to-black rounded-3xl overflow-hidden shadow-2xl border border-gray-800/50">
+                  {/* Video Container */}
+                  <div className="relative aspect-video bg-gray-900">
+                    {!isClient ? (
+                      /* Loading placeholder during SSR */
+                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                        <div className="text-center">
+                          <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-6 backdrop-blur-sm border border-white/20">
+                            <svg className="w-8 h-8 text-white animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z"/>
+                            </svg>
+                          </div>
+                          <h3 className="text-2xl font-semibold text-white mb-2">Loading Video...</h3>
+                          <p className="text-gray-300">Preparing your demo video</p>
+                        </div>
+                      </div>
+                    ) : videoError ? (
+                      /* Error Fallback */
+                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                        <div className="text-center">
+                          <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6 backdrop-blur-sm border border-red-500/30">
+                            <svg className="w-8 h-8 text-red-400" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                          </div>
+                          <h3 className="text-2xl font-semibold text-white mb-2">Video Format Not Supported</h3>
+                          <p className="text-gray-300 mb-6">Please convert your video to MP4 format for web compatibility</p>
+                          <div className="inline-flex items-center px-6 py-3 bg-red-500/20 backdrop-blur-sm border border-red-500/30 rounded-xl text-red-300">
+                            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                            Convert to MP4
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Video Player */
+                      <video 
+                        className="w-full h-full object-cover"
+                        controls
+                        preload="metadata"
+                        poster="/videos/itam-demo-poster.jpg"
+                        onError={() => {
+                          console.error('Video error occurred');
+                          setVideoError(true);
+                        }}
+                      >
+                        <source src="/videos/itam_demo.mp4" type="video/mp4" />
+                        <source src="/videos/itam_demo.mkv" type="video/x-matroska" />
+                        Your browser does not support the video tag.
+                      </video>
+                    )}
+                  </div>
+
+                  {/* Custom video controls removed - using browser default controls */}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
 
@@ -266,7 +360,7 @@ export default function HomePage() {
             </div>
             <span className="text-xl font-semibold text-gray-900">Asset Manager</span>
           </div>
-          <p className="text-gray-500 text-lg">&copy; 2024 IT Asset Management System. All rights reserved.</p>
+          <p className="text-gray-500 text-lg">&copy; 2025 IT Asset Management System. All rights reserved.</p>
         </div>
       </footer>
 
@@ -286,6 +380,12 @@ export default function HomePage() {
           animation: fade-in-up 0.8s ease-out forwards;
         }
       `}</style>
+
+      {/* GRC Modal */}
+      <GRCModal 
+        isOpen={isGRCModalOpen} 
+        onClose={() => setIsGRCModalOpen(false)} 
+      />
     </div>
   )
 }

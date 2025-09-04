@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Shield, Download, AlertTriangle, CheckCircle, Clock, ArrowRight, Activity, Lock, Zap, RefreshCw } from "lucide-react"
+import { Shield, Download, AlertTriangle, CheckCircle, Clock, ArrowRight, Activity, Lock, Zap, RefreshCw, ExternalLink } from "lucide-react"
+import GRCModal from "../../components/GRCModal"
 
 export default function PatchMonitoringPage() {
   const [scrollY, setScrollY] = useState(0)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [isGRCModalOpen, setIsGRCModalOpen] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY)
@@ -93,6 +95,18 @@ export default function PatchMonitoringPage() {
                 <span className="ml-3 text-gray-400 font-medium">Network Monitoring</span>
               </div>
             </Link>
+
+            {/* GRC Application */}
+            <button
+              onClick={() => setIsGRCModalOpen(true)}
+              className="block w-full text-left"
+            >
+              <div className="flex items-center p-3 rounded-2xl hover:bg-gray-900/80 transition-colors duration-200 group">
+                <Shield className="h-6 w-6 text-gray-400 " />
+                <span className="ml-3 text-gray-400 font-medium ">QS GRC</span>
+                
+              </div>
+            </button>
           </div>
         </div>
       </div>
@@ -266,7 +280,7 @@ export default function PatchMonitoringPage() {
             </div>
             <span className="text-xl font-semibold text-gray-900">Patch Manager</span>
           </div>
-          <p className="text-gray-500 text-lg">&copy; 2024 IT Asset Management System. All rights reserved.</p>
+          <p className="text-gray-500 text-lg">&copy; 2025 IT Asset Management System. All rights reserved.</p>
         </div>
       </footer>
 
@@ -286,6 +300,12 @@ export default function PatchMonitoringPage() {
           animation: fade-in-up 0.8s ease-out forwards;
         }
       `}</style>
+
+      {/* GRC Modal */}
+      <GRCModal 
+        isOpen={isGRCModalOpen} 
+        onClose={() => setIsGRCModalOpen(false)} 
+      />
     </div>
   )
 }
