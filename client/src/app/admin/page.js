@@ -54,6 +54,8 @@ import {
   X,
   Check,
   Eye,
+  LayoutGrid,
+  List,
   Bell,
   Ticket,
   Activity,
@@ -148,6 +150,8 @@ export default function AdminPage() {
   const [showAlertEmailModal, setShowAlertEmailModal] = useState(false);
   const [selectedAlertType, setSelectedAlertType] = useState(null);
   const [filteredAlerts, setFilteredAlerts] = useState([]);
+  const [assetViewMode, setAssetViewMode] = useState("grid"); // 'grid' or 'list'
+  const [locationFilter, setLocationFilter] = useState("all");
 
   // Enhanced ticket filtering and pagination state
   const [ticketFilters, setTicketFilters] = useState({
@@ -1100,7 +1104,13 @@ export default function AdminPage() {
     return users.find((user) => user.assignedAssets?.includes(macAddress));
   };
 
-  const currentAssets = assetType === "hardware" ? hardware : software;
+  const currentAssets = useMemo(() => {
+    const base = assetType === "hardware" ? hardware : software;
+    if (assetType === "hardware" && locationFilter && locationFilter !== "all") {
+      return base.filter((h) => (h.asset_info?.location || "Unknown") === locationFilter);
+    }
+    return base;
+  }, [assetType, hardware, software, locationFilter]);
 
   const filteredUsers = users.filter(
     (user) =>
@@ -2030,18 +2040,59 @@ export default function AdminPage() {
                             <Package className="h-4 w-4 mr-2" />
                             Add Asset
                           </button>
+                          {assetType === "hardware" && (
+                            <div className="relative">
+                              <Filter className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                              <select
+                                value={locationFilter}
+                                onChange={(e) => setLocationFilter(e.target.value)}
+                                className="pl-7 pr-5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
+                                title="Filter by location"
+                              >
+                                <option value="all">All Locations</option>
+                                {Array.from(new Set(hardware.map(h => (h.asset_info?.location || "Unknown")))).sort().map(loc => (
+                                  <option key={loc} value={loc}>{loc}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                          <div className="flex items-center bg-gray-100 rounded-xl p-1">
+                            <button
+                              onClick={() => setAssetViewMode("grid")}
+                              className={`flex items-center px-3 py-2 text-sm rounded-lg transition-all ${
+                                assetViewMode === "grid"
+                                  ? "bg-white text-gray-900 shadow"
+                                  : "text-gray-600 hover:text-gray-900"
+                              }`}
+                              title="Grid view"
+                            >
+                              <LayoutGrid className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => setAssetViewMode("list")}
+                              className={`ml-1 flex items-center px-3 py-2 text-sm rounded-lg transition-all ${
+                                assetViewMode === "list"
+                                  ? "bg-white text-gray-900 shadow"
+                                  : "text-gray-600 hover:text-gray-900"
+                              }`}
+                              title="List view"
+                            >
+                              <List className="h-4 w-4" />
+                            </button>
+                          </div>
                         </>
                       )}
                     </div>
                   </div>
 
                   {/* Remove Filter Text - Below the filter div */}
-                  {(filterType !== "all" || searchTerm) && (
+                  {(filterType !== "all" || searchTerm || (assetType === "hardware" && locationFilter !== "all")) && (
                     <div className="mt-3 text-center">
                       <button
                         onClick={() => {
                           setFilterType("all");
                           setSearchTerm("");
+                          setLocationFilter("all");
                         }}
                         className="text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer transition-colors"
                         title="Remove all filters"
@@ -2841,189 +2892,266 @@ export default function AdminPage() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {currentAssets.map((item) => {
-                            const isSelected = selectedAssets.includes(
-                              item._id
-                            );
-                            return (
-                              <div
-                                key={item._id}
-                                className={`relative ${
-                                  isSelected
-                                    ? "ring-2 ring-blue-500 ring-opacity-50"
-                                    : ""
-                                }`}
-                              >
-                                {/* Selection Checkbox */}
-                                <div className="absolute top-2 left-2 z-10">
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={(e) =>
-                                      handleAssetSelection(
-                                        item._id,
-                                        e.target.checked
-                                      )
-                                    }
-                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                    onClick={(e) => e.stopPropagation()}
-                                  />
-                                </div>
-
-                                {assetType === "hardware" ? (
-                                  <HardwareCard
-                                    hardware={item}
-                                    onClick={setSelectedHardware}
-                                  />
-                                ) : (
-                                  // Software Card - Same as Dashboard
-                                  <div
-                                    key={item._id}
-                                    className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border cursor-pointer h-80 flex flex-col"
-                                    onClick={() => setSelectedSoftware(item)}
-                                  >
-                                    <div className="flex items-center justify-between mb-4">
-                                      <div className="flex items-center space-x-3">
-                                        <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                          <Package className="h-6 w-6 text-green-600" />
-                                        </div>
-                                        <div>
-                                          <h3 className="text-lg font-semibold text-gray-900">
-                                            {item.system?.hostname ||
-                                              "Unknown System"}
-                                          </h3>
-                                          <p className="text-sm text-gray-500">
-                                            {item.system?.platform} Software
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <div className="text-right">
-                                        <p className="text-xs text-gray-500">
-                                          MAC Address
-                                        </p>
-                                        <p className="text-sm font-mono text-gray-700">
-                                          {item.system?.mac_address ||
-                                            "Unknown"}
-                                        </p>
-                                      </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4 mb-4 flex-1">
-                                      <div className="flex items-center space-x-2">
-                                        <Package className="h-4 w-4 text-gray-600" />
-                                        <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">
-                                            Installed
-                                          </p>
-                                          <p className="text-sm font-medium text-gray-900">
-                                            {item.installed_software?.length ||
-                                              0}
-                                          </p>
-                                          <p className="text-xs text-gray-500">
-                                            packages
-                                          </p>
-                                        </div>
-                                      </div>
-
-                                      <div className="flex items-center space-x-2">
-                                        <Settings className="h-4 w-4 text-gray-600" />
-                                        <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">
-                                            Services
-                                          </p>
-                                          <p className="text-sm font-medium text-gray-900">
-                                            {item.services?.length || 0}
-                                          </p>
-                                          <p className="text-xs text-gray-500">
-                                            running
-                                          </p>
-                                        </div>
-                                      </div>
-
-                                      <div className="flex items-center space-x-2">
-                                        <Play className="h-4 w-4 text-gray-600" />
-                                        <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">
-                                            Startup
-                                          </p>
-                                          <p className="text-sm font-medium text-gray-900">
-                                            {item.startup_programs?.length || 0}
-                                          </p>
-                                          <p className="text-xs text-gray-500">
-                                            programs
-                                          </p>
-                                        </div>
-                                      </div>
-
-                                      <div className="flex items-center space-x-2">
-                                        <Monitor className="h-4 w-4 text-gray-600" />
-                                        <div className="min-w-0 flex-1">
-                                          <p className="text-xs text-gray-500">
-                                            Total
-                                          </p>
-                                          <p className="text-sm font-medium text-gray-900">
-                                            {item.scan_metadata
-                                              ?.total_software_count || 0}
-                                          </p>
-                                          <p className="text-xs text-gray-500">
-                                            items
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex justify-between items-center pt-4 border-t">
-                                      <div className="text-xs text-gray-500">
-                                        Last scan:{" "}
-                                        {new Date(
-                                          item.scan_metadata?.last_updated ||
-                                            item.updatedAt
-                                        ).toLocaleDateString()}
-                                      </div>
-                                      <div className="flex items-center space-x-1">
-                                        <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                                        <span className="text-xs text-gray-600">
-                                          Scanned
-                                        </span>
-                                      </div>
-                                    </div>
+                        {assetViewMode === "grid" ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {currentAssets.map((item) => {
+                              const isSelected = selectedAssets.includes(
+                                item._id
+                              );
+                              return (
+                                <div
+                                  key={item._id}
+                                  className={`relative ${
+                                    isSelected
+                                      ? "ring-2 ring-blue-500 ring-opacity-50"
+                                      : ""
+                                  }`}
+                                >
+                                  {/* Selection Checkbox */}
+                                  <div className="absolute top-2 left-2 z-10">
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={(e) =>
+                                        handleAssetSelection(
+                                          item._id,
+                                          e.target.checked
+                                        )
+                                      }
+                                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
                                   </div>
-                                )}
 
-                                <div className="absolute top-2 right-2 flex space-x-2">
-                                  {assetType === "hardware" && (
-                                    <>
-                                      {isAssetAssigned(
-                                        item.system?.mac_address
-                                      ) ? (
-                                        <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                                          Assigned to{" "}
-                                          {
-                                            getAssignedUser(
-                                              item.system?.mac_address
-                                            )?.username
-                                          }
+                                  {assetType === "hardware" ? (
+                                    <HardwareCard
+                                      hardware={item}
+                                      onClick={setSelectedHardware}
+                                    />
+                                  ) : (
+                                    // Software Card - Same as Dashboard
+                                    <div
+                                      key={item._id}
+                                      className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border cursor-pointer h-80 flex flex-col"
+                                      onClick={() => setSelectedSoftware(item)}
+                                    >
+                                      <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center space-x-3">
+                                          <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                            <Package className="h-6 w-6 text-green-600" />
+                                          </div>
+                                          <div>
+                                            <h3 className="text-lg font-semibold text-gray-900">
+                                              {item.system?.hostname ||
+                                                "Unknown System"}
+                                            </h3>
+                                            <p className="text-sm text-gray-500">
+                                              {item.system?.platform} Software
+                                            </p>
+                                          </div>
                                         </div>
-                                      ) : (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedAsset(item);
-                                            setShowAssignModal(true);
-                                          }}
-                                          className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full hover:bg-blue-200"
-                                        >
-                                          Assign
-                                        </button>
-                                      )}
+                                        <div className="text-right">
+                                          <p className="text-xs text-gray-500">
+                                            MAC Address
+                                          </p>
+                                          <p className="text-sm font-mono text-gray-700">
+                                            {item.system?.mac_address ||
+                                              "Unknown"}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      <div className="grid grid-cols-2 gap-4 mb-4 flex-1">
+                                        <div className="flex items-center space-x-2">
+                                          <Package className="h-4 w-4 text-gray-600" />
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-xs text-gray-500">
+                                              Installed
+                                            </p>
+                                            <p className="text-sm font-medium text-gray-900">
+                                              {item.installed_software?.length ||
+                                                0}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                              packages
+                                            </p>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center space-x-2">
+                                          <Settings className="h-4 w-4 text-gray-600" />
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-xs text-gray-500">
+                                              Services
+                                            </p>
+                                            <p className="text-sm font-medium text-gray-900">
+                                              {item.services?.length || 0}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                              running
+                                            </p>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center space-x-2">
+                                          <Play className="h-4 w-4 text-gray-600" />
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-xs text-gray-500">
+                                              Startup
+                                            </p>
+                                            <p className="text-sm font-medium text-gray-900">
+                                              {item.startup_programs?.length || 0}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                              programs
+                                            </p>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center space-x-2">
+                                          <Monitor className="h-4 w-4 text-gray-600" />
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-xs text-gray-500">
+                                              Total
+                                            </p>
+                                            <p className="text-sm font-medium text-gray-900">
+                                              {item.scan_metadata
+                                                ?.total_software_count || 0}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                              items
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex justify-between items-center pt-4 border-t">
+                                        <div className="text-xs text-gray-500">
+                                          Last scan:{" "}
+                                          {new Date(
+                                            item.scan_metadata?.last_updated ||
+                                              item.updatedAt
+                                          ).toLocaleDateString()}
+                                        </div>
+                                        <div className="flex items-center space-x-1">
+                                          <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                                          <span className="text-xs text-gray-600">
+                                            Scanned
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <div className="absolute top-2 right-2 flex space-x-2">
+                                    {assetType === "hardware" && (
+                                      <>
+                                        {isAssetAssigned(
+                                          item.system?.mac_address
+                                        ) ? (
+                                          <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                                            Assigned to{" "}
+                                            {
+                                              getAssignedUser(
+                                                item.system?.mac_address
+                                              )?.username
+                                            }
+                                          </div>
+                                        ) : (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedAsset(item);
+                                              setShowAssignModal(true);
+                                            }}
+                                            className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full hover:bg-blue-200"
+                                          >
+                                            Assign
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="bg-white rounded-lg border overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Select</th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hostname</th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MAC</th>
+                                  {assetType === "hardware" ? (
+                                    <>
+                                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPU</th>
+                                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RAM</th>
+                                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OS</th>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Packages</th>
+                                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Services</th>
                                     </>
                                   )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {currentAssets.map((item) => {
+                                  const isSelected = selectedAssets.includes(item._id);
+                                  return (
+                                    <tr key={item._id} className="hover:bg-gray-50">
+                                      <td className="px-4 py-3">
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={(e) =>
+                                            handleAssetSelection(item._id, e.target.checked)
+                                          }
+                                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        />
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer" onClick={() => assetType === "hardware" ? setSelectedHardware(item) : setSelectedSoftware(item)}>
+                                        {item.system?.hostname || "Unknown"}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">
+                                        {item.system?.mac_address || "Unknown"}
+                                      </td>
+                                      {assetType === "hardware" ? (
+                                        <>
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {item.cpu?.model || "-"}
+                                          </td>
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {Math.round((item.memory?.total_gb || 0) * 10) / 10} GB
+                                          </td>
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {item.system?.os || item.system?.platform || "-"}
+                                          </td>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {item.installed_software?.length || 0}
+                                          </td>
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {item.services?.length || 0}
+                                          </td>
+                                        </>
+                                      )}
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                        {new Date(item.updatedAt || item.scan_metadata?.last_updated || Date.now()).toLocaleDateString()}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </>
                     )}
 
