@@ -81,6 +81,7 @@ class HardwareDetector:
             'configured_at': datetime.now().isoformat()
         }
         
+        
         # Auto-export hardware info
         # self.export_hardware_info()
         

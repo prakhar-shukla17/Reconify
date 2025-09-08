@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
 import {
   Search,
   Filter,
@@ -15,6 +19,15 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
+<<<<<<< HEAD
+=======
+=======
+import { 
+  Search, 
+  Filter, 
+  ChevronDown,
+  ChevronUp,
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
   Home,
   Box,
   CheckCircle,
@@ -28,6 +41,11 @@ import {
   Save,
   Users,
   Settings,
+<<<<<<< HEAD
+=======
+  Edit
+>>>>>>> dinesh
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
 } from "lucide-react";
 import { hardwareAPI, softwareAPI } from "../lib/api";
 import toast from "react-hot-toast";
@@ -96,10 +114,34 @@ const AssetsManagement = ({ users }) => {
   const fetchAllAssets = async () => {
     try {
       setLoading(true);
+<<<<<<< HEAD
       console.log("Fetching hardware assets with filters:", {
         searchTerm,
         filters
       });
+=======
+<<<<<<< HEAD
+      const [hardwareResponse, softwareResponse] = await Promise.all([
+        hardwareAPI.getAll(),
+        softwareAPI.getAll(),
+      ]);
+
+      const hardwareAssets = (hardwareResponse.data || []).map((asset) => ({
+        ...asset,
+        type: "hardware",
+        id: asset._id || asset.id,
+      }));
+
+      const softwareAssets = (softwareResponse.data || []).map((asset) => ({
+        ...asset,
+        type: "software",
+        id: asset._id || asset.id,
+      }));
+
+      setAssets([...hardwareAssets, ...softwareAssets]);
+=======
+      console.log("Fetching hardware assets...");
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
       
       const response = await hardwareAPI.getAll({ 
         page: 1, 
@@ -134,6 +176,10 @@ const AssetsManagement = ({ users }) => {
       console.log("Transformed assets:", transformedAssets);
       setAssets(transformedAssets);
       console.log("Total hardware assets loaded:", transformedAssets.length);
+<<<<<<< HEAD
+=======
+>>>>>>> dinesh
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
     } catch (error) {
       console.error("Error fetching hardware assets:", error);
       console.error("Error details:", {
@@ -245,6 +291,29 @@ const AssetsManagement = ({ users }) => {
   const filteredAndSortedAssets = useMemo(() => {
     let filtered = assets.filter((asset) => {
       // Search filter
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+      const matchesSearch =
+        !searchTerm ||
+        asset.hostname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.macAddress?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.ipAddress?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.assignedTo?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Type filter
+      const matchesType = filterType === "all" || asset.type === filterType;
+
+      // Status filter
+      const matchesStatus =
+        filterStatus === "all" ||
+        (filterStatus === "assigned" && asset.assignedTo) ||
+        (filterStatus === "unassigned" && !asset.assignedTo);
+
+      return matchesSearch && matchesType && matchesStatus;
+=======
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
       const matchesSearch = !searchTerm || 
         asset.assetName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         asset.tagId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -254,6 +323,7 @@ const AssetsManagement = ({ users }) => {
         asset.assetLocation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         getAssignedUserName(asset.assignedTo)?.toLowerCase().includes(searchTerm.toLowerCase());
 
+<<<<<<< HEAD
       // Category filter
       const matchesCategory = !filters.category || asset.category === filters.category;
       
@@ -272,6 +342,10 @@ const AssetsManagement = ({ users }) => {
       const matchesAssetType = !filters.assetType || asset.assetType === filters.assetType;
 
       return matchesSearch && matchesCategory && matchesSubCategory && matchesStatus && matchesAssignedTo && matchesAssetType;
+=======
+      return matchesSearch;
+>>>>>>> dinesh
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
     });
 
     // Sort assets
@@ -326,6 +400,26 @@ const AssetsManagement = ({ users }) => {
     return filtered;
   }, [assets, searchTerm, sortBy, sortOrder, filters]);
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  // Handle asset edit
+  const handleEditAsset = (asset) => {
+    setEditingAsset(asset);
+    setEditForm({
+      hostname: asset.hostname || "",
+      location: asset.location || "",
+      assignedTo: asset.assignedTo || "",
+      notes: asset.notes || "",
+      warrantyExpiry: asset.warrantyExpiry || "",
+      purchaseDate: asset.purchaseDate || "",
+      purchasePrice: asset.purchasePrice || "",
+      vendor: asset.vendor || "",
+      model: asset.model || "",
+      serialNumber: asset.serialNumber || "",
+    });
+=======
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
   // Pagination logic
   const totalPages = Math.ceil(filteredAndSortedAssets.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -344,6 +438,10 @@ const AssetsManagement = ({ users }) => {
         ? prev.filter(id => id !== assetId)
         : [...prev, assetId]
     );
+<<<<<<< HEAD
+=======
+>>>>>>> dinesh
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
   };
 
   // Handle select all assets
@@ -458,6 +556,32 @@ const AssetsManagement = ({ users }) => {
     }
 
     try {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+      const updateData = {
+        ...editForm,
+        id: editingAsset.id,
+      };
+
+      if (editingAsset.type === "hardware") {
+        await hardwareAPI.update(editingAsset.id, updateData);
+      } else {
+        await softwareAPI.update(editingAsset.id, updateData);
+      }
+
+      // Update local state
+      setAssets((prev) =>
+        prev.map((asset) =>
+          asset.id === editingAsset.id ? { ...asset, ...updateData } : asset
+        )
+      );
+
+      setEditingAsset(null);
+      setEditForm({});
+      toast.success("Asset updated successfully");
+=======
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
       switch (actionType) {
         case "assign":
           handleAssignAssets();
@@ -476,12 +600,17 @@ const AssetsManagement = ({ users }) => {
         default:
           break;
       }
+<<<<<<< HEAD
+=======
+>>>>>>> dinesh
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
     } catch (error) {
       console.error("Error performing bulk action:", error);
       toast.error("Failed to perform bulk action");
     }
   };
 
+<<<<<<< HEAD
   const handleUnassignAssets = async () => {
     try {
       // Update each selected asset to remove assignment
@@ -613,6 +742,9 @@ const AssetsManagement = ({ users }) => {
     }
   };
 
+=======
+<<<<<<< HEAD
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
   // Get user name by ID
   const getUserName = (userId) => {
     if (!userId) return "Unassigned";
@@ -631,6 +763,22 @@ const AssetsManagement = ({ users }) => {
     if (asset.memory) return <MemoryStick className="h-5 w-5" />;
     if (asset.storage) return <HardDrive className="h-5 w-5" />;
     return <Monitor className="h-5 w-5" />;
+<<<<<<< HEAD
+=======
+=======
+  const handleUnassignAssets = async () => {
+    try {
+      // Here you would call your API to unassign assets
+      // For now, just show success message
+      toast.success(`Unassigned ${selectedAssets.length} assets`);
+      setSelectedAssets([]);
+      // Refresh the data
+      fetchAllAssets();
+    } catch (error) {
+      console.error("Error unassigning assets:", error);
+      toast.error("Failed to unassign assets");
+    }
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
   };
 
   // Handle inline field editing
@@ -726,6 +874,10 @@ const AssetsManagement = ({ users }) => {
     } finally {
       setSavingField(false);
     }
+<<<<<<< HEAD
+=======
+>>>>>>> dinesh
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
   };
 
   // Navigation tabs
@@ -755,17 +907,56 @@ const AssetsManagement = ({ users }) => {
   }
 
   return (
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+    <div className="p-8 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          Assets Management
+        </h1>
+        <p className="text-gray-600">
+          Manage all hardware and software assets in your organization
+        </p>
+      </div>
+=======
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
     <div className="min-h-screen bg-white">
       {/* Top Navigation Bar */}
       <div className="bg-white border-b border-gray-200">
         <div className="px-6 py-4">
           <div className="flex items-center space-x-8">
+<<<<<<< HEAD
             <h1 className="text-2xl font-bold text-gray-900">Assets Management</h1>
         </h1>
         <p className="text-gray-600">
           Manage all hardware and software assets in your organization
         </p>
       </div>
+=======
+            {navigationTabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+              <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center space-x-2 px-3 py-2 text-sm font-medium transition-colors ${
+                    activeTab === tab.id
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{tab.label}</span>
+              </button>
+              );
+            })}
+                </div>
+                </div>
+            </div>
+>>>>>>> dinesh
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
 
       {/* Filters and Search */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
@@ -781,6 +972,10 @@ const AssetsManagement = ({ users }) => {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
 
           {/* Type Filter */}
           <select
@@ -914,6 +1109,200 @@ const AssetsManagement = ({ users }) => {
                     >
                       <Edit className="h-5 w-5" />
                     </button>
+<<<<<<< HEAD
+=======
+=======
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="text-sm text-gray-600">
+              {loading ? "Loading..." : `${filteredAndSortedAssets.length} assets found`}
+            </div>
+            <button
+              onClick={fetchAllAssets}
+              disabled={loading}
+              className="flex items-center space-x-2 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <span>Refresh</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="p-6">
+        {activeTab === "home" && (
+          <>
+            {/* Home View - Current Asset Management Table */}
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <div className="bg-gray-50 border-b border-gray-200">
+                <div className="grid grid-cols-9 gap-4 px-6 py-4 text-sm font-medium text-gray-700">
+                  {/* Action Column */}
+                  <div className="flex items-center space-x-2">
+                    <Box className="h-4 w-4" />
+                    <span>Action</span>
+                  </div>
+
+                  {/* Asset Name Column */}
+                  <div className="flex items-center space-x-2">
+                    <span>Asset Name</span>
+                    <div className="flex flex-col">
+                      <ChevronUp 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "assetName" && sortOrder === "asc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("assetName")}
+                      />
+                      <ChevronDown 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "assetName" && sortOrder === "desc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("assetName")}
+                      />
+                    </div>
+                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+        </div>
+
+                  {/* Tag ID Column */}
+              <div className="flex items-center space-x-2">
+                    <span>Tag ID</span>
+                    <div className="flex flex-col">
+                      <ChevronUp 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "tagId" && sortOrder === "asc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("tagId")}
+                      />
+                      <ChevronDown 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "tagId" && sortOrder === "desc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("tagId")}
+                      />
+              </div>
+                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+          </div>
+          
+                  {/* Category Column */}
+              <div className="flex items-center space-x-2">
+                    <span>Category</span>
+                    <div className="flex flex-col">
+                      <ChevronUp 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "category" && sortOrder === "asc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("category")}
+                      />
+                      <ChevronDown 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "category" && sortOrder === "desc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("category")}
+                      />
+              </div>
+                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+                  </div>
+                  
+                  {/* Sub Category Column */}
+                  <div className="flex items-center space-x-2">
+                    <span>Sub Category</span>
+                    <div className="flex flex-col">
+                      <ChevronUp 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "subCategory" && sortOrder === "asc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("subCategory")}
+                      />
+                      <ChevronDown 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "subCategory" && sortOrder === "desc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("subCategory")}
+                      />
+          </div>
+                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+        </div>
+                  
+                  {/* Asset Type Column */}
+                  <div className="flex items-center space-x-2">
+                    <span>Asset Type</span>
+                    <div className="flex flex-col">
+                      <ChevronUp 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "assetType" && sortOrder === "asc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("assetType")}
+                      />
+                      <ChevronDown 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "assetType" && sortOrder === "desc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("assetType")}
+                      />
+                    </div>
+                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+      </div>
+
+                  {/* Status Column */}
+                  <div className="flex items-center space-x-2">
+                    <span>Status</span>
+                    <div className="flex flex-col">
+                      <ChevronUp 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "status" && sortOrder === "asc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("status")}
+                      />
+                      <ChevronDown 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "status" && sortOrder === "desc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("status")}
+                      />
+          </div>
+                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+              </div>
+                  
+                  {/* Purchase Date Column */}
+                  <div className="flex items-center space-x-2">
+                    <span>Purchase Date</span>
+                    <div className="flex flex-col">
+                      <ChevronUp 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "purchaseDate" && sortOrder === "asc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("purchaseDate")}
+                      />
+                      <ChevronDown 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "purchaseDate" && sortOrder === "desc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("purchaseDate")}
+                      />
+                    </div>
+                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+            </div>
+
+                  {/* Asset Location Column */}
+                  <div className="flex items-center space-x-2">
+                    <span>Asset Location</span>
+                    <div className="flex flex-col">
+                      <ChevronUp 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "assetLocation" && sortOrder === "asc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("assetLocation")}
+                      />
+                      <ChevronDown 
+                        className={`h-3 w-3 cursor-pointer ${
+                          sortBy === "assetLocation" && sortOrder === "desc" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                        onClick={() => handleSort("assetLocation")}
+                      />
+                    </div>
+                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+>>>>>>> dinesh
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
                   </div>
 =======
     <div className="min-h-screen bg-white">
@@ -966,8 +1355,36 @@ const AssetsManagement = ({ users }) => {
                             <span>{asset.serialNumber || "N/A"}</span>
                           </div>
                         </div>
+<<<<<<< HEAD
+=======
+=======
+              {/* Table Body */}
+              <div className="divide-y divide-gray-200">
+            {paginatedAssets.map((asset) => (
+                  <div key={asset.id} className="grid grid-cols-9 gap-4 px-6 py-4 text-sm hover:bg-gray-50">
+                    {/* Action Column */}
+                    <div className="flex items-center">
+                      <button className="p-1 hover:bg-gray-100 rounded">
+                        <Box className="h-4 w-4 text-gray-600" />
+                    </button>
+                    </div>
+                    
+                    {/* Asset Name Column */}
+                    <div className="flex items-center">
+                      <span className="text-gray-900">{asset.assetName}</span>
+                    </div>
+
+                    {/* Tag ID Column */}
+                    <div className="flex items-center">
+                      <span className="text-gray-900 font-mono text-sm">{asset.tagId}</span>
+>>>>>>> dinesh
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
                       </div>
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
                       <div>
                         <h4 className="text-sm font-medium text-gray-900 mb-2">
                           Assignment
@@ -1015,6 +1432,7 @@ const AssetsManagement = ({ users }) => {
                         </p>
                       </div>
                     )}
+<<<<<<< HEAD
                   </div>
                 )}
 =======
@@ -1513,6 +1931,9 @@ const AssetsManagement = ({ users }) => {
                          <span className="text-gray-900">{getAssignedUserName(asset.assignedTo)}</span>
                          </div>
 
+=======
+=======
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
                     {/* Status Column */}
                     <div className="flex items-center">
                       <div className="flex items-center space-x-2">
@@ -1959,6 +2380,7 @@ const AssetsManagement = ({ users }) => {
 
                       {/* Asset Location Column */}
                       <div className="flex items-center">
+<<<<<<< HEAD
                         {editingField === `${asset.id}-assetLocation` ? (
                           <div className="flex items-center space-x-2 w-full">
                                 <input
@@ -1996,6 +2418,12 @@ const AssetsManagement = ({ users }) => {
                             )}
                           </div>
                           </div>
+=======
+                        <span className="text-gray-900">{asset.assetLocation || ""}</span>
+>>>>>>> dinesh
+                  </div>
+              </div>
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
             ))}
                       </div>
                     </div>
@@ -2098,6 +2526,13 @@ const AssetsManagement = ({ users }) => {
                 <p className="text-sm text-gray-600">
                   {editingAsset.hostname || "Unknown Device"}
                 </p>
+<<<<<<< HEAD
+=======
+=======
+                <h2 className="text-xl font-semibold text-gray-900">Assign Assets</h2>
+                <p className="text-sm text-gray-600">{selectedAssets.length} asset(s) selected</p>
+>>>>>>> dinesh
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
               </div>
               <button
                 onClick={() => {
@@ -2106,6 +2541,10 @@ const AssetsManagement = ({ users }) => {
                 }}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
               >
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
                 <svg
                   className="h-5 w-5"
                   fill="none"
@@ -2120,6 +2559,7 @@ const AssetsManagement = ({ users }) => {
                   />
                 </svg>
 =======
+<<<<<<< HEAD
                  <h2 className="text-xl font-semibold text-gray-900">Assign Assets</h2>
                  <p className="text-sm text-gray-800">{selectedAssets.length} asset(s) selected</p>
               </div>
@@ -2128,12 +2568,16 @@ const AssetsManagement = ({ users }) => {
                  className="p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
                >
                  <X className="h-5 w-5" />
+=======
+                <X className="h-5 w-5" />
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
 >>>>>>> dinesh
               </button>
             </div>
 
              <div className="p-6 space-y-4">
                 <div>
+<<<<<<< HEAD
                    <label className="block text-sm font-medium text-gray-900 mb-2">
                    Assign to User
                   </label>
@@ -2154,6 +2598,11 @@ const AssetsManagement = ({ users }) => {
                 <div>
                    <label className="block text-sm font-medium text-gray-900 mb-2">
                    Assignment Date
+=======
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+<<<<<<< HEAD
+                    Hostname
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
                   </label>
                   <input
 <<<<<<< HEAD
@@ -2266,6 +2715,20 @@ const AssetsManagement = ({ users }) => {
                   >
                     <option value="">Unassigned</option>
                     {users.map((user) => (
+<<<<<<< HEAD
+=======
+=======
+                  Assign to User
+                  </label>
+                  <select
+                  value={assignmentForm.selectedUser}
+                  onChange={(e) => setAssignmentForm(prev => ({ ...prev, selectedUser: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                  <option value="">Select a user</option>
+                  {users?.map(user => (
+>>>>>>> dinesh
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
                       <option key={user.id} value={user.id}>
                         {user.firstName} {user.lastName}
                       </option>
@@ -2275,6 +2738,10 @@ const AssetsManagement = ({ users }) => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
                     Model
                   </label>
                   <input
@@ -2393,6 +2860,17 @@ const AssetsManagement = ({ users }) => {
                         purchaseDate: e.target.value,
                       }))
                     }
+<<<<<<< HEAD
+=======
+=======
+                  Assignment Date
+                  </label>
+                  <input
+                    type="date"
+                  value={assignmentForm.assignmentDate}
+                  onChange={(e) => setAssignmentForm(prev => ({ ...prev, assignmentDate: e.target.value }))}
+>>>>>>> dinesh
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 =======
                     onChange={(e) => setEditForm(prev => ({ ...prev, purchaseDate: e.target.value }))}
@@ -2402,8 +2880,14 @@ const AssetsManagement = ({ users }) => {
                 </div>
 
                 <div>
+<<<<<<< HEAD
                    <label className="block text-sm font-medium text-gray-900 mb-2">
                      Asset Location
+=======
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+<<<<<<< HEAD
+                    Purchase Price
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
                   </label>
                   <input
 <<<<<<< HEAD
@@ -2456,6 +2940,16 @@ const AssetsManagement = ({ users }) => {
                         notes: e.target.value,
                       }))
                     }
+<<<<<<< HEAD
+=======
+=======
+                  Notes (Optional)
+                  </label>
+                  <textarea
+                  value={assignmentForm.notes}
+                  onChange={(e) => setAssignmentForm(prev => ({ ...prev, notes: e.target.value }))}
+>>>>>>> dinesh
+>>>>>>> 16a0ac706f555c8d0895988fc4fa892f101c69fa
                     rows={3}
                      placeholder="Add any notes about this asset..."
                                          className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"

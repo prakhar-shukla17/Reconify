@@ -290,7 +290,7 @@ export default function HomePage() {
               </div>
 
               <div className="max-w-6xl mx-auto">
-                <div className="relative bg-gradient-to-br from-gray-900 to-black rounded-3xl overflow-hidden shadow-2xl border border-gray-800/50">
+                <div className="relative bg-gradient-to-br from-gray-900 to-black rounded-2xl overflow-hidden shadow-2xl border border-gray-800/50">
                   {/* Video Container */}
                   <div className="relative aspect-video bg-gray-900">
                     {!isClient ? (
