@@ -257,6 +257,7 @@ export const hardwareAPI = {
       ttl: 15 * 60 * 1000,
     }).get(),
   create: (hardwareData) => api.post("/hardware", hardwareData),
+  update: (id, hardwareData) => api.put(`/hardware/${id}/update`, hardwareData),
   updateAssetInfo: (id, assetInfo) =>
     api.put(`/hardware/${id}/asset-info`, assetInfo),
   updateUserAssetInfo: (id, assetInfo) =>
@@ -293,6 +294,10 @@ export const hardwareAPI = {
       cacheKey: "hardware_stats",
       ttl: 5 * 60 * 1000,
     }).get(),
+  getFilterOptions: () => createOptimizedAPI("/hardware/filter-options", { 
+    cacheKey: "hardware_filter_options", 
+    ttl: 10 * 60 * 1000 
+  }).get(),
   // Manual asset entry functions
   createManualAsset: (assetData) => api.post("/hardware/manual", assetData),
   getManualEntries: () =>

@@ -1,4 +1,5 @@
 import Hardware from "../models/hardware.models.js";
+import TagCounter from "../models/tagCounter.models.js";
 
 // Update MAC address for an asset
 export const updateMacAddress = async (req, res) => {
@@ -74,6 +75,49 @@ export const updateMacAddress = async (req, res) => {
   }
 };
 
+// Get unique filter values for dropdowns
+export const getFilterOptions = async (req, res) => {
+  try {
+    let query = {};
+    
+    // Add tenant ID filter
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+
+    // Get unique values for each filter field
+    const [categories, subCategories, statuses, assetTypes] = await Promise.all([
+      Hardware.distinct("asset_info.category", query),
+      Hardware.distinct("asset_info.sub_category", query),
+      Hardware.distinct("asset_info.status", query),
+      Hardware.distinct("asset_info.asset_type", query)
+    ]);
+
+    // Get assigned users (non-empty assignedTo values)
+    const assignedUsers = await Hardware.distinct("assignedTo", {
+      ...query,
+      assignedTo: { $exists: true, $ne: "", $ne: null }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        categories: categories.filter(Boolean).sort(),
+        subCategories: subCategories.filter(Boolean).sort(),
+        statuses: statuses.filter(Boolean).sort(),
+        assetTypes: assetTypes.filter(Boolean).sort(),
+        assignedUsers: assignedUsers.filter(Boolean).sort()
+      }
+    });
+  } catch (error) {
+    console.error("Error getting filter options:", error);
+    res.status(500).json({
+      error: "Failed to get filter options",
+      details: error.message
+    });
+  }
+};
+
 export const getAll = async (req, res) => {
   try {
     // Get pagination parameters from query
@@ -84,6 +128,13 @@ export const getAll = async (req, res) => {
     // Get search and filter parameters
     const search = req.query.search;
     const filter = req.query.filter;
+    
+    // Get comprehensive filter parameters
+    const category = req.query.category;
+    const subCategory = req.query.subCategory;
+    const status = req.query.status;
+    const assignedTo = req.query.assignedTo;
+    const assetType = req.query.assetType;
 
     let query = {};
     let totalCount = 0;
@@ -101,6 +152,8 @@ export const getAll = async (req, res) => {
           { "system.hostname": { $regex: search, $options: "i" } },
           { "system.mac_address": { $regex: search, $options: "i" } },
           { "cpu.name": { $regex: search, $options: "i" } },
+          { "asset_info.asset_tag": { $regex: search, $options: "i" } },
+          { "asset_info.location": { $regex: search, $options: "i" } },
         ];
       } else {
         // For short searches, only search hostname to improve performance
@@ -108,11 +161,62 @@ export const getAll = async (req, res) => {
       }
     }
 
-    // Build filter query
+    // Build comprehensive filter query
+    if (category) {
+      query["asset_info.category"] = category;
+    }
+    
+    if (subCategory) {
+      query["asset_info.sub_category"] = subCategory;
+    }
+    
+    if (status) {
+      if (status === "Available") {
+        query.$or = [
+          { "assignedTo": { $exists: false } },
+          { "assignedTo": "" },
+          { "assignedTo": null }
+        ];
+      } else if (status === "Assigned") {
+        query.$and = [
+          { "assignedTo": { $exists: true } },
+          { "assignedTo": { $ne: "" } },
+          { "assignedTo": { $ne: null } }
+        ];
+      } else {
+        query["asset_info.status"] = status;
+      }
+    }
+    
+    if (assignedTo) {
+      if (assignedTo === "unassigned") {
+        query.$or = [
+          { "assignedTo": { $exists: false } },
+          { "assignedTo": "" },
+          { "assignedTo": null }
+        ];
+      } else {
+        query["assignedTo"] = assignedTo;
+      }
+    }
+    
+    if (assetType) {
+      query["asset_info.asset_type"] = assetType;
+    }
+
+    // Legacy filter support
     if (filter === "assigned") {
-      // This will be handled after we get the user's assigned assets
+      query.$and = [
+        { "assignedTo": { $exists: true } },
+        { "assignedTo": { $ne: "" } },
+        { "assignedTo": { $ne: null } }
+      ];
     } else if (filter === "unassigned") {
-      // This will be handled after we get the user's assigned assets
+      query.$or = [
+        { "assignedTo": { $exists: false } },
+        { "assignedTo": "" },
+        { "assignedTo": null }
+      ];
     }
 
     // If user is admin, get all hardware
@@ -363,6 +467,9 @@ export const createHardware = async (req, res) => {
     // Determine tenant_id: prioritize scanner data, then user context, then default
     const tenantId = hardwareData.tenant_id || req.user?.tenant_id || "default";
 
+    // Generate sequential Tag ID for the tenant
+    const tagId = await TagCounter.getNextTagId(tenantId);
+
     const dataWithCustomId = {
       _id: macAddressString,
       tenant_id: tenantId,
@@ -370,6 +477,7 @@ export const createHardware = async (req, res) => {
       asset_info: {
         ...hardwareData.asset_info,
         entry_type: "scanner",
+        asset_tag: tagId, // Use Tag ID in asset_tag
       },
       scan_metadata: {
         ...hardwareData.scan_metadata,
@@ -402,6 +510,88 @@ export const createHardware = async (req, res) => {
 };
 
 // Update asset information (purchase date, warranty, etc.)
+// General update function for asset management
+export const updateAsset = async (req, res) => {
+  try {
+    const { id } = req.params; // Asset ID
+    const updateData = req.body;
+
+    console.log("Update Asset - ID:", id);
+    console.log("Update Asset - Data:", JSON.stringify(updateData, null, 2));
+
+    // Build query with tenant_id filter
+    let query = { _id: id };
+    if (req.user && req.user.tenant_id) {
+      query.tenant_id = req.user.tenant_id;
+    }
+
+    // Prepare the update object using dot notation for nested fields
+    const updateObject = {};
+
+    // Handle direct field updates
+    if (updateData.assignedTo !== undefined) {
+      updateObject.assignedTo = updateData.assignedTo;
+    }
+    if (updateData.assigned_to !== undefined) {
+      updateObject.assigned_to = updateData.assigned_to;
+    }
+    if (updateData.status !== undefined) {
+      updateObject.status = updateData.status;
+    }
+
+    // Handle system field updates using dot notation
+    if (updateData.system) {
+      Object.keys(updateData.system).forEach(key => {
+        updateObject[`system.${key}`] = updateData.system[key];
+      });
+    }
+
+    // Handle asset_info updates using dot notation
+    if (updateData.asset_info) {
+      Object.keys(updateData.asset_info).forEach(key => {
+        let value = updateData.asset_info[key];
+        
+        // Convert date strings to Date objects
+        if (key === 'purchase_date' && value) {
+          value = new Date(value);
+        }
+        if (key === 'assignment_date' && value) {
+          value = new Date(value);
+        }
+        if (key === 'warranty_expiry' && value) {
+          value = new Date(value);
+        }
+        
+        updateObject[`asset_info.${key}`] = value;
+      });
+    }
+
+    console.log("Update Asset - Final Update Object:", JSON.stringify(updateObject, null, 2));
+
+    // Update the hardware document
+    const updatedHardware = await Hardware.findOneAndUpdate(
+      query,
+      { $set: updateObject },
+      { new: true, runValidators: true }
+    );
+
+    console.log("Update Asset - Updated Hardware:", JSON.stringify(updatedHardware?.asset_info, null, 2));
+
+    if (!updatedHardware) {
+      return res.status(404).json({ error: "Hardware not found" });
+    }
+
+    res.json({
+      success: true,
+      message: "Asset updated successfully",
+      data: updatedHardware,
+    });
+  } catch (error) {
+    console.error("Error updating asset:", error);
+    res.status(500).json({ error: "Failed to update asset" });
+  }
+};
+
 export const updateAssetInfo = async (req, res) => {
   try {
     const { id } = req.params; // MAC address
@@ -950,6 +1140,46 @@ export const updateUserComponentWarranty = async (req, res) => {
 };
 
 // Create a manual asset entry
+// Get current Tag ID count for a tenant
+export const getTagIdCount = async (req, res) => {
+  try {
+    const tenantId = req.user?.tenant_id || "default";
+    const currentCount = await TagCounter.getCurrentCount(tenantId);
+    
+    res.status(200).json({
+      success: true,
+      tenant_id: tenantId,
+      current_count: currentCount,
+      next_tag_id: `TAG-${(currentCount + 1).toString().padStart(4, '0')}`
+    });
+  } catch (error) {
+    console.error("Error getting Tag ID count:", error);
+    res.status(500).json({
+      error: "Failed to get Tag ID count"
+    });
+  }
+};
+
+// Reset Tag ID counter for a tenant (admin function)
+export const resetTagIdCounter = async (req, res) => {
+  try {
+    const tenantId = req.user?.tenant_id || "default";
+    const result = await TagCounter.resetCounter(tenantId);
+    
+    res.status(200).json({
+      success: true,
+      message: "Tag ID counter reset successfully",
+      tenant_id: tenantId,
+      new_count: result.current_count
+    });
+  } catch (error) {
+    console.error("Error resetting Tag ID counter:", error);
+    res.status(500).json({
+      error: "Failed to reset Tag ID counter"
+    });
+  }
+};
+
 export const createManualAsset = async (req, res) => {
   try {
     const { macAddress, modelName, category, hostname } = req.body;
@@ -986,10 +1216,14 @@ export const createManualAsset = async (req, res) => {
       });
     }
 
+    // Generate sequential Tag ID for the tenant
+    const tenantId = req.user?.tenant_id || "default";
+    const tagId = await TagCounter.getNextTagId(tenantId);
+
     // Create minimal manual entry
     const manualAssetData = {
       _id: normalizedMacAddress,
-      tenant_id: req.user?.tenant_id || "default",
+      tenant_id: tenantId,
       system: {
         mac_address: normalizedMacAddress,
         hostname: hostname || `Manual-${normalizedMacAddress.slice(-6)}`,
@@ -1009,6 +1243,7 @@ export const createManualAsset = async (req, res) => {
         vendor: "Unknown",
         serial_number: "Unknown",
         status: "Manual Entry - Awaiting Scan",
+        asset_tag: tagId, // Use Tag ID in asset_tag
       },
       scan_metadata: {
         scan_status: "manual_entry_pending_scan",

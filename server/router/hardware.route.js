@@ -4,6 +4,7 @@ import {
   getAll,
   getById,
   createHardware,
+  updateAsset,
   updateAssetInfo,
   updateUserAssetInfo,
   getExpiringWarranties,
@@ -16,6 +17,9 @@ import {
   importCsvAssets,
   getDashboardStats,
   updateMacAddress,
+  getTagIdCount,
+  resetTagIdCounter,
+  getFilterOptions,
 } from "../controllers/hardware.controller.js";
 import {
   verifyToken,
@@ -42,6 +46,9 @@ const router = express.Router();
 
 // GET route to fetch all hardware data (protected)
 router.get("/", verifyToken, getAll);
+
+// GET route to fetch filter options (protected)
+router.get("/filter-options", verifyToken, getFilterOptions);
 
 // GET route to fetch dashboard statistics (protected)
 router.get("/stats", verifyToken, getDashboardStats);
@@ -91,6 +98,9 @@ router.post(
 // GET route to fetch specific hardware by ID (protected) - must come last
 router.get("/:id", verifyToken, canAccessAsset, getById);
 
+// PUT route to update asset (general update for asset management)
+router.put("/:id/update", verifyToken, updateAsset);
+
 // PUT route to update asset information (admin only)
 router.put("/:id/asset-info", verifyToken, requireAdmin, updateAssetInfo);
 
@@ -120,5 +130,11 @@ router.put(
 
 // PUT route to update MAC address (admin only)
 router.put("/:id/mac-address", verifyToken, requireAdmin, updateMacAddress);
+
+// GET route to get current Tag ID count for tenant
+router.get("/tag-id/count", verifyToken, getTagIdCount);
+
+// POST route to reset Tag ID counter for tenant (admin only)
+router.post("/tag-id/reset", verifyToken, requireAdmin, resetTagIdCounter);
 
 export default router;
