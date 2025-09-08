@@ -67,39 +67,51 @@ import {
   Download,
   Info,
   Mail,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 
 export default function AdminPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("assets");
-  
+  const [showLocationStats, setShowLocationStats] = useState(true);
+
   // Global error handler
   useEffect(() => {
     const handleGlobalError = (event) => {
       console.error("Global error caught:", event.error);
-      if (event.error && event.error.message && event.error.message.includes("API Error")) {
+      if (
+        event.error &&
+        event.error.message &&
+        event.error.message.includes("API Error")
+      ) {
         console.error("API Error details:", {
           error: event.error,
           message: event.error.message,
-          stack: event.error.stack
+          stack: event.error.stack,
         });
       }
     };
 
-    window.addEventListener('error', handleGlobalError);
-    window.addEventListener('unhandledrejection', (event) => {
+    window.addEventListener("error", handleGlobalError);
+    window.addEventListener("unhandledrejection", (event) => {
       console.error("Unhandled promise rejection:", event.reason);
-      if (event.reason && event.reason.message && event.reason.message.includes("API Error")) {
+      if (
+        event.reason &&
+        event.reason.message &&
+        event.reason.message.includes("API Error")
+      ) {
         console.error("API Promise rejection details:", {
           reason: event.reason,
           message: event.reason.message,
-          stack: event.reason.stack
+          stack: event.reason.stack,
         });
       }
     });
 
     return () => {
-      window.removeEventListener('error', handleGlobalError);
+      window.removeEventListener("error", handleGlobalError);
     };
   }, []);
   const [hardware, setHardware] = useState([]);
@@ -234,8 +246,15 @@ export default function AdminPage() {
         setTicketLoading(true);
         setTicketError(null);
 
-        console.log("Fetching tickets with params:", { page: 1, limit: 10000, forceRefresh });
-        const response = await ticketsAPI.getAll({ page: 1, limit: 10000 }, forceRefresh); // Pass forceRefresh parameter
+        console.log("Fetching tickets with params:", {
+          page: 1,
+          limit: 10000,
+          forceRefresh,
+        });
+        const response = await ticketsAPI.getAll(
+          { page: 1, limit: 10000 },
+          forceRefresh
+        ); // Pass forceRefresh parameter
         console.log("Tickets API response:", response);
         const ticketsData = response.data.data || [];
 
@@ -274,10 +293,14 @@ export default function AdminPage() {
           response: error.response?.data,
           status: error.response?.status,
           statusText: error.response?.statusText,
-          userMessage: error.userMessage
+          userMessage: error.userMessage,
         });
         setTicketError("Failed to load tickets");
-        toast.error(`Failed to load tickets: ${error.userMessage || error.message || 'Unknown error'}`);
+        toast.error(
+          `Failed to load tickets: ${
+            error.userMessage || error.message || "Unknown error"
+          }`
+        );
       } finally {
         setTicketLoading(false);
       }
@@ -298,7 +321,7 @@ export default function AdminPage() {
         hasAlerts: !!response.data?.alerts,
         alertsLength: response.data?.alerts?.length || 0,
         hasSummary: !!response.data?.summary,
-        summaryKeys: Object.keys(response.data?.summary || {})
+        summaryKeys: Object.keys(response.data?.summary || {}),
       });
       setAlerts(response.data.alerts || []);
       setAlertsSummary(response.data.summary || {});
@@ -314,33 +337,37 @@ export default function AdminPage() {
   // Handle statistics tile click to show filtered alerts with email functionality
   const handleStatsTileClick = (alertType) => {
     let filtered = [];
-    
+
     switch (alertType) {
-      case 'total':
+      case "total":
         filtered = alerts;
         break;
-      case 'critical':
-        filtered = alerts.filter(alert => alert.severity === 'critical');
+      case "critical":
+        filtered = alerts.filter((alert) => alert.severity === "critical");
         break;
-      case 'high':
-        filtered = alerts.filter(alert => alert.severity === 'high');
+      case "high":
+        filtered = alerts.filter((alert) => alert.severity === "high");
         break;
-      case 'medium':
-        filtered = alerts.filter(alert => alert.severity === 'medium');
+      case "medium":
+        filtered = alerts.filter((alert) => alert.severity === "medium");
         break;
-      case 'low':
-        filtered = alerts.filter(alert => alert.severity === 'low');
+      case "low":
+        filtered = alerts.filter((alert) => alert.severity === "low");
         break;
       default:
         filtered = alerts;
     }
-    
+
     if (filtered.length > 0) {
       setFilteredAlerts(filtered);
       setSelectedAlertType(alertType);
       setShowAlertEmailModal(true);
     } else {
-      toast.info(`No ${alertType === 'total' ? '' : alertType + ' priority '}alerts found`);
+      toast.info(
+        `No ${
+          alertType === "total" ? "" : alertType + " priority "
+        }alerts found`
+      );
     }
   };
 
@@ -603,20 +630,22 @@ export default function AdminPage() {
   // Auto-refresh tickets and alerts when on their respective tabs
   useEffect(() => {
     let interval;
-    
+
     if (activeTab === "tickets") {
       interval = setInterval(async () => {
-        setAutoRefreshStatus(prev => ({ ...prev, tickets: true }));
+        setAutoRefreshStatus((prev) => ({ ...prev, tickets: true }));
         try {
           await fetchTickets(true); // Force refresh every 30 seconds
         } finally {
-          setAutoRefreshStatus(prev => ({ ...prev, tickets: false }));
+          setAutoRefreshStatus((prev) => ({ ...prev, tickets: false }));
         }
       }, 30000); // 30 seconds
     } else if (activeTab === "alerts") {
       // Alerts now use real-time polling (5s intervals) in AlertsPanel
       // No need for additional auto-refresh here
-      console.log("Alerts tab active - real-time polling enabled in AlertsPanel");
+      console.log(
+        "Alerts tab active - real-time polling enabled in AlertsPanel"
+      );
     }
 
     return () => {
@@ -695,7 +724,8 @@ export default function AdminPage() {
 
   const fetchHardware = async (
     page = 1,
-    limit = assetPagination.itemsPerPage
+    limit = assetPagination.itemsPerPage,
+    fetchAll = false
   ) => {
     try {
       // Check cache first
@@ -725,10 +755,12 @@ export default function AdminPage() {
       }
 
       // Build query parameters
-      const params = {
-        page,
-        limit,
-      };
+      const params = fetchAll
+        ? { page: 1, limit: 100000 }
+        : {
+            page,
+            limit,
+          };
 
       // Add search and filter parameters if we're on the assets tab
       if (activeTab === "assets") {
@@ -744,9 +776,12 @@ export default function AdminPage() {
       const hardwareData = response.data.data || [];
 
       setHardware(hardwareData);
+      if (fetchAll) {
+        setAllHardware(hardwareData);
+      }
 
       // Update pagination state from server response
-      if (response.data.pagination) {
+      if (!fetchAll && response.data.pagination) {
         console.log(
           "Hardware API response pagination:",
           response.data.pagination
@@ -768,6 +803,8 @@ export default function AdminPage() {
           })
         );
       }
+
+      return hardwareData;
     } catch (error) {
       console.error("Error fetching hardware:", error);
       toast.error("Failed to load hardware data");
@@ -911,8 +948,6 @@ export default function AdminPage() {
     }
   };
 
-
-
   const handleAssignAsset = async (userId, macAddress) => {
     try {
       const response = await authAPI.assignAsset(userId, macAddress);
@@ -930,14 +965,18 @@ export default function AdminPage() {
       console.error("Assignment error:", error);
       console.error("Error userMessage:", error.userMessage);
       console.error("Error errorStatus:", error.errorStatus);
-      
-      const errorMessage = error.userMessage || 
-                          (error.response?.data?.error) || 
-                          (error.response?.status === 404 ? "User or asset not found" : 
-                           error.response?.status === 403 ? "Permission denied" :
-                           error.response?.status === 400 ? "Invalid request" :
-                           "Failed to assign asset");
-      
+
+      const errorMessage =
+        error.userMessage ||
+        error.response?.data?.error ||
+        (error.response?.status === 404
+          ? "User or asset not found"
+          : error.response?.status === 403
+          ? "Permission denied"
+          : error.response?.status === 400
+          ? "Invalid request"
+          : "Failed to assign asset");
+
       toast.error(errorMessage);
     }
   };
@@ -992,14 +1031,18 @@ export default function AdminPage() {
       console.error("Remove asset error:", error);
       console.error("Error userMessage:", error.userMessage);
       console.error("Error errorStatus:", error.errorStatus);
-      
-      const errorMessage = error.userMessage || 
-                          (error.response?.data?.error) || 
-                          (error.response?.status === 404 ? "User or asset not found" : 
-                           error.response?.status === 403 ? "Permission denied" :
-                           error.response?.status === 400 ? "Invalid request" :
-                           "Failed to remove asset");
-      
+
+      const errorMessage =
+        error.userMessage ||
+        error.response?.data?.error ||
+        (error.response?.status === 404
+          ? "User or asset not found"
+          : error.response?.status === 403
+          ? "Permission denied"
+          : error.response?.status === 400
+          ? "Invalid request"
+          : "Failed to remove asset");
+
       toast.error(errorMessage);
     }
   };
@@ -1013,31 +1056,31 @@ export default function AdminPage() {
     if (!userToDelete) return;
 
     const userId = userToDelete.id;
-    
+
     try {
       console.log("Attempting to delete user with ID:", userId);
       console.log("User object:", userToDelete);
-      
+
       // Set loading state
-      setUpdatingUsers(prev => new Set(prev).add(userId));
-      
+      setUpdatingUsers((prev) => new Set(prev).add(userId));
+
       // Optimistically remove user from the list immediately
-      setUsers(prev => prev.filter(user => user.id !== userId));
-      
+      setUsers((prev) => prev.filter((user) => user.id !== userId));
+
       console.log("About to call deleteUser API...");
       const response = await authAPI.deleteUser(userId);
       console.log("Delete response:", response);
       console.log("Delete response data:", response?.data);
       console.log("Delete response status:", response?.status);
-      
+
       toast.success("User deleted successfully");
-      
+
       // Refresh alerts to update any user-related alerts
       await fetchAlerts();
-      
+
       // If there was an error, restore the user to the list
       if (!response.data.success) {
-        setUsers(prev => [...prev, userToDelete]);
+        setUsers((prev) => [...prev, userToDelete]);
         toast.error("Failed to delete user. User restored to list.");
       }
     } catch (error) {
@@ -1046,27 +1089,31 @@ export default function AdminPage() {
       console.error("Error userMessage:", error.userMessage);
       console.error("Error errorStatus:", error.errorStatus);
       console.error("Error errorData:", error.errorData);
-      
+
       // Use enhanced error message with fallback
-      const errorMessage = error.userMessage || 
-                          (error.response?.data?.error) || 
-                          (error.response?.status === 404 ? "User not found" : 
-                           error.response?.status === 403 ? "Permission denied" :
-                           error.response?.status === 400 ? "Invalid request" :
-                           "Failed to delete user");
-      
+      const errorMessage =
+        error.userMessage ||
+        error.response?.data?.error ||
+        (error.response?.status === 404
+          ? "User not found"
+          : error.response?.status === 403
+          ? "Permission denied"
+          : error.response?.status === 400
+          ? "Invalid request"
+          : "Failed to delete user");
+
       toast.error(errorMessage);
-      
+
       // Restore the user to the list if deletion failed
-      setUsers(prev => [...prev, userToDelete]);
+      setUsers((prev) => [...prev, userToDelete]);
     } finally {
       // Clear loading state
-      setUpdatingUsers(prev => {
+      setUpdatingUsers((prev) => {
         const newSet = new Set(prev);
         newSet.delete(userId);
         return newSet;
       });
-      
+
       // Close modal and reset state
       setShowDeleteModal(false);
       setUserToDelete(null);
@@ -1080,18 +1127,22 @@ export default function AdminPage() {
 
   const handleUserUpdated = async (updatedUser) => {
     // Update the users list immediately with the new data
-    setUsers(prev => prev.map(user => 
-      user.id === updatedUser.id ? {
-        ...user,
-        firstName: updatedUser.firstName,
-        lastName: updatedUser.lastName,
-        email: updatedUser.email,
-        department: updatedUser.department,
-        role: updatedUser.role,
-        isActive: updatedUser.isActive
-      } : user
-    ));
-    
+    setUsers((prev) =>
+      prev.map((user) =>
+        user.id === updatedUser.id
+          ? {
+              ...user,
+              firstName: updatedUser.firstName,
+              lastName: updatedUser.lastName,
+              email: updatedUser.email,
+              department: updatedUser.department,
+              role: updatedUser.role,
+              isActive: updatedUser.isActive,
+            }
+          : user
+      )
+    );
+
     // Refresh alerts to update any user-related alerts
     await fetchAlerts();
   };
@@ -1106,11 +1157,167 @@ export default function AdminPage() {
 
   const currentAssets = useMemo(() => {
     const base = assetType === "hardware" ? hardware : software;
-    if (assetType === "hardware" && locationFilter && locationFilter !== "all") {
-      return base.filter((h) => (h.asset_info?.location || "Unknown") === locationFilter);
+    if (
+      assetType === "hardware" &&
+      locationFilter &&
+      locationFilter !== "all"
+    ) {
+      return base.filter(
+        (h) => (h.asset_info?.location || "Unknown") === locationFilter
+      );
     }
     return base;
   }, [assetType, hardware, software, locationFilter]);
+
+  // Sorting configuration for assets table
+  const [sortConfig, setSortConfig] = useState({
+    key: "system.hostname",
+    direction: "asc",
+  });
+
+  const getComparableValue = useCallback(
+    (item, key) => {
+      switch (key) {
+        case "system.hostname":
+          return (item.system?.hostname || "").toString().toLowerCase();
+        case "system.mac_address":
+          return (item.system?.mac_address || "").toString().toLowerCase();
+        case "asset_info.purchase_date":
+          return item.asset_info?.purchase_date
+            ? new Date(item.asset_info.purchase_date).getTime()
+            : 0;
+        case "asset_info.warranty_expiry":
+          return item.asset_info?.warranty_expiry
+            ? new Date(item.asset_info.warranty_expiry).getTime()
+            : 0;
+        case "assignedTo": {
+          const assignedUser = getAssignedUser(item.system?.mac_address);
+          const name = assignedUser
+            ? assignedUser.firstName ||
+              assignedUser.username ||
+              assignedUser.email ||
+              ""
+            : item.assignedTo || "";
+          return name.toString().toLowerCase();
+        }
+        case "asset_info.location":
+          return (item.asset_info?.location || "").toString().toLowerCase();
+        case "updatedAt":
+          return item.updatedAt ? new Date(item.updatedAt).getTime() : 0;
+        default:
+          return "";
+      }
+    },
+    [getAssignedUser]
+  );
+
+  const sortedAssets = useMemo(() => {
+    const data = [...currentAssets];
+    if (!sortConfig?.key) return data;
+    data.sort((a, b) => {
+      const aVal = getComparableValue(a, sortConfig.key);
+      const bVal = getComparableValue(b, sortConfig.key);
+      if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+    return data;
+  }, [currentAssets, sortConfig, getComparableValue]);
+
+  // Compute full dataset view to support all-asset sorting/filtering
+  const [allHardware, setAllHardware] = useState([]);
+  useEffect(() => {
+    if (activeTab === "assets" && assetType === "hardware") {
+      fetchHardware(1, assetPagination.itemsPerPage, true);
+    }
+  }, [activeTab, assetType]);
+
+  // Use allHardware if present, else fallback to current hardware
+  const fullAssetList = useMemo(() => {
+    const base = allHardware && allHardware.length > 0 ? allHardware : hardware;
+    if (assetType !== "hardware") return software;
+    if (locationFilter && locationFilter !== "all") {
+      return base.filter(
+        (h) => (h.asset_info?.location || "Unknown") === locationFilter
+      );
+    }
+    return base;
+  }, [allHardware, hardware, software, assetType, locationFilter]);
+
+  const fullySortedAssets = useMemo(() => {
+    const data = [...fullAssetList];
+    if (!sortConfig?.key) return data;
+    data.sort((a, b) => {
+      const aVal = getComparableValue(a, sortConfig.key);
+      const bVal = getComparableValue(b, sortConfig.key);
+      if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+    return data;
+  }, [fullAssetList, sortConfig, getComparableValue]);
+
+  const toggleSort = (key) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  // Inline update helpers
+  const formatDateInputValue = (date) => {
+    try {
+      if (!date) return "";
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return "";
+      return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 10);
+    } catch {
+      return "";
+    }
+  };
+
+  const handleAssetInfoUpdate = async (id, field, value) => {
+    try {
+      const payload = { asset_info: { [field]: value || null } };
+      const response = await hardwareAPI.update(id, payload);
+      const updated = response.data?.data || response.data;
+      if (updated) {
+        setHardware((prev) => prev.map((h) => (h._id === id ? updated : h)));
+        toast.success("Asset updated");
+      }
+    } catch (error) {
+      console.error("Inline update failed:", error);
+      toast.error(error.userMessage || "Failed to update asset");
+    }
+  };
+
+  const handleAssignInline = async (macAddress, userId) => {
+    try {
+      if (!userId) {
+        // Unassign from currently assigned user
+        const current = getAssignedUser(macAddress);
+        if (current?.id) {
+          await authAPI.removeAsset(current.id, macAddress);
+        }
+      } else {
+        await authAPI.assignAsset(userId, macAddress);
+      }
+      // Refresh users and hardware assignment visuals
+      await fetchUsers();
+      await fetchHardware(
+        assetPagination.currentPage,
+        assetPagination.itemsPerPage
+      );
+      toast.success("Assignment updated");
+    } catch (error) {
+      console.error("Assign inline failed:", error);
+      toast.error(error.userMessage || "Failed to update assignment");
+    }
+  };
 
   const filteredUsers = users.filter(
     (user) =>
@@ -1253,6 +1460,33 @@ export default function AdminPage() {
   };
 
   const stats = getSystemStats();
+
+  // Location-wise stats with OS breakdown
+  const locationStats = useMemo(() => {
+    if (assetType !== "hardware") return [];
+    const data = fullAssetList;
+    const byLocation = new Map();
+    data.forEach((item) => {
+      const loc = item.asset_info?.location || "Unknown";
+      const os = (item.system?.platform || "Unknown").toLowerCase();
+      const stat = byLocation.get(loc) || {
+        total: 0,
+        windows: 0,
+        macos: 0,
+        linux: 0,
+        unknown: 0,
+      };
+      stat.total += 1;
+      if (os.includes("win")) stat.windows += 1;
+      else if (os.includes("mac")) stat.macos += 1;
+      else if (os.includes("linux")) stat.linux += 1;
+      else stat.unknown += 1;
+      byLocation.set(loc, stat);
+    });
+    return Array.from(byLocation.entries())
+      .map(([location, stat]) => ({ location, ...stat }))
+      .sort((a, b) => a.location.localeCompare(b.location));
+  }, [fullAssetList, assetType]);
 
   // Search function that only triggers when explicitly called
   const handleSearch = useCallback(
@@ -1454,7 +1688,10 @@ export default function AdminPage() {
                     </p>
                   </div>
 
-                  <div className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50">
+                  <div
+                    className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer"
+                    onClick={() => setShowLocationStats((v) => !v)}
+                  >
                     <div className="flex items-center justify-between mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
                         <AlertCircle className="h-6 w-6 text-white" />
@@ -1602,9 +1839,9 @@ export default function AdminPage() {
                 </>
               ) : activeTab === "alerts" ? (
                 <>
-                  <div 
+                  <div
                     className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer"
-                    onClick={() => handleStatsTileClick('total')}
+                    onClick={() => handleStatsTileClick("total")}
                   >
                     <div className="flex items-center justify-between mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
@@ -1622,9 +1859,9 @@ export default function AdminPage() {
                     <p className="text-xs text-gray-500">All active alerts</p>
                   </div>
 
-                  <div 
+                  <div
                     className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer"
-                    onClick={() => handleStatsTileClick('critical')}
+                    onClick={() => handleStatsTileClick("critical")}
                   >
                     <div className="flex items-center justify-between mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-red-600 to-red-700 rounded-2xl flex items-center justify-center shadow-lg">
@@ -1644,9 +1881,9 @@ export default function AdminPage() {
                     </p>
                   </div>
 
-                  <div 
+                  <div
                     className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer"
-                    onClick={() => handleStatsTileClick('high')}
+                    onClick={() => handleStatsTileClick("high")}
                   >
                     <div className="flex items-center justify-between mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
@@ -1666,9 +1903,9 @@ export default function AdminPage() {
                     </p>
                   </div>
 
-                  <div 
+                  <div
                     className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer"
-                    onClick={() => handleStatsTileClick('medium')}
+                    onClick={() => handleStatsTileClick("medium")}
                   >
                     <div className="flex items-center justify-between mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-2xl flex items-center justify-center shadow-lg">
@@ -1686,9 +1923,9 @@ export default function AdminPage() {
                     <p className="text-xs text-gray-500">Monitor closely</p>
                   </div>
 
-                  <div 
+                  <div
                     className="p-6 rounded-3xl border border-gray-200 hover:border-gray-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-white hover:bg-gray-50 cursor-pointer"
-                    onClick={() => handleStatsTileClick('low')}
+                    onClick={() => handleStatsTileClick("low")}
                   >
                     <div className="flex items-center justify-between mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
@@ -2045,14 +2282,26 @@ export default function AdminPage() {
                               <Filter className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                               <select
                                 value={locationFilter}
-                                onChange={(e) => setLocationFilter(e.target.value)}
+                                onChange={(e) =>
+                                  setLocationFilter(e.target.value)
+                                }
                                 className="pl-7 pr-5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-sm text-gray-900 bg-white"
                                 title="Filter by location"
                               >
                                 <option value="all">All Locations</option>
-                                {Array.from(new Set(hardware.map(h => (h.asset_info?.location || "Unknown")))).sort().map(loc => (
-                                  <option key={loc} value={loc}>{loc}</option>
-                                ))}
+                                {Array.from(
+                                  new Set(
+                                    hardware.map(
+                                      (h) => h.asset_info?.location || "Unknown"
+                                    )
+                                  )
+                                )
+                                  .sort()
+                                  .map((loc) => (
+                                    <option key={loc} value={loc}>
+                                      {loc}
+                                    </option>
+                                  ))}
                               </select>
                             </div>
                           )}
@@ -2086,7 +2335,9 @@ export default function AdminPage() {
                   </div>
 
                   {/* Remove Filter Text - Below the filter div */}
-                  {(filterType !== "all" || searchTerm || (assetType === "hardware" && locationFilter !== "all")) && (
+                  {(filterType !== "all" ||
+                    searchTerm ||
+                    (assetType === "hardware" && locationFilter !== "all")) && (
                     <div className="mt-3 text-center">
                       <button
                         onClick={() => {
@@ -2297,13 +2548,73 @@ export default function AdminPage() {
               )}
             </div>
 
+            {/* Location-wise stats (hardware only) */}
+            {activeTab === "assets" &&
+              assetType === "hardware" &&
+              showLocationStats &&
+              locationStats.length > 0 && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-base font-semibold text-gray-900">
+                      Location wise overview
+                    </h3>
+                    <button
+                      onClick={() => setShowLocationStats(false)}
+                      className="text-xs text-blue-600 hover:text-blue-800"
+                    >
+                      Hide
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {locationStats.map((loc) => (
+                      <div
+                        key={loc.location}
+                        className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white opacity-60"></div>
+                        <div className="relative p-4">
+                          <div className="flex items-baseline justify-between">
+                            <div className="text-sm font-bold text-gray-900 truncate max-w-[65%]">
+                              {loc.location}
+                            </div>
+                            <div className="text-xs font-medium text-gray-600 bg-gray-100 rounded-full px-2 py-0.5">
+                              {loc.total} assets
+                            </div>
+                          </div>
+                          <div className="mt-3 grid grid-cols-4 gap-2 text-[11px] text-gray-700">
+                            <div className="rounded-lg px-2 py-1 text-center bg-blue-50 text-blue-700 border border-blue-100">
+                              Win {loc.windows}
+                            </div>
+                            <div className="rounded-lg px-2 py-1 text-center bg-pink-50 text-pink-700 border border-pink-100">
+                              macOS {loc.macos}
+                            </div>
+                            <div className="rounded-lg px-2 py-1 text-center bg-emerald-50 text-emerald-700 border border-emerald-100">
+                              Linux {loc.linux}
+                            </div>
+                            <div className="rounded-lg px-2 py-1 text-center bg-gray-100 text-gray-700 border border-gray-200">
+                              Unknown {loc.unknown}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             {/* Content */}
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               </div>
             ) : activeTab === "alerts" ? (
-              <AlertsPanel users={users} alerts={alerts} alertsSummary={alertsSummary} onRefresh={fetchAlerts} isAutoRefreshing={autoRefreshStatus.alerts} />
+              <AlertsPanel
+                users={users}
+                alerts={alerts}
+                alertsSummary={alertsSummary}
+                onRefresh={fetchAlerts}
+                isAutoRefreshing={autoRefreshStatus.alerts}
+              />
             ) : activeTab === "tickets" ? (
               // Tickets Tab
               <div className="p-8 bg-white rounded-3xl border border-gray-200 shadow-sm">
@@ -2316,7 +2627,7 @@ export default function AdminPage() {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Manual refresh and Export Buttons */}
                 <div className="mb-8 flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -2339,232 +2650,255 @@ export default function AdminPage() {
                       className="text-sm border border-blue-300 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
                       title="Manually refresh tickets"
                     >
-                      <RefreshCw className={`h-4 w-4 mr-2 ${(ticketLoading || autoRefreshStatus.tickets) ? 'animate-spin' : ''}`} />
+                      <RefreshCw
+                        className={`h-4 w-4 mr-2 ${
+                          ticketLoading || autoRefreshStatus.tickets
+                            ? "animate-spin"
+                            : ""
+                        }`}
+                      />
                       Refresh Tickets
                     </button>
                     {autoRefreshStatus.tickets && (
-                      <span className="text-xs text-gray-500">Auto-refresh active (30s)</span>
+                      <span className="text-xs text-gray-500">
+                        Auto-refresh active (30s)
+                      </span>
                     )}
                   </div>
-                  
+
                   {tickets.length > 0 && (
                     <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => {
-                        exportTicketsToCSV(tickets, "admin_all_tickets");
-                        toast.success(
-                          `Exported ${tickets.length} tickets to CSV`
-                        );
-                      }}
-                      disabled={ticketLoading}
-                      className="text-sm border border-green-300 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
-                      title="Export all tickets to CSV"
-                    >
-                      <Download className="h-3 w-3 mr-1" />
-                      Export All
-                    </button>
-                    <button
-                      onClick={() => {
-                        exportTicketStatsToCSV(
-                          tickets,
-                          "admin_ticket_statistics"
-                        );
-                        toast.success("Exported ticket statistics to CSV");
-                      }}
-                      disabled={ticketLoading}
-                      className="text-sm border border-purple-300 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-700 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
-                      title="Export ticket statistics to CSV"
-                    >
-                      <Download className="h-3 w-3 mr-1" />
-                      Export Stats
-                    </button>
-
-                    {/* Export Filtered Tickets Button */}
-                    <button
-                      onClick={() => {
-                        if (filteredTickets.length === 0) {
-                          toast.error("No filtered tickets to export");
-                          return;
-                        }
-                        exportTicketsToCSV(
-                          filteredTickets,
-                          "admin_filtered_tickets"
-                        );
-                        toast.success(
-                          `Exported ${filteredTickets.length} filtered tickets to CSV`
-                        );
-                      }}
-                      disabled={ticketLoading || filteredTickets.length === 0}
-                      className="text-sm border border-indigo-300 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
-                      title="Export currently filtered tickets to CSV"
-                    >
-                      <Download className="h-3 w-3 mr-1" />
-                      Export Filtered
-                    </button>
-
-                    {/* Time-based Export Buttons */}
-                    <div className="flex items-center space-x-1">
                       <button
-                        onClick={async () => {
-                          // Always fetch fresh data before export
-                          try {
-                            const response = await ticketsAPI.getAll({}, true); // Force refresh for export
-                            const freshTickets = response.data.data || [];
-                            const sortedTickets = freshTickets.sort((a, b) => {
-                              const aIsClosed =
-                                a.status === "Closed" ||
-                                a.status === "Rejected";
-                              const bIsClosed =
-                                b.status === "Closed" ||
-                                b.status === "Rejected";
-                              if (aIsClosed && !bIsClosed) return 1;
-                              if (!aIsClosed && bIsClosed) return -1;
-                              return 0;
-                            });
-
-                            // Update local state with fresh data
-                            setTickets(sortedTickets);
-                            setCachedTickets(sortedTickets);
-
-                            // Export fresh data
-                            const count = exportTicketsResolvedToday(
-                              sortedTickets,
-                              "admin_tickets_resolved_today"
-                            );
-                            toast.success(
-                              `Exported ${count} tickets resolved today to CSV (fresh data)`
-                            );
-                          } catch (error) {
-                            console.error(
-                              "Error fetching fresh tickets for export:",
-                              error
-                            );
-                            // Fallback to cached data
-                            const count = exportTicketsResolvedToday(
-                              tickets,
-                              "admin_tickets_resolved_today"
-                            );
-                            toast.success(
-                              `Exported ${count} tickets resolved today to CSV (cached data)`
-                            );
-                          }
+                        onClick={() => {
+                          exportTicketsToCSV(tickets, "admin_all_tickets");
+                          toast.success(
+                            `Exported ${tickets.length} tickets to CSV`
+                          );
                         }}
                         disabled={ticketLoading}
-                        className="text-sm border border-blue-300 rounded-2xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
-                        title="Export tickets resolved today (with fresh data)"
+                        className="text-sm border border-green-300 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
+                        title="Export all tickets to CSV"
                       >
                         <Download className="h-3 w-3 mr-1" />
-                        Resolved Today
+                        Export All
                       </button>
                       <button
-                        onClick={async () => {
-                          // Always fetch fresh data before export
-                          try {
-                            const response = await ticketsAPI.getAll({}, true); // Force refresh for export
-                            const freshTickets = response.data.data || [];
-                            const sortedTickets = freshTickets.sort((a, b) => {
-                              const aIsClosed =
-                                a.status === "Closed" ||
-                                a.status === "Rejected";
-                              const bIsClosed =
-                                b.status === "Closed" ||
-                                b.status === "Rejected";
-                              if (aIsClosed && !bIsClosed) return 1;
-                              if (!aIsClosed && bIsClosed) return -1;
-                              return 0;
-                            });
-
-                            // Update local state with fresh data
-                            setTickets(sortedTickets);
-                            setCachedTickets(sortedTickets);
-
-                            // Export fresh data
-                            const count = exportTicketsByTimePeriod(
-                              sortedTickets,
-                              "7d",
-                              "admin_tickets_last_7_days"
-                            );
-                            toast.success(
-                              `Exported ${count} tickets from last 7 days to CSV (fresh data)`
-                            );
-                          } catch (error) {
-                            console.error(
-                              "Error fetching fresh tickets for export:",
-                              error
-                            );
-                            // Fallback to cached data
-                            const count = exportTicketsByTimePeriod(
-                              tickets,
-                              "7d",
-                              "admin_tickets_last_7_days"
-                            );
-                            toast.success(
-                              `Exported ${count} tickets from last 7 days to CSV (cached data)`
-                            );
-                          }
+                        onClick={() => {
+                          exportTicketStatsToCSV(
+                            tickets,
+                            "admin_ticket_statistics"
+                          );
+                          toast.success("Exported ticket statistics to CSV");
                         }}
                         disabled={ticketLoading}
-                        className="text-sm border border-orange-300 rounded-2xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-orange-700 bg-orange-50 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
-                        title="Export tickets from last 7 days (with fresh data)"
-                      >
-                        <Download className="h-3 w-3 mr-1" />7 Days
-                      </button>
-                      <button
-                        onClick={async () => {
-                          // Always fetch fresh data before export
-                          try {
-                            const response = await ticketsAPI.getAll({}, true); // Force refresh for export
-                            const freshTickets = response.data.data || [];
-                            const sortedTickets = freshTickets.sort((a, b) => {
-                              const aIsClosed =
-                                a.status === "Closed" ||
-                                a.status === "Rejected";
-                              const bIsClosed =
-                                b.status === "Closed" ||
-                                b.status === "Rejected";
-                              if (aIsClosed && !bIsClosed) return 1;
-                              if (!aIsClosed && bIsClosed) return -1;
-                              return 0;
-                            });
-
-                            // Update local state with fresh data
-                            setTickets(sortedTickets);
-                            setCachedTickets(sortedTickets);
-
-                            // Export fresh data
-                            const count = exportTicketsBySLACompliance(
-                              sortedTickets,
-                              "compliant",
-                              "admin_sla_compliant_tickets"
-                            );
-                            toast.success(
-                              `Exported ${count} SLA compliant tickets to CSV (fresh data)`
-                            );
-                          } catch (error) {
-                            console.error(
-                              "Error fetching fresh tickets for export:",
-                              error
-                            );
-                            // Fallback to cached data
-                            const count = exportTicketsBySLACompliance(
-                              tickets,
-                              "compliant",
-                              "admin_sla_compliant_tickets"
-                            );
-                            toast.success(
-                              `Exported ${count} SLA compliant tickets to CSV (cached data)`
-                            );
-                          }
-                        }}
-                        disabled={ticketLoading}
-                        className="text-sm border border-emerald-300 rounded-2xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
-                        title="Export SLA compliant tickets (with fresh data)"
+                        className="text-sm border border-purple-300 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-700 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
+                        title="Export ticket statistics to CSV"
                       >
                         <Download className="h-3 w-3 mr-1" />
-                        SLA OK
+                        Export Stats
                       </button>
+
+                      {/* Export Filtered Tickets Button */}
+                      <button
+                        onClick={() => {
+                          if (filteredTickets.length === 0) {
+                            toast.error("No filtered tickets to export");
+                            return;
+                          }
+                          exportTicketsToCSV(
+                            filteredTickets,
+                            "admin_filtered_tickets"
+                          );
+                          toast.success(
+                            `Exported ${filteredTickets.length} filtered tickets to CSV`
+                          );
+                        }}
+                        disabled={ticketLoading || filteredTickets.length === 0}
+                        className="text-sm border border-indigo-300 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
+                        title="Export currently filtered tickets to CSV"
+                      >
+                        <Download className="h-3 w-3 mr-1" />
+                        Export Filtered
+                      </button>
+
+                      {/* Time-based Export Buttons */}
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={async () => {
+                            // Always fetch fresh data before export
+                            try {
+                              const response = await ticketsAPI.getAll(
+                                {},
+                                true
+                              ); // Force refresh for export
+                              const freshTickets = response.data.data || [];
+                              const sortedTickets = freshTickets.sort(
+                                (a, b) => {
+                                  const aIsClosed =
+                                    a.status === "Closed" ||
+                                    a.status === "Rejected";
+                                  const bIsClosed =
+                                    b.status === "Closed" ||
+                                    b.status === "Rejected";
+                                  if (aIsClosed && !bIsClosed) return 1;
+                                  if (!aIsClosed && bIsClosed) return -1;
+                                  return 0;
+                                }
+                              );
+
+                              // Update local state with fresh data
+                              setTickets(sortedTickets);
+                              setCachedTickets(sortedTickets);
+
+                              // Export fresh data
+                              const count = exportTicketsResolvedToday(
+                                sortedTickets,
+                                "admin_tickets_resolved_today"
+                              );
+                              toast.success(
+                                `Exported ${count} tickets resolved today to CSV (fresh data)`
+                              );
+                            } catch (error) {
+                              console.error(
+                                "Error fetching fresh tickets for export:",
+                                error
+                              );
+                              // Fallback to cached data
+                              const count = exportTicketsResolvedToday(
+                                tickets,
+                                "admin_tickets_resolved_today"
+                              );
+                              toast.success(
+                                `Exported ${count} tickets resolved today to CSV (cached data)`
+                              );
+                            }
+                          }}
+                          disabled={ticketLoading}
+                          className="text-sm border border-blue-300 rounded-2xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
+                          title="Export tickets resolved today (with fresh data)"
+                        >
+                          <Download className="h-3 w-3 mr-1" />
+                          Resolved Today
+                        </button>
+                        <button
+                          onClick={async () => {
+                            // Always fetch fresh data before export
+                            try {
+                              const response = await ticketsAPI.getAll(
+                                {},
+                                true
+                              ); // Force refresh for export
+                              const freshTickets = response.data.data || [];
+                              const sortedTickets = freshTickets.sort(
+                                (a, b) => {
+                                  const aIsClosed =
+                                    a.status === "Closed" ||
+                                    a.status === "Rejected";
+                                  const bIsClosed =
+                                    b.status === "Closed" ||
+                                    b.status === "Rejected";
+                                  if (aIsClosed && !bIsClosed) return 1;
+                                  if (!aIsClosed && bIsClosed) return -1;
+                                  return 0;
+                                }
+                              );
+
+                              // Update local state with fresh data
+                              setTickets(sortedTickets);
+                              setCachedTickets(sortedTickets);
+
+                              // Export fresh data
+                              const count = exportTicketsByTimePeriod(
+                                sortedTickets,
+                                "7d",
+                                "admin_tickets_last_7_days"
+                              );
+                              toast.success(
+                                `Exported ${count} tickets from last 7 days to CSV (fresh data)`
+                              );
+                            } catch (error) {
+                              console.error(
+                                "Error fetching fresh tickets for export:",
+                                error
+                              );
+                              // Fallback to cached data
+                              const count = exportTicketsByTimePeriod(
+                                tickets,
+                                "7d",
+                                "admin_tickets_last_7_days"
+                              );
+                              toast.success(
+                                `Exported ${count} tickets from last 7 days to CSV (cached data)`
+                              );
+                            }
+                          }}
+                          disabled={ticketLoading}
+                          className="text-sm border border-orange-300 rounded-2xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-orange-700 bg-orange-50 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
+                          title="Export tickets from last 7 days (with fresh data)"
+                        >
+                          <Download className="h-3 w-3 mr-1" />7 Days
+                        </button>
+                        <button
+                          onClick={async () => {
+                            // Always fetch fresh data before export
+                            try {
+                              const response = await ticketsAPI.getAll(
+                                {},
+                                true
+                              ); // Force refresh for export
+                              const freshTickets = response.data.data || [];
+                              const sortedTickets = freshTickets.sort(
+                                (a, b) => {
+                                  const aIsClosed =
+                                    a.status === "Closed" ||
+                                    a.status === "Rejected";
+                                  const bIsClosed =
+                                    b.status === "Closed" ||
+                                    b.status === "Rejected";
+                                  if (aIsClosed && !bIsClosed) return 1;
+                                  if (!aIsClosed && bIsClosed) return -1;
+                                  return 0;
+                                }
+                              );
+
+                              // Update local state with fresh data
+                              setTickets(sortedTickets);
+                              setCachedTickets(sortedTickets);
+
+                              // Export fresh data
+                              const count = exportTicketsBySLACompliance(
+                                sortedTickets,
+                                "compliant",
+                                "admin_sla_compliant_tickets"
+                              );
+                              toast.success(
+                                `Exported ${count} SLA compliant tickets to CSV (fresh data)`
+                              );
+                            } catch (error) {
+                              console.error(
+                                "Error fetching fresh tickets for export:",
+                                error
+                              );
+                              // Fallback to cached data
+                              const count = exportTicketsBySLACompliance(
+                                tickets,
+                                "compliant",
+                                "admin_sla_compliant_tickets"
+                              );
+                              toast.success(
+                                `Exported ${count} SLA compliant tickets to CSV (cached data)`
+                              );
+                            }
+                          }}
+                          disabled={ticketLoading}
+                          className="text-sm border border-emerald-300 rounded-2xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 flex items-center font-medium"
+                          title="Export SLA compliant tickets (with fresh data)"
+                        >
+                          <Download className="h-3 w-3 mr-1" />
+                          SLA OK
+                        </button>
+                      </div>
                     </div>
-                  </div>
                   )}
                 </div>
 
@@ -2969,8 +3303,8 @@ export default function AdminPage() {
                                               Installed
                                             </p>
                                             <p className="text-sm font-medium text-gray-900">
-                                              {item.installed_software?.length ||
-                                                0}
+                                              {item.installed_software
+                                                ?.length || 0}
                                             </p>
                                             <p className="text-xs text-gray-500">
                                               packages
@@ -3000,7 +3334,8 @@ export default function AdminPage() {
                                               Startup
                                             </p>
                                             <p className="text-sm font-medium text-gray-900">
-                                              {item.startup_programs?.length || 0}
+                                              {item.startup_programs?.length ||
+                                                0}
                                             </p>
                                             <p className="text-xs text-gray-500">
                                               programs
@@ -3081,40 +3416,190 @@ export default function AdminPage() {
                             <table className="min-w-full divide-y divide-gray-200">
                               <thead className="bg-gray-50">
                                 <tr>
-                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Select</th>
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hostname</th>
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MAC</th>
+                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Select
+                                  </th>
+                                  <th
+                                    onClick={() =>
+                                      toggleSort("system.hostname")
+                                    }
+                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+                                  >
+                                    <span className="inline-flex items-center gap-1">
+                                      Hostname
+                                      {sortConfig.key === "system.hostname" ? (
+                                        sortConfig.direction === "asc" ? (
+                                          <ChevronUp className="h-3 w-3 inline" />
+                                        ) : (
+                                          <ChevronDown className="h-3 w-3 inline" />
+                                        )
+                                      ) : (
+                                        <ArrowUpDown className="h-3 w-3 inline opacity-60" />
+                                      )}
+                                    </span>
+                                  </th>
+                                  <th
+                                    onClick={() =>
+                                      toggleSort("system.mac_address")
+                                    }
+                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+                                  >
+                                    <span className="inline-flex items-center gap-1">
+                                      MAC
+                                      {sortConfig.key ===
+                                      "system.mac_address" ? (
+                                        sortConfig.direction === "asc" ? (
+                                          <ChevronUp className="h-3 w-3 inline" />
+                                        ) : (
+                                          <ChevronDown className="h-3 w-3 inline" />
+                                        )
+                                      ) : (
+                                        <ArrowUpDown className="h-3 w-3 inline opacity-60" />
+                                      )}
+                                    </span>
+                                  </th>
                                   {assetType === "hardware" ? (
                                     <>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPU</th>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RAM</th>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OS</th>
+                                      <th
+                                        onClick={() =>
+                                          toggleSort("asset_info.purchase_date")
+                                        }
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+                                      >
+                                        <span className="inline-flex items-center gap-1">
+                                          Purchase Date
+                                          {sortConfig.key ===
+                                          "asset_info.purchase_date" ? (
+                                            sortConfig.direction === "asc" ? (
+                                              <ChevronUp className="h-3 w-3 inline" />
+                                            ) : (
+                                              <ChevronDown className="h-3 w-3 inline" />
+                                            )
+                                          ) : (
+                                            <ArrowUpDown className="h-3 w-3 inline opacity-60" />
+                                          )}
+                                        </span>
+                                      </th>
+                                      <th
+                                        onClick={() =>
+                                          toggleSort(
+                                            "asset_info.warranty_expiry"
+                                          )
+                                        }
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+                                      >
+                                        <span className="inline-flex items-center gap-1">
+                                          Warranty Expiry
+                                          {sortConfig.key ===
+                                          "asset_info.warranty_expiry" ? (
+                                            sortConfig.direction === "asc" ? (
+                                              <ChevronUp className="h-3 w-3 inline" />
+                                            ) : (
+                                              <ChevronDown className="h-3 w-3 inline" />
+                                            )
+                                          ) : (
+                                            <ArrowUpDown className="h-3 w-3 inline opacity-60" />
+                                          )}
+                                        </span>
+                                      </th>
+                                      <th
+                                        onClick={() => toggleSort("assignedTo")}
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+                                      >
+                                        <span className="inline-flex items-center gap-1">
+                                          Assigned To
+                                          {sortConfig.key === "assignedTo" ? (
+                                            sortConfig.direction === "asc" ? (
+                                              <ChevronUp className="h-3 w-3 inline" />
+                                            ) : (
+                                              <ChevronDown className="h-3 w-3 inline" />
+                                            )
+                                          ) : (
+                                            <ArrowUpDown className="h-3 w-3 inline opacity-60" />
+                                          )}
+                                        </span>
+                                      </th>
+                                      <th
+                                        onClick={() =>
+                                          toggleSort("asset_info.location")
+                                        }
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+                                      >
+                                        <span className="inline-flex items-center gap-1">
+                                          Location
+                                          {sortConfig.key ===
+                                          "asset_info.location" ? (
+                                            sortConfig.direction === "asc" ? (
+                                              <ChevronUp className="h-3 w-3 inline" />
+                                            ) : (
+                                              <ChevronDown className="h-3 w-3 inline" />
+                                            )
+                                          ) : (
+                                            <ArrowUpDown className="h-3 w-3 inline opacity-60" />
+                                          )}
+                                        </span>
+                                      </th>
                                     </>
                                   ) : (
                                     <>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Packages</th>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Services</th>
+                                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Packages
+                                      </th>
+                                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Services
+                                      </th>
                                     </>
                                   )}
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
+                                  <th
+                                    onClick={() => toggleSort("updatedAt")}
+                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+                                  >
+                                    <span className="inline-flex items-center gap-1">
+                                      Updated
+                                      {sortConfig.key === "updatedAt" ? (
+                                        sortConfig.direction === "asc" ? (
+                                          <ChevronUp className="h-3 w-3 inline" />
+                                        ) : (
+                                          <ChevronDown className="h-3 w-3 inline" />
+                                        )
+                                      ) : (
+                                        <ArrowUpDown className="h-3 w-3 inline opacity-60" />
+                                      )}
+                                    </span>
+                                  </th>
                                 </tr>
                               </thead>
                               <tbody className="bg-white divide-y divide-gray-200">
-                                {currentAssets.map((item) => {
-                                  const isSelected = selectedAssets.includes(item._id);
+                                {fullySortedAssets.map((item) => {
+                                  const isSelected = selectedAssets.includes(
+                                    item._id
+                                  );
                                   return (
-                                    <tr key={item._id} className="hover:bg-gray-50">
+                                    <tr
+                                      key={item._id}
+                                      className="hover:bg-gray-50"
+                                    >
                                       <td className="px-4 py-3">
                                         <input
                                           type="checkbox"
                                           checked={isSelected}
                                           onChange={(e) =>
-                                            handleAssetSelection(item._id, e.target.checked)
+                                            handleAssetSelection(
+                                              item._id,
+                                              e.target.checked
+                                            )
                                           }
                                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                         />
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer" onClick={() => assetType === "hardware" ? setSelectedHardware(item) : setSelectedSoftware(item)}>
+                                      <td
+                                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer"
+                                        onClick={() =>
+                                          assetType === "hardware"
+                                            ? setSelectedHardware(item)
+                                            : setSelectedSoftware(item)
+                                        }
+                                      >
                                         {item.system?.hostname || "Unknown"}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">
@@ -3123,19 +3608,90 @@ export default function AdminPage() {
                                       {assetType === "hardware" ? (
                                         <>
                                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            {item.cpu?.model || "-"}
+                                            <input
+                                              type="date"
+                                              defaultValue={formatDateInputValue(
+                                                item.asset_info?.purchase_date
+                                              )}
+                                              onBlur={(e) =>
+                                                handleAssetInfoUpdate(
+                                                  item._id,
+                                                  "purchase_date",
+                                                  e.target.value
+                                                )
+                                              }
+                                              className="border border-gray-300 rounded px-2 py-1 text-sm"
+                                            />
                                           </td>
                                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            {Math.round((item.memory?.total_gb || 0) * 10) / 10} GB
+                                            <input
+                                              type="date"
+                                              defaultValue={formatDateInputValue(
+                                                item.asset_info?.warranty_expiry
+                                              )}
+                                              onBlur={(e) =>
+                                                handleAssetInfoUpdate(
+                                                  item._id,
+                                                  "warranty_expiry",
+                                                  e.target.value
+                                                )
+                                              }
+                                              className="border border-gray-300 rounded px-2 py-1 text-sm"
+                                            />
                                           </td>
                                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            {item.system?.os || item.system?.platform || "-"}
+                                            <select
+                                              defaultValue={
+                                                getAssignedUser(
+                                                  item.system?.mac_address
+                                                )?.id || ""
+                                              }
+                                              onChange={(e) =>
+                                                handleAssignInline(
+                                                  item.system?.mac_address,
+                                                  e.target.value
+                                                )
+                                              }
+                                              className="border border-gray-300 rounded px-2 py-1 text-sm"
+                                            >
+                                              <option value="">
+                                                Unassigned
+                                              </option>
+                                              {users.map((u) => (
+                                                <option key={u.id} value={u.id}>
+                                                  {(u.firstName ||
+                                                    u.username ||
+                                                    u.email) +
+                                                    (u.lastName
+                                                      ? ` ${u.lastName}`
+                                                      : "")}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </td>
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            <input
+                                              type="text"
+                                              defaultValue={
+                                                item.asset_info?.location || ""
+                                              }
+                                              placeholder="Enter location"
+                                              onBlur={(e) =>
+                                                handleAssetInfoUpdate(
+                                                  item._id,
+                                                  "location",
+                                                  e.target.value.trim()
+                                                )
+                                              }
+                                              className="border border-gray-300 rounded px-2 py-1 text-sm w-40"
+                                            />
                                           </td>
                                         </>
                                       ) : (
                                         <>
                                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            {item.installed_software?.length || 0}
+                                            {item.installed_software?.length ||
+                                              0}
                                           </td>
                                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                             {item.services?.length || 0}
@@ -3143,7 +3699,11 @@ export default function AdminPage() {
                                         </>
                                       )}
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        {new Date(item.updatedAt || item.scan_metadata?.last_updated || Date.now()).toLocaleDateString()}
+                                        {new Date(
+                                          item.updatedAt ||
+                                            item.scan_metadata?.last_updated ||
+                                            Date.now()
+                                        ).toLocaleDateString()}
                                       </td>
                                     </tr>
                                   );
@@ -3448,9 +4008,12 @@ export default function AdminPage() {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {filteredUsers.map((user) => (
-                          <tr key={user.id} className={`hover:bg-gray-50 transition-colors ${
-                            updatingUsers.has(user.id) ? 'bg-blue-50' : ''
-                          }`}>
+                          <tr
+                            key={user.id}
+                            className={`hover:bg-gray-50 transition-colors ${
+                              updatingUsers.has(user.id) ? "bg-blue-50" : ""
+                            }`}
+                          >
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div className="h-10 w-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center">
@@ -3504,7 +4067,11 @@ export default function AdminPage() {
                                       ? "text-gray-400 bg-gray-100 border-gray-200 cursor-not-allowed"
                                       : "text-blue-700 bg-blue-50 hover:bg-blue-100 hover:border-blue-400"
                                   }`}
-                                  title={updatingUsers.has(user.id) ? "User is being updated..." : "Edit user"}
+                                  title={
+                                    updatingUsers.has(user.id)
+                                      ? "User is being updated..."
+                                      : "Edit user"
+                                  }
                                 >
                                   <Settings className="h-3 w-3 mr-1" />
                                   Edit
@@ -3517,7 +4084,11 @@ export default function AdminPage() {
                                       ? "text-gray-400 bg-gray-100 border-gray-200 cursor-not-allowed"
                                       : "text-red-700 bg-red-50 hover:bg-red-100 hover:border-red-400"
                                   }`}
-                                  title={updatingUsers.has(user.id) ? "User is being updated..." : "Delete user"}
+                                  title={
+                                    updatingUsers.has(user.id)
+                                      ? "User is being updated..."
+                                      : "Delete user"
+                                  }
                                 >
                                   <X className="h-3 w-3 mr-1" />
                                   Remove
@@ -3550,7 +4121,13 @@ export default function AdminPage() {
                 )}
               </div>
             ) : activeTab === "alerts" ? (
-              <AlertsPanel users={users} alerts={alerts} alertsSummary={alertsSummary} onRefresh={fetchAlerts} isAutoRefreshing={autoRefreshStatus.alerts} />
+              <AlertsPanel
+                users={users}
+                alerts={alerts}
+                alertsSummary={alertsSummary}
+                onRefresh={fetchAlerts}
+                isAutoRefreshing={autoRefreshStatus.alerts}
+              />
             ) : (
               <HealthDashboard
                 isOpen={showHealthDashboard}
@@ -3709,10 +4286,12 @@ export default function AdminPage() {
                 lastName: newUser.lastName || newUser.last_name || "Unknown",
                 role: newUser.role || "user",
                 department: newUser.department || "Not specified",
-                assignedAssets: newUser.assignedAssets || newUser.assigned_assets || [],
-                isActive: newUser.isActive !== undefined ? newUser.isActive : true,
+                assignedAssets:
+                  newUser.assignedAssets || newUser.assigned_assets || [],
+                isActive:
+                  newUser.isActive !== undefined ? newUser.isActive : true,
               };
-              
+
               setUsers((prev) => [normalizedNewUser, ...prev]);
               // Refresh alerts to update any user-related alerts
               await fetchAlerts();
