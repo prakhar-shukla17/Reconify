@@ -117,9 +117,6 @@ const HardwareSchema = new mongoose.Schema(
     // Tenant ID for multi-tenancy
     tenant_id: { type: String, required: true, index: true },
     
-    // Tag ID for asset identification
-    tagId: { type: String, unique: true, sparse: true },
-    
     // System Information
     _id: String,
     system: {
@@ -142,7 +139,7 @@ const HardwareSchema = new mongoose.Schema(
       vendor: { type: String, default: "Unknown" },
       model: { type: String, default: "Unknown" },
       serial_number: { type: String, default: "Unknown" },
-      asset_tag: { type: String, default: "Unknown" },
+      asset_tag: { type: String, unique: true, sparse: true, index: true },
       location: { type: String, default: "Unknown" },
       department: { type: String, default: "Unknown" },
       cost: { type: Number, default: 0 },
@@ -154,9 +151,23 @@ const HardwareSchema = new mongoose.Schema(
         default: "scanner",
       },
       category: { type: String, default: "Unknown" },
+      sub_category: { type: String, default: "Unknown" },
       created_manually_at: { type: Date, default: null },
       created_manually_by: { type: String, default: null },
       status: { type: String, default: "Active" },
+      notes: { type: String, default: "" },
+      // Assignment information
+      assignment_date: { type: Date, default: null },
+      assignment_notes: { type: String, default: "" },
+    },
+
+    // Asset assignment and status fields
+    assignedTo: { type: String, default: "" },
+    assigned_to: { type: String, default: "" },
+    status: { 
+      type: String, 
+      enum: ["Available", "Assigned", "Maintenance", "Retired"],
+      default: "Available" 
     },
 
     // CPU Information
@@ -254,6 +265,13 @@ HardwareSchema.index({ "asset_info.purchase_date": -1 });
 HardwareSchema.index({ "asset_info.warranty_expiry": 1 });
 HardwareSchema.index({ "asset_info.vendor": 1 });
 HardwareSchema.index({ "asset_info.department": 1 });
+HardwareSchema.index({ "asset_info.location": 1 });
+HardwareSchema.index({ "asset_info.category": 1 });
+HardwareSchema.index({ "asset_info.sub_category": 1 });
+HardwareSchema.index({ "asset_info.asset_tag": 1 });
+HardwareSchema.index({ assignedTo: 1 });
+HardwareSchema.index({ assigned_to: 1 });
+HardwareSchema.index({ status: 1 });
 
 // Virtual field for warranty status
 HardwareSchema.virtual("warranty_status").get(function () {

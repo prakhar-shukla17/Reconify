@@ -33,8 +33,26 @@ const AssetsManagement = ({ users }) => {
   const [sortBy, setSortBy] = useState("assetName");
   const [sortOrder, setSortOrder] = useState("asc");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [activeTab, setActiveTab] = useState("home");
+  
+  // Filter states
+  const [filters, setFilters] = useState({
+    category: "",
+    subCategory: "",
+    status: "",
+    assignedTo: "",
+    assetType: ""
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterOptions, setFilterOptions] = useState({
+    categories: [],
+    subCategories: [],
+    statuses: [],
+    assetTypes: [],
+    assignedUsers: []
+  });
+  const [filterOptionsLoading, setFilterOptionsLoading] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [assignmentForm, setAssignmentForm] = useState({
     selectedUser: "",
@@ -42,10 +60,27 @@ const AssetsManagement = ({ users }) => {
     notes: ""
   });
   const [bulkActionType, setBulkActionType] = useState("");
+  const [editingAsset, setEditingAsset] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingField, setEditingField] = useState(null);
+  const [editingValue, setEditingValue] = useState("");
+  const [savingField, setSavingField] = useState(false);
+  const [editForm, setEditForm] = useState({
+    assetName: "",
+    tagId: "",
+    category: "",
+    subCategory: "",
+    status: "",
+    purchaseDate: "",
+    assetLocation: "",
+    assignedTo: "",
+    notes: ""
+  });
 
-  // Generate random tag ID
-  const generateRandomTagId = () => {
+  // Generate sequential tag ID (will be replaced by backend)
+  const generateSequentialTagId = () => {
     const prefix = "TAG";
+    // This will be replaced by backend-generated sequential IDs
     const randomNumber = Math.floor(Math.random() * 900000) + 100000; // 6-digit number
     return `${prefix}-${randomNumber}`;
   };
@@ -54,12 +89,20 @@ const AssetsManagement = ({ users }) => {
   const fetchAllAssets = async () => {
     try {
       setLoading(true);
-      console.log("Fetching hardware assets...");
+      console.log("Fetching hardware assets with filters:", {
+        searchTerm,
+        filters
+      });
       
       const response = await hardwareAPI.getAll({ 
         page: 1, 
         limit: 1000,
-        search: searchTerm || undefined
+        search: searchTerm || undefined,
+        category: filters.category || undefined,
+        subCategory: filters.subCategory || undefined,
+        status: filters.status || undefined,
+        assignedTo: filters.assignedTo || undefined,
+        assetType: filters.assetType || undefined
       });
 
       console.log("Hardware response:", response);
@@ -71,13 +114,14 @@ const AssetsManagement = ({ users }) => {
       const transformedAssets = (hardwareData || []).map(asset => ({
         id: asset._id || asset.id,
         assetName: asset.system?.hostname || asset.hostname || "Unknown Device",
-        tagId: asset.tagId || asset.tag_id || generateRandomTagId(), // Use stored tag ID or generate new one
+        tagId: asset.asset_info?.asset_tag || generateSequentialTagId(), // Use asset_tag or generate new one
         category: "Hardware",
         subCategory: getSubCategory(asset),
         assetType: getAssetType(asset),
         status: getAssetStatus(asset),
         purchaseDate: formatDate(asset.asset_info?.purchase_date || asset.purchaseDate),
-        assetLocation: asset.asset_info?.location || asset.location || ""
+        assetLocation: asset.asset_info?.location || asset.location || "",
+        assignedTo: asset.assignedTo || asset.assigned_to || asset.asset_info?.assigned_to || ""
       }));
 
       console.log("Transformed assets:", transformedAssets);
@@ -132,7 +176,7 @@ const AssetsManagement = ({ users }) => {
     }
   };
 
-  // Helper function to format dates
+  // Helper function to format dates in DD/MM/YYYY format
   const formatDate = (dateString) => {
     if (!dateString) return "";
     
@@ -140,19 +184,55 @@ const AssetsManagement = ({ users }) => {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return "";
       
-      return date.toLocaleDateString("en-US", {
-        month: "2-digit",
-        day: "2-digit",
-        year: "numeric"
-      });
+      // Format as DD/MM/YYYY
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+      
+      return `${day}/${month}/${year}`;
     } catch (error) {
       return "";
     }
   };
 
+  // Helper function to convert DD/MM/YYYY to YYYY-MM-DD for date inputs
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return "";
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "";
+      
+      // Format as YYYY-MM-DD for HTML date inputs
+      const year = date.getFullYear();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      
+      return `${year}-${month}-${day}`;
+    } catch (error) {
+      return "";
+    }
+  };
+
+  // Helper function to get assigned user name
+  const getAssignedUserName = (assignedTo) => {
+    if (!assignedTo) return "Unassigned";
+    try {
+      const user = users?.find((u) => u.id === assignedTo || u._id === assignedTo);
+      return user ? `${user.firstName} ${user.lastName}` : "Unknown User";
+    } catch (error) {
+      console.error("Error getting assigned user name:", error);
+      return "Unknown User";
+    }
+  };
+
   useEffect(() => {
     fetchAllAssets();
-  }, [searchTerm]);
+  }, [searchTerm, filters]);
+
+  useEffect(() => {
+    fetchFilterOptions();
+  }, []);
 
   // Filter and sort assets
   const filteredAndSortedAssets = useMemo(() => {
@@ -163,11 +243,28 @@ const AssetsManagement = ({ users }) => {
         asset.tagId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         asset.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         asset.subCategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.assetType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         asset.status?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.assetLocation?.toLowerCase().includes(searchTerm.toLowerCase());
+        asset.assetLocation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getAssignedUserName(asset.assignedTo)?.toLowerCase().includes(searchTerm.toLowerCase());
 
-      return matchesSearch;
+      // Category filter
+      const matchesCategory = !filters.category || asset.category === filters.category;
+      
+      // Sub Category filter
+      const matchesSubCategory = !filters.subCategory || asset.subCategory === filters.subCategory;
+      
+      // Status filter
+      const matchesStatus = !filters.status || asset.status === filters.status;
+      
+      // Assigned To filter
+      const matchesAssignedTo = !filters.assignedTo || 
+        (filters.assignedTo === "unassigned" && !asset.assignedTo) ||
+        (filters.assignedTo !== "unassigned" && asset.assignedTo === filters.assignedTo);
+      
+      // Asset Type filter
+      const matchesAssetType = !filters.assetType || asset.assetType === filters.assetType;
+
+      return matchesSearch && matchesCategory && matchesSubCategory && matchesStatus && matchesAssignedTo && matchesAssetType;
     });
 
     // Sort assets
@@ -191,9 +288,9 @@ const AssetsManagement = ({ users }) => {
           aValue = a.subCategory || "";
           bValue = b.subCategory || "";
           break;
-        case "assetType":
-          aValue = a.assetType || "";
-          bValue = b.assetType || "";
+                 case "assignedTo":
+           aValue = getAssignedUserName(a.assignedTo) || "";
+           bValue = getAssignedUserName(b.assignedTo) || "";
           break;
         case "status":
           aValue = a.status || "";
@@ -220,7 +317,7 @@ const AssetsManagement = ({ users }) => {
     });
 
     return filtered;
-  }, [assets, searchTerm, sortBy, sortOrder]);
+  }, [assets, searchTerm, sortBy, sortOrder, filters]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredAndSortedAssets.length / itemsPerPage);
@@ -231,7 +328,7 @@ const AssetsManagement = ({ users }) => {
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, sortBy, sortOrder]);
+  }, [searchTerm, sortBy, sortOrder, filters]);
 
   // Handle asset selection
   const handleAssetSelect = (assetId) => {
@@ -260,6 +357,83 @@ const AssetsManagement = ({ users }) => {
       setSortOrder("asc");
     }
   };
+
+  // Handle filter changes
+  const handleFilterChange = (filterType, value) => {
+    try {
+      console.log("Filter change:", filterType, value);
+      setFilters(prev => ({
+        ...prev,
+        [filterType]: value
+      }));
+    } catch (error) {
+      console.error("Error changing filter:", error);
+    }
+  };
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    try {
+      console.log("Clearing all filters");
+      setFilters({
+        category: "",
+        subCategory: "",
+        status: "",
+        assignedTo: "",
+        assetType: ""
+      });
+    } catch (error) {
+      console.error("Error clearing filters:", error);
+    }
+  };
+
+  // Fetch filter options from backend
+  const fetchFilterOptions = async () => {
+    try {
+      setFilterOptionsLoading(true);
+      console.log("Fetching filter options...");
+      const response = await hardwareAPI.getFilterOptions();
+      console.log("Filter options response:", response);
+      
+      if (response.data?.success) {
+        setFilterOptions(response.data.data);
+        console.log("Filter options set:", response.data.data);
+      } else {
+        console.warn("Filter options response not successful:", response.data);
+        // Fallback to local options
+        setFilterOptions(getFallbackFilterOptions());
+      }
+    } catch (error) {
+      console.error("Error fetching filter options:", error);
+      // Fallback to local options on error
+      setFilterOptions(getFallbackFilterOptions());
+    } finally {
+      setFilterOptionsLoading(false);
+    }
+  };
+
+  // Get unique values for filter options (fallback)
+  const getUniqueValues = (field) => {
+    try {
+      const values = assets.map(asset => asset[field]).filter(Boolean);
+      return [...new Set(values)].sort();
+    } catch (error) {
+      console.error("Error getting unique values:", error);
+      return [];
+    }
+  };
+
+  // Fallback filter options when backend fails
+  const getFallbackFilterOptions = () => ({
+    categories: getUniqueValues('category'),
+    subCategories: getUniqueValues('subCategory'),
+    statuses: ['Available', 'Assigned', 'Maintenance', 'Retired'],
+    assetTypes: getUniqueValues('assetType'),
+    assignedUsers: []
+  });
+
+  // Count active filters
+  const activeFiltersCount = Object.values(filters).filter(value => value !== "").length;
 
   // Assignment functions
   const handleAssignAssets = () => {
@@ -303,12 +477,26 @@ const AssetsManagement = ({ users }) => {
 
   const handleUnassignAssets = async () => {
     try {
-      // Here you would call your API to unassign assets
-      // For now, just show success message
+      // Update each selected asset to remove assignment
+      const updatePromises = selectedAssets.map(assetId => {
+        const updateData = {
+          assignedTo: "",
+          assigned_to: "",
+          asset_info: {
+            assignment_date: null,
+            assignment_notes: null
+          }
+        };
+        return hardwareAPI.update(assetId, updateData);
+      });
+
+      // Wait for all updates to complete
+      await Promise.all(updatePromises);
+      
       toast.success(`Unassigned ${selectedAssets.length} assets`);
       setSelectedAssets([]);
       // Refresh the data
-      fetchAllAssets();
+      await fetchAllAssets();
     } catch (error) {
       console.error("Error unassigning assets:", error);
       toast.error("Failed to unassign assets");
@@ -322,8 +510,22 @@ const AssetsManagement = ({ users }) => {
     }
 
     try {
-      // Here you would call your API to assign assets
-      // For now, just show success message
+      // Update each selected asset with the assignment information
+      const updatePromises = selectedAssets.map(assetId => {
+      const updateData = {
+          assignedTo: assignmentForm.selectedUser,
+          assigned_to: assignmentForm.selectedUser,
+          asset_info: {
+            assignment_date: assignmentForm.assignmentDate,
+            assignment_notes: assignmentForm.notes
+          }
+        };
+        return hardwareAPI.update(assetId, updateData);
+      });
+
+      // Wait for all updates to complete
+      await Promise.all(updatePromises);
+      
       toast.success(`Assigned ${selectedAssets.length} assets to user`);
       setSelectedAssets([]);
       setShowAssignmentModal(false);
@@ -333,10 +535,169 @@ const AssetsManagement = ({ users }) => {
         notes: ""
       });
       // Refresh the data
-      fetchAllAssets();
+      await fetchAllAssets();
     } catch (error) {
       console.error("Error assigning assets:", error);
       toast.error("Failed to assign assets");
+    }
+  };
+
+  // Handle individual asset edit
+  const handleEditAsset = (asset) => {
+    setEditingAsset(asset);
+    setEditForm({
+      assetName: asset.assetName || "",
+      tagId: asset.tagId || "",
+      category: asset.category || "",
+      subCategory: asset.subCategory || "",
+      status: asset.status || "",
+      purchaseDate: formatDateForInput(asset.purchaseDate) || "",
+      assetLocation: asset.assetLocation || "",
+      assignedTo: asset.assignedTo || "",
+      notes: asset.notes || ""
+    });
+    setShowEditModal(true);
+  };
+
+  // Handle save individual asset edit
+  const handleSaveEdit = async () => {
+    if (!editingAsset) return;
+
+    try {
+      // Prepare the update data
+      const updateData = {
+        system: {
+          hostname: editForm.assetName
+        },
+        status: editForm.status,
+        assignedTo: editForm.assignedTo,
+        assigned_to: editForm.assignedTo,
+        asset_info: {
+          purchase_date: editForm.purchaseDate,
+          location: editForm.assetLocation,
+          category: editForm.category,
+          sub_category: editForm.subCategory,
+          notes: editForm.notes,
+          asset_tag: editForm.tagId  // Use Tag ID in asset_tag
+        }
+      };
+
+      // Make API call to update the asset
+      await hardwareAPI.update(editingAsset.id, updateData);
+      
+      toast.success("Asset updated successfully");
+      setShowEditModal(false);
+      setEditingAsset(null);
+      setEditForm({
+        assetName: "",
+        tagId: "",
+        category: "",
+        subCategory: "",
+        status: "",
+        purchaseDate: "",
+        assetLocation: "",
+        assignedTo: "",
+        notes: ""
+      });
+      // Refresh the data
+      await fetchAllAssets();
+    } catch (error) {
+      console.error("Error updating asset:", error);
+      toast.error("Failed to update asset");
+    }
+  };
+
+  // Handle inline field editing
+  const handleStartEdit = (assetId, field, currentValue) => {
+    setEditingField(`${assetId}-${field}`);
+    setEditingValue(currentValue || "");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingField(null);
+    setEditingValue("");
+  };
+
+  const handleSaveField = async (assetId, field) => {
+    if (!editingValue && field !== 'assignedTo') {
+      toast.error("Value cannot be empty");
+      return;
+    }
+
+    try {
+      setSavingField(true);
+      
+      // Find the asset to get its current data
+      const currentAsset = assets.find(asset => asset.id === assetId);
+      if (!currentAsset) {
+        toast.error("Asset not found");
+        return;
+      }
+
+      // Prepare the update data based on the field being edited
+      let updateData = {};
+      
+      switch (field) {
+        case 'assignedTo':
+          updateData = {
+            assignedTo: editingValue || "",
+            assigned_to: editingValue || ""
+          };
+          break;
+        case 'status':
+          updateData = {
+            status: editingValue
+          };
+          break;
+        case 'purchaseDate':
+          updateData = {
+            asset_info: {
+              purchase_date: editingValue
+            }
+          };
+          break;
+        case 'assetLocation':
+          updateData = {
+            asset_info: {
+              location: editingValue
+            }
+          };
+          break;
+        case 'tagId':
+          updateData = {
+            asset_info: {
+              asset_tag: editingValue
+            }
+          };
+          break;
+        default:
+          toast.error("Unknown field to update");
+          return;
+      }
+
+      console.log("Frontend - Updating asset:", assetId, "with data:", updateData);
+      
+      // Make API call to update the asset
+      await hardwareAPI.update(assetId, updateData);
+      
+      toast.success(`${field} updated successfully`);
+      
+      // Update local state
+      setAssets(prevAssets => 
+        prevAssets.map(asset => 
+          asset.id === assetId 
+            ? { ...asset, [field]: editingValue }
+            : asset
+        )
+      );
+      
+      setEditingField(null);
+      setEditingValue("");
+    } catch (error) {
+      console.error("Error updating field:", error);
+      toast.error("Failed to update field");
+    } finally {
+      setSavingField(false);
     }
   };
 
@@ -381,7 +742,7 @@ const AssetsManagement = ({ users }) => {
                   className={`flex items-center space-x-2 px-3 py-2 text-sm font-medium transition-colors ${
                     activeTab === tab.id
                       ? "text-blue-600 border-b-2 border-blue-600"
-                      : "text-gray-600 hover:text-gray-900"
+                      : "text-gray-800 hover:text-gray-900"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -393,23 +754,23 @@ const AssetsManagement = ({ users }) => {
                 </div>
             </div>
 
-      {/* Search Bar */}
+      {/* Search Bar and Filters */}
       <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex-1 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search assets..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search assets..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
           </div>
           <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-900">
               {loading ? "Loading..." : `${filteredAndSortedAssets.length} assets found`}
             </div>
             <button
@@ -422,6 +783,217 @@ const AssetsManagement = ({ users }) => {
             </button>
           </div>
         </div>
+
+        {/* Filter Controls */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => {
+                console.log("Filter button clicked, current state:", { showFilters, activeFiltersCount });
+                setShowFilters(!showFilters);
+              }}
+              className={`flex items-center space-x-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                showFilters || activeFiltersCount > 0
+                  ? "bg-blue-50 border-blue-300 text-blue-700"
+                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              <Filter className="h-4 w-4" />
+              <span>Filters</span>
+              {activeFiltersCount > 0 && (
+                <span className="bg-blue-600 text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </button>
+            
+            {activeFiltersCount > 0 && (
+              <button
+                onClick={clearAllFilters}
+                className="flex items-center space-x-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="h-4 w-4" />
+                <span>Clear All</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Active Filter Chips */}
+        {activeFiltersCount > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {filters.category && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                Category: {filters.category}
+                <button
+                  onClick={() => handleFilterChange('category', '')}
+                  className="ml-2 text-blue-600 hover:text-blue-800"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {filters.subCategory && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                Sub Category: {filters.subCategory}
+                <button
+                  onClick={() => handleFilterChange('subCategory', '')}
+                  className="ml-2 text-green-600 hover:text-green-800"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {filters.status && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                Status: {filters.status}
+                <button
+                  onClick={() => handleFilterChange('status', '')}
+                  className="ml-2 text-purple-600 hover:text-purple-800"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {filters.assignedTo && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                Assigned: {filters.assignedTo === 'unassigned' ? 'Unassigned' : getAssignedUserName(filters.assignedTo)}
+                <button
+                  onClick={() => handleFilterChange('assignedTo', '')}
+                  className="ml-2 text-orange-600 hover:text-orange-800"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {filters.assetType && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                Type: {filters.assetType}
+                <button
+                  onClick={() => handleFilterChange('assetType', '')}
+                  className="ml-2 text-pink-600 hover:text-pink-800"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Debug Panel - Remove in production */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+            <strong>Debug Info:</strong> Filters: {JSON.stringify(filters)}, 
+            Show Filters: {showFilters.toString()}, 
+            Options Loading: {filterOptionsLoading.toString()},
+            Options: {JSON.stringify(filterOptions)}
+          </div>
+        )}
+
+        {/* Filter Dropdown */}
+        {showFilters && (
+          <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+            {filterOptionsLoading && (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                <p className="text-sm text-gray-600">Loading filter options...</p>
+              </div>
+            )}
+            {!filterOptionsLoading && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              {/* Category Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <select
+                  value={filters.category}
+                  onChange={(e) => handleFilterChange('category', e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">All Categories</option>
+                  {filterOptions.categories?.map(category => (
+                    <option key={category} value={category}>{category}</option>
+                  )) || []}
+                </select>
+              </div>
+
+              {/* Sub Category Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sub Category</label>
+                <select
+                  value={filters.subCategory}
+                  onChange={(e) => handleFilterChange('subCategory', e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">All Sub Categories</option>
+                  {filterOptions.subCategories?.map(subCategory => (
+                    <option key={subCategory} value={subCategory}>{subCategory}</option>
+                  )) || []}
+                </select>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={filters.status}
+                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="Available">Available</option>
+                  <option value="Assigned">Assigned</option>
+                  <option value="Maintenance">Maintenance</option>
+                  <option value="Retired">Retired</option>
+                  {filterOptions.statuses?.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  )) || []}
+                </select>
+              </div>
+
+              {/* Assigned To Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
+                <select
+                  value={filters.assignedTo}
+                  onChange={(e) => handleFilterChange('assignedTo', e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">All Users</option>
+                  <option value="unassigned">Unassigned</option>
+                  {users?.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.firstName} {user.lastName}
+                    </option>
+                  ))}
+                  {filterOptions.assignedUsers?.map(userId => {
+                    const user = users?.find(u => u.id === userId || u._id === userId);
+                    return user ? (
+                      <option key={userId} value={userId}>
+                        {user.firstName} {user.lastName}
+                      </option>
+                    ) : null;
+                  }) || []}
+                </select>
+              </div>
+
+              {/* Asset Type Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Asset Type</label>
+                <select
+                  value={filters.assetType}
+                  onChange={(e) => handleFilterChange('assetType', e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">All Types</option>
+                  {filterOptions.assetTypes?.map(assetType => (
+                    <option key={assetType} value={assetType}>{assetType}</option>
+                  )) || []}
+                </select>
+              </div>
+            </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Main Content */}
@@ -431,7 +1003,7 @@ const AssetsManagement = ({ users }) => {
             {/* Home View - Current Asset Management Table */}
             <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
               <div className="bg-gray-50 border-b border-gray-200">
-                <div className="grid grid-cols-9 gap-4 px-6 py-4 text-sm font-medium text-gray-700">
+                <div className="grid grid-cols-9 gap-4 px-6 py-4 text-sm font-medium text-gray-900">
                   {/* Action Column */}
                   <div className="flex items-center space-x-2">
                     <Box className="h-4 w-4" />
@@ -455,7 +1027,12 @@ const AssetsManagement = ({ users }) => {
                         onClick={() => handleSort("assetName")}
                       />
                     </div>
-                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+                    <Filter 
+                      className={`h-4 w-4 cursor-pointer ${
+                        searchTerm ? "text-blue-600" : "text-gray-400"
+                      }`}
+                      onClick={() => setShowFilters(!showFilters)}
+                    />
         </div>
 
                   {/* Tag ID Column */}
@@ -475,7 +1052,12 @@ const AssetsManagement = ({ users }) => {
                         onClick={() => handleSort("tagId")}
                       />
               </div>
-                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+                    <Filter 
+                      className={`h-4 w-4 cursor-pointer ${
+                        searchTerm ? "text-blue-600" : "text-gray-400"
+                      }`}
+                      onClick={() => setShowFilters(!showFilters)}
+                    />
           </div>
           
                   {/* Category Column */}
@@ -495,7 +1077,12 @@ const AssetsManagement = ({ users }) => {
                         onClick={() => handleSort("category")}
                       />
               </div>
-                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+                    <Filter 
+                      className={`h-4 w-4 cursor-pointer ${
+                        filters.category ? "text-blue-600" : "text-gray-400"
+                      }`}
+                      onClick={() => setShowFilters(!showFilters)}
+                    />
                   </div>
                   
                   {/* Sub Category Column */}
@@ -515,7 +1102,12 @@ const AssetsManagement = ({ users }) => {
                         onClick={() => handleSort("subCategory")}
                       />
           </div>
-                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+                    <Filter 
+                      className={`h-4 w-4 cursor-pointer ${
+                        filters.subCategory ? "text-blue-600" : "text-gray-400"
+                      }`}
+                      onClick={() => setShowFilters(!showFilters)}
+                    />
         </div>
                   
                   {/* Asset Type Column */}
@@ -535,7 +1127,12 @@ const AssetsManagement = ({ users }) => {
                         onClick={() => handleSort("assetType")}
                       />
                     </div>
-                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+                    <Filter 
+                      className={`h-4 w-4 cursor-pointer ${
+                        filters.assetType ? "text-blue-600" : "text-gray-400"
+                      }`}
+                      onClick={() => setShowFilters(!showFilters)}
+                    />
       </div>
 
                   {/* Status Column */}
@@ -555,7 +1152,12 @@ const AssetsManagement = ({ users }) => {
                         onClick={() => handleSort("status")}
                       />
           </div>
-                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+                    <Filter 
+                      className={`h-4 w-4 cursor-pointer ${
+                        filters.status ? "text-blue-600" : "text-gray-400"
+                      }`}
+                      onClick={() => setShowFilters(!showFilters)}
+                    />
               </div>
                   
                   {/* Purchase Date Column */}
@@ -575,7 +1177,12 @@ const AssetsManagement = ({ users }) => {
                         onClick={() => handleSort("purchaseDate")}
                       />
                     </div>
-                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+                    <Filter 
+                      className={`h-4 w-4 cursor-pointer ${
+                        searchTerm ? "text-blue-600" : "text-gray-400"
+                      }`}
+                      onClick={() => setShowFilters(!showFilters)}
+                    />
             </div>
 
                   {/* Asset Location Column */}
@@ -595,7 +1202,12 @@ const AssetsManagement = ({ users }) => {
                         onClick={() => handleSort("assetLocation")}
                       />
                     </div>
-                    <Filter className="h-4 w-4 text-gray-400 cursor-pointer" />
+                    <Filter 
+                      className={`h-4 w-4 cursor-pointer ${
+                        searchTerm ? "text-blue-600" : "text-gray-400"
+                      }`}
+                      onClick={() => setShowFilters(!showFilters)}
+                    />
                   </div>
                 </div>
               </div>
@@ -607,8 +1219,8 @@ const AssetsManagement = ({ users }) => {
                     {/* Action Column */}
                     <div className="flex items-center">
                       <button className="p-1 hover:bg-gray-100 rounded">
-                        <Box className="h-4 w-4 text-gray-600" />
-                    </button>
+                        <Box className="h-4 w-4 text-gray-800" />
+              </button>
                     </div>
                     
                     {/* Asset Name Column */}
@@ -631,10 +1243,10 @@ const AssetsManagement = ({ users }) => {
                       <span className="text-gray-900">{asset.subCategory}</span>
                     </div>
                     
-                    {/* Asset Type Column */}
-                    <div className="flex items-center">
-                      <span className="text-gray-900">{asset.assetType}</span>
-                    </div>
+                                           {/* Assigned User Column */}
+                       <div className="flex items-center">
+                         <span className="text-gray-900">{getAssignedUserName(asset.assignedTo)}</span>
+                         </div>
 
                     {/* Status Column */}
                     <div className="flex items-center">
@@ -665,17 +1277,17 @@ const AssetsManagement = ({ users }) => {
             {/* Pagination */}
             <div className="mt-6 flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                              <button
+              <button
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
-                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ChevronsLeft className="h-4 w-4" />
-                              </button>
-                              <button
+              </button>
+              <button
                   onClick={() => setCurrentPage(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft className="h-4 w-4" />
                               </button>
@@ -701,47 +1313,47 @@ const AssetsManagement = ({ users }) => {
                         className={`px-3 py-1 text-sm rounded ${
                           currentPage === pageNum
                             ? 'bg-blue-600 text-white'
-                            : 'text-gray-600 hover:text-gray-900'
+                            : 'text-gray-900 hover:text-gray-950'
                         }`}
                       >
                         {pageNum}
-                              </button>
+              </button>
                     );
                   })}
-                  </div>
+            </div>
 
-                    <button
+            <button
                   onClick={() => setCurrentPage(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                  className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
                   <ChevronRight className="h-4 w-4" />
-                    </button>
+            </button>
                     <button
                   onClick={() => setCurrentPage(totalPages)}
                   disabled={currentPage === totalPages}
-                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ChevronsRight className="h-4 w-4" />
-                    </button>
-              </div>
+            </button>
+          </div>
 
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-gray-900">
                   Showing {startIndex + 1} to {Math.min(endIndex, filteredAndSortedAssets.length)} of {filteredAndSortedAssets.length} Assign Assets
                 </span>
                 <select
                   value={itemsPerPage}
                   onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="px-3 py-1 text-sm text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value={10}>10</option>
                   <option value={25}>25</option>
                   <option value={50}>50</option>
                   <option value={100}>100</option>
                 </select>
-                  </div>
-                </div>
+        </div>
+      </div>
           </>
         )}
 
@@ -756,7 +1368,7 @@ const AssetsManagement = ({ users }) => {
                   <span>Asset Assignment</span>
                 </h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <button
                     onClick={() => handleBulkAction("assign")}
                     disabled={selectedAssets.length === 0}
@@ -766,7 +1378,7 @@ const AssetsManagement = ({ users }) => {
                     <div className="text-left">
                       <div className="font-medium text-blue-900">Assign Assets</div>
                       <div className="text-sm text-blue-600">Assign to user</div>
-                          </div>
+          </div>
                   </button>
 
                                 <button
@@ -804,37 +1416,37 @@ const AssetsManagement = ({ users }) => {
                       <div className="text-sm text-purple-600">Download data</div>
                               </div>
                   </button>
-                </div>
+        </div>
 
-                {selectedAssets.length > 0 && (
+            {selectedAssets.length > 0 && (
                   <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-blue-800">
                         {selectedAssets.length} asset(s) selected
-                      </span>
-                                <button
-                        onClick={() => setSelectedAssets([])}
+                </span>
+                <button
+                  onClick={() => setSelectedAssets([])}
                         className="text-sm text-blue-600 hover:text-blue-800"
-                                >
+                >
                         Clear Selection
-                                </button>
+                </button>
                     </div>
-                              </div>
-                            )}
-                          </div>
-
+              </div>
+            )}
+          </div>
+          
               {/* Asset Selection Table */}
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
                   <h3 className="text-lg font-medium text-gray-900">Select Assets for Assignment</h3>
-                  <p className="text-sm text-gray-600 mt-1">Choose assets from the list below to assign or update</p>
+                  <p className="text-sm text-gray-800 mt-1">Choose assets from the list below to assign or update</p>
                           </div>
 
                 {/* Table Header */}
                 <div className="bg-gray-50 border-b border-gray-200">
-                  <div className="grid grid-cols-9 gap-4 px-6 py-4 text-sm font-medium text-gray-700">
+                  <div className="grid grid-cols-9 gap-4 px-6 py-4 text-sm font-medium text-gray-900">
                     {/* Selection Column */}
-                    <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2">
                       <input
                         type="checkbox"
                         checked={selectedAssets.length === filteredAndSortedAssets.length && filteredAndSortedAssets.length > 0}
@@ -842,7 +1454,7 @@ const AssetsManagement = ({ users }) => {
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
                       <span>Select</span>
-                          </div>
+              </div>
                     
                     {/* Asset Name Column */}
                     <div className="flex items-center space-x-2">
@@ -860,7 +1472,7 @@ const AssetsManagement = ({ users }) => {
                           }`}
                           onClick={() => handleSort("assetName")}
                         />
-                        </div>
+          </div>
                       </div>
 
                     {/* Tag ID Column */}
@@ -879,25 +1491,25 @@ const AssetsManagement = ({ users }) => {
                           }`}
                           onClick={() => handleSort("tagId")}
                         />
-                          </div>
-                          </div>
-                    
+        </div>
+      </div>
+
                     {/* Category Column */}
                     <div className="flex items-center space-x-2">
                       <span>Category</span>
-                          </div>
+          </div>
                     
                     {/* Sub Category Column */}
                     <div className="flex items-center space-x-2">
                       <span>Sub Category</span>
-                        </div>
+              </div>
                     
-                    {/* Asset Type Column */}
-                    <div className="flex items-center space-x-2">
-                      <span>Asset Type</span>
-                      </div>
+                                         {/* Assigned User Column */}
+                     <div className="flex items-center space-x-2">
+                       <span>Assigned User</span>
+            </div>
 
-                    {/* Status Column */}
+                     {/* Status Column */}
                     <div className="flex items-center space-x-2">
                       <span>Status</span>
                           </div>
@@ -914,29 +1526,32 @@ const AssetsManagement = ({ users }) => {
                         </div>
                       </div>
 
-                                {/* Table Body */}
-                <div className="divide-y divide-gray-200">
-                  {paginatedAssets.map((asset) => (
-                    <div key={asset.id} className="grid grid-cols-9 gap-4 px-6 py-4 text-sm hover:bg-gray-50">
-                      {/* Selection Column */}
-                      <div className="flex items-center">
-                                <input
-                          type="checkbox"
-                          checked={selectedAssets.includes(asset.id)}
-                          onChange={() => handleAssetSelect(asset.id)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                              </div>
+                                                                 {/* Table Body */}
+                 <div className="divide-y divide-gray-200">
+            {paginatedAssets.map((asset) => (
+                                          <div 
+                       key={asset.id} 
+                       className="grid grid-cols-9 gap-4 px-6 py-4 text-sm hover:bg-gray-50 group"
+                     >
+                       {/* Selection Column */}
+                       <div className="flex items-center">
+                                 <input
+                           type="checkbox"
+                           checked={selectedAssets.includes(asset.id)}
+                           onChange={() => handleAssetSelect(asset.id)}
+                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                         />
+                               </div>
                       
                       {/* Asset Name Column */}
                       <div className="flex items-center">
                         <span className="text-gray-900">{asset.assetName}</span>
-                              </div>
-                      
+                    </div>
+
                       {/* Tag ID Column */}
                       <div className="flex items-center">
                         <span className="text-gray-900 font-mono text-sm">{asset.tagId}</span>
-                          </div>
+                      </div>
                       
                       {/* Category Column */}
                       <div className="flex items-center">
@@ -948,36 +1563,177 @@ const AssetsManagement = ({ users }) => {
                         <span className="text-gray-900">{asset.subCategory}</span>
                         </div>
                       
-                      {/* Asset Type Column */}
-                      <div className="flex items-center">
-                        <span className="text-gray-900">{asset.assetType}</span>
-                        </div>
-                      
+                       {/* Assigned User Column */}
+                       <div className="flex items-center">
+                         {editingField === `${asset.id}-assignedTo` ? (
+                           <div className="flex items-center space-x-2 w-full">
+                             <select
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                               className="flex-1 px-2 py-1 text-sm text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                autoFocus
+                             >
+                               <option value="">Unassigned</option>
+                               {users?.map(user => (
+                                 <option key={user.id} value={user.id}>
+                                   {user.firstName} {user.lastName}
+                                 </option>
+                               ))}
+                             </select>
+                              <button
+                               onClick={() => handleSaveField(asset.id, 'assignedTo')}
+                                disabled={savingField}
+                                className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
+                              >
+                               <Save className="h-4 w-4" />
+                              </button>
+                              <button
+                               onClick={handleCancelEdit}
+                                className="p-1 text-red-600 hover:text-red-800"
+                              >
+                               <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ) : (
+                           <div className="flex items-center space-x-2 w-full">
+                             <span className="text-gray-900 flex-1">{getAssignedUserName(asset.assignedTo)}</span>
+                              <button
+                               onClick={() => handleStartEdit(asset.id, 'assignedTo', asset.assignedTo)}
+                               className="p-1 text-blue-600 hover:text-blue-800 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                               <Edit className="h-4 w-4" />
+                              </button>
+                            </div>
+                         )}
+                  </div>
+
                       {/* Status Column */}
                       <div className="flex items-center">
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-2 h-2 rounded-full ${
-                            asset.status === "Available" ? "bg-green-500" : 
-                            asset.status === "Assigned" ? "bg-blue-500" : 
-                            "bg-gray-500"
-                          }`}></div>
-                          <span className="text-gray-900">{asset.status}</span>
-                      </div>
-                    </div>
+                        {editingField === `${asset.id}-status` ? (
+                          <div className="flex items-center space-x-2 w-full">
+                            <select
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              autoFocus
+                            >
+                              <option value="Available">Available</option>
+                              <option value="Assigned">Assigned</option>
+                              <option value="Maintenance">Maintenance</option>
+                              <option value="Retired">Retired</option>
+                            </select>
+                    <button
+                              onClick={() => handleSaveField(asset.id, 'status')}
+                              disabled={savingField}
+                              className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
+                            >
+                              <Save className="h-4 w-4" />
+                    </button>
+                    <button
+                              onClick={handleCancelEdit}
+                              className="p-1 text-red-600 hover:text-red-800"
+                    >
+                              <X className="h-4 w-4" />
+                    </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2 w-full">
+                            <div className={`w-2 h-2 rounded-full ${
+                              asset.status === "Available" ? "bg-green-500" : 
+                              asset.status === "Assigned" ? "bg-blue-500" : 
+                              "bg-gray-500"
+                            }`}></div>
+                            <span className="text-gray-900 flex-1">{asset.status}</span>
+                    <button
+                              onClick={() => handleStartEdit(asset.id, 'status', asset.status)}
+                              className="p-1 text-blue-600 hover:text-blue-800 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Edit className="h-4 w-4" />
+                    </button>
+                  </div>
+                        )}
+                </div>
 
                       {/* Purchase Date Column */}
                       <div className="flex items-center">
-                        <span className="text-gray-900">{asset.purchaseDate}</span>
+                        {editingField === `${asset.id}-purchaseDate` ? (
+                          <div className="flex items-center space-x-2 w-full">
+                                <input
+                              type="date"
+                                  value={editingValue}
+                                  onChange={(e) => setEditingValue(e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  autoFocus
+                                />
+                                <button
+                              onClick={() => handleSaveField(asset.id, 'purchaseDate')}
+                                  disabled={savingField}
+                                  className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
+                                >
+                              <Save className="h-4 w-4" />
+                                </button>
+                                <button
+                              onClick={handleCancelEdit}
+                                  className="p-1 text-red-600 hover:text-red-800"
+                                >
+                              <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ) : (
+                          <div className="flex items-center space-x-2 w-full">
+                            <span className="text-gray-900 flex-1">{asset.purchaseDate}</span>
+                                <button
+                              onClick={() => handleStartEdit(asset.id, 'purchaseDate', formatDateForInput(asset.purchaseDate))}
+                              className="p-1 text-blue-600 hover:text-blue-800 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                              <Edit className="h-4 w-4" />
+                                </button>
+                              </div>
+                            )}
                       </div>
-                      
+
                       {/* Asset Location Column */}
                       <div className="flex items-center">
-                        <span className="text-gray-900">{asset.assetLocation || ""}</span>
-                  </div>
-              </div>
+                        {editingField === `${asset.id}-assetLocation` ? (
+                          <div className="flex items-center space-x-2 w-full">
+                                <input
+                              type="text"
+                                  value={editingValue}
+                                  onChange={(e) => setEditingValue(e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Unknown"
+                                  autoFocus
+                                />
+                                <button
+                              onClick={() => handleSaveField(asset.id, 'assetLocation')}
+                                  disabled={savingField}
+                                  className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
+                                >
+                              <Save className="h-4 w-4" />
+                                </button>
+                                <button
+                              onClick={handleCancelEdit}
+                                  className="p-1 text-red-600 hover:text-red-800"
+                                >
+                              <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ) : (
+                          <div className="flex items-center space-x-2 w-full">
+                            <span className="text-gray-900 flex-1">{asset.assetLocation || ""}</span>
+                                <button
+                              onClick={() => handleStartEdit(asset.id, 'assetLocation', asset.assetLocation)}
+                              className="p-1 text-blue-600 hover:text-blue-800 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                              <Edit className="h-4 w-4" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          </div>
             ))}
-          </div>
-              </div>
+                      </div>
+                    </div>
 
               {/* Pagination */}
               <div className="mt-6 flex items-center justify-between">
@@ -985,14 +1741,14 @@ const AssetsManagement = ({ users }) => {
                 <button
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
-                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <ChevronsLeft className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setCurrentPage(currentPage - 1)}
                   disabled={currentPage === 1}
-                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -1018,7 +1774,7 @@ const AssetsManagement = ({ users }) => {
                           className={`px-3 py-1 text-sm rounded ${
                         currentPage === pageNum
                               ? 'bg-blue-600 text-white'
-                              : 'text-gray-600 hover:text-gray-900'
+                              : 'text-gray-900 hover:text-gray-950'
                       }`}
                     >
                       {pageNum}
@@ -1030,27 +1786,27 @@ const AssetsManagement = ({ users }) => {
                 <button
                   onClick={() => setCurrentPage(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <ChevronRight className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setCurrentPage(totalPages)}
                   disabled={currentPage === totalPages}
-                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <ChevronsRight className="h-4 w-4" />
                 </button>
               </div>
                 
                 <div className="flex items-center space-x-4">
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-gray-900">
                     Showing {startIndex + 1} to {Math.min(endIndex, filteredAndSortedAssets.length)} of {filteredAndSortedAssets.length} Assign Assets
                   </span>
                   <select
                     value={itemsPerPage}
                     onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="px-3 py-1 text-sm text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value={10}>10</option>
                     <option value={25}>25</option>
@@ -1064,80 +1820,245 @@ const AssetsManagement = ({ users }) => {
         )}
       </div>
 
-      {/* Assignment Modal */}
-      {showAssignmentModal && (
+             {/* Assignment Modal */}
+       {showAssignmentModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Assign Assets</h2>
-                <p className="text-sm text-gray-600">{selectedAssets.length} asset(s) selected</p>
+                 <h2 className="text-xl font-semibold text-gray-900">Assign Assets</h2>
+                 <p className="text-sm text-gray-800">{selectedAssets.length} asset(s) selected</p>
               </div>
               <button
-                onClick={() => setShowAssignmentModal(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
-              >
-                <X className="h-5 w-5" />
+                 onClick={() => setShowAssignmentModal(false)}
+                 className="p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
+               >
+                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+             <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Assign to User
+                   <label className="block text-sm font-medium text-gray-900 mb-2">
+                   Assign to User
                   </label>
-                  <select
-                  value={assignmentForm.selectedUser}
-                  onChange={(e) => setAssignmentForm(prev => ({ ...prev, selectedUser: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                  <option value="">Select a user</option>
-                  {users?.map(user => (
-                      <option key={user.id} value={user.id}>
-                      {user.firstName} {user.lastName} ({user.email})
-                      </option>
-                    ))}
-                  </select>
+                   <select
+                   value={assignmentForm.selectedUser}
+                   onChange={(e) => setAssignmentForm(prev => ({ ...prev, selectedUser: e.target.value }))}
+                                         className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   >
+                   <option value="">Select a user</option>
+                   {users?.map(user => (
+                       <option key={user.id} value={user.id}>
+                       {user.firstName} {user.lastName} ({user.email})
+                       </option>
+                     ))}
+                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Assignment Date
+                   <label className="block text-sm font-medium text-gray-900 mb-2">
+                   Assignment Date
+                  </label>
+                  <input
+                     type="date"
+                   value={assignmentForm.assignmentDate}
+                   onChange={(e) => setAssignmentForm(prev => ({ ...prev, assignmentDate: e.target.value }))}
+                                         className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                   <label className="block text-sm font-medium text-gray-900 mb-2">
+                   Notes (Optional)
+                  </label>
+                   <textarea
+                   value={assignmentForm.notes}
+                   onChange={(e) => setAssignmentForm(prev => ({ ...prev, notes: e.target.value }))}
+                     rows={3}
+                   placeholder="Add any notes about this assignment..."
+                                         className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   />
+                 </div>
+               </div>
+
+             <div className="flex space-x-3 p-6 border-t border-gray-200">
+                 <button
+                 onClick={() => setShowAssignmentModal(false)}
+                   className="flex-1 px-4 py-3 border border-gray-300 text-gray-900 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+                 >
+                   Cancel
+                 </button>
+                 <button
+                 onClick={handleSaveAssignment}
+                   className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 font-medium"
+                 >
+                 Assign Assets
+                 </button>
+                </div>
+           </div>
+         </div>
+       )}
+
+       {/* Edit Asset Modal */}
+       {showEditModal && editingAsset && (
+         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+             <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <div>
+                 <h2 className="text-xl font-semibold text-gray-900">Edit Asset</h2>
+                 <p className="text-sm text-gray-800">{editingAsset.assetName}</p>
+               </div>
+               <button
+                 onClick={() => setShowEditModal(false)}
+                 className="p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
+               >
+                 <X className="h-5 w-5" />
+               </button>
+             </div>
+
+             <div className="p-6 space-y-4">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div>
+                   <label className="block text-sm font-medium text-gray-900 mb-2">
+                     Asset Name
+                  </label>
+                  <input
+                    type="text"
+                     value={editForm.assetName}
+                     onChange={(e) => setEditForm(prev => ({ ...prev, assetName: e.target.value }))}
+                                         className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                   <label className="block text-sm font-medium text-gray-900 mb-2">
+                     Tag ID
+                  </label>
+                  <input
+                    type="text"
+                     value={editForm.tagId}
+                     onChange={(e) => setEditForm(prev => ({ ...prev, tagId: e.target.value }))}
+                                         className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                   <label className="block text-sm font-medium text-gray-900 mb-2">
+                     Category
+                  </label>
+                   <select
+                     value={editForm.category}
+                     onChange={(e) => setEditForm(prev => ({ ...prev, category: e.target.value }))}
+                                         className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   >
+                     <option value="Hardware">Hardware</option>
+                     <option value="Software">Software</option>
+                   </select>
+                </div>
+
+                <div>
+                   <label className="block text-sm font-medium text-gray-900 mb-2">
+                     Sub Category
+                   </label>
+                   <select
+                     value={editForm.subCategory}
+                     onChange={(e) => setEditForm(prev => ({ ...prev, subCategory: e.target.value }))}
+                     className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   >
+                     <option value="Desktop">Desktop</option>
+                     <option value="Laptop">Laptop</option>
+                     <option value="Server">Server</option>
+                     <option value="Mobile">Mobile</option>
+                   </select>
+                 </div>
+
+
+                 <div>
+                   <label className="block text-sm font-medium text-gray-900 mb-2">
+                     Status
+                   </label>
+                   <select
+                     value={editForm.status}
+                     onChange={(e) => setEditForm(prev => ({ ...prev, status: e.target.value }))}
+                     className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   >
+                     <option value="Available">Available</option>
+                     <option value="Assigned">Assigned</option>
+                     <option value="Maintenance">Maintenance</option>
+                     <option value="Retired">Retired</option>
+                   </select>
+                 </div>
+
+                 <div>
+                   <label className="block text-sm font-medium text-gray-900 mb-2">
+                    Purchase Date
                   </label>
                   <input
                     type="date"
-                  value={assignmentForm.assignmentDate}
-                  onChange={(e) => setAssignmentForm(prev => ({ ...prev, assignmentDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={editForm.purchaseDate}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, purchaseDate: e.target.value }))}
+                                         className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Notes (Optional)
+                   <label className="block text-sm font-medium text-gray-900 mb-2">
+                     Asset Location
+                  </label>
+                  <input
+                     type="text"
+                     value={editForm.assetLocation}
+                     onChange={(e) => setEditForm(prev => ({ ...prev, assetLocation: e.target.value }))}
+                                         className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                   <label className="block text-sm font-medium text-gray-900 mb-2">
+                     Assigned To
+                   </label>
+                   <select
+                     value={editForm.assignedTo}
+                     onChange={(e) => setEditForm(prev => ({ ...prev, assignedTo: e.target.value }))}
+                     className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   >
+                     <option value="">Unassigned</option>
+                     {users?.map(user => (
+                       <option key={user.id} value={user.id}>
+                         {user.firstName} {user.lastName} ({user.email})
+                       </option>
+                     ))}
+                   </select>
+                 </div>
+
+                 <div className="md:col-span-2">
+                   <label className="block text-sm font-medium text-gray-900 mb-2">
+                    Notes
                   </label>
                   <textarea
-                  value={assignmentForm.notes}
-                  onChange={(e) => setAssignmentForm(prev => ({ ...prev, notes: e.target.value }))}
+                    value={editForm.notes}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
                     rows={3}
-                  placeholder="Add any notes about this assignment..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                     placeholder="Add any notes about this asset..."
+                                         className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
+                 </div>
                 </div>
               </div>
 
-            <div className="flex space-x-3 p-6 border-t border-gray-200">
+             <div className="flex space-x-3 p-6 border-t border-gray-200">
                 <button
-                onClick={() => setShowAssignmentModal(false)}
-                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+                 onClick={() => setShowEditModal(false)}
+                 className="flex-1 px-4 py-3 border border-gray-300 text-gray-900 rounded-xl hover:bg-gray-50 transition-colors font-medium"
                 >
                   Cancel
                 </button>
                 <button
-                onClick={handleSaveAssignment}
+                 onClick={handleSaveEdit}
                   className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 font-medium"
                 >
-                Assign Assets
+                  Save Changes
                 </button>
             </div>
           </div>
