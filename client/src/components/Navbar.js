@@ -102,14 +102,6 @@ const Navbar = () => {
                   {user?.role === "admin" && (
                     <>
                       <Link
-                        href="/assets-management"
-                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => setIsDropdownOpen(false)}
-                      >
-                        <Package className="h-4 w-4 mr-2" />
-                        Assets Management
-                      </Link>
-                      <Link
                         href="/admin"
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setIsDropdownOpen(false)}
