@@ -19,10 +19,7 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center min-w-0">
-            <Link 
-              href="/" 
-              className="flex-shrink-0 flex items-center"
-            >
+            <Link href="/" className="flex-shrink-0 flex items-center">
               <div className="h-8 w-8 bg-gray-900 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">IT</span>
               </div>
@@ -33,7 +30,7 @@ const Navbar = () => {
                 ITAM
               </span>
             </Link>
-            
+
             {/* Main Navigation Links */}
             <div className="hidden md:flex items-center space-x-6 ml-8">
               {/* Navigation links can be added here in the future */}
@@ -128,14 +125,14 @@ const Navbar = () => {
           </div>
         </div>
 
-                 {/* Mobile Navigation Menu */}
-         {isMobileMenuOpen && (
-           <div className="md:hidden">
-             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200">
-               {/* Mobile navigation links can be added here in the future */}
-             </div>
-           </div>
-         )}
+        {/* Mobile Navigation Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden">
+            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200">
+              {/* Mobile navigation links can be added here in the future */}
+            </div>
+          </div>
+        )}
       </div>
     </nav>
   );

@@ -1,55 +1,67 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { Shield, Download, AlertTriangle, CheckCircle, Clock, ArrowRight, Activity, Lock, Zap, RefreshCw, ExternalLink } from "lucide-react"
-import GRCModal from "../../components/GRCModal"
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  Shield,
+  Download,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  ArrowRight,
+  Activity,
+  Lock,
+  Zap,
+  RefreshCw,
+  ExternalLink,
+} from "lucide-react";
+import GRCModal from "../../components/GRCModal";
 
 export default function PatchMonitoringPage() {
-  const [scrollY, setScrollY] = useState(0)
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
-  const [isGRCModalOpen, setIsGRCModalOpen] = useState(false)
-  const [videoError, setVideoError] = useState(false)
-  const [isClient, setIsClient] = useState(false)
+  const [scrollY, setScrollY] = useState(0);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isGRCModalOpen, setIsGRCModalOpen] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     // Set client-side flag to prevent hydration issues
-    setIsClient(true)
-    
-    const handleScroll = () => setScrollY(window.scrollY)
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY })
-    }
+    setIsClient(true);
 
-    window.addEventListener("scroll", handleScroll)
-    window.addEventListener("mousemove", handleMouseMove)
+    const handleScroll = () => setScrollY(window.scrollY);
+    const handleMouseMove = (e) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("mousemove", handleMouseMove);
 
     const observerOptions = {
       threshold: 0.1,
       rootMargin: "0px 0px -50px 0px",
-    }
+    };
 
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          entry.target.classList.add("animate-fade-in-up")
-          entry.target.classList.remove("opacity-0", "translate-y-8")
+          entry.target.classList.add("animate-fade-in-up");
+          entry.target.classList.remove("opacity-0", "translate-y-8");
         }
-      })
-    }, observerOptions)
+      });
+    }, observerOptions);
 
-    const elementsToObserve = document.querySelectorAll(".fade-in")
+    const elementsToObserve = document.querySelectorAll(".fade-in");
     elementsToObserve.forEach((el, index) => {
-      el.classList.add("opacity-0", "translate-y-8")
-      setTimeout(() => observer.observe(el), index * 50)
-    })
+      el.classList.add("opacity-0", "translate-y-8");
+      setTimeout(() => observer.observe(el), index * 50);
+    });
 
     return () => {
-      window.removeEventListener("scroll", handleScroll)
-      window.removeEventListener("mousemove", handleMouseMove)
-      observer.disconnect()
-    }
-  }, [])
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("mousemove", handleMouseMove);
+      observer.disconnect();
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
@@ -66,10 +78,21 @@ export default function PatchMonitoringPage() {
           {/* App Icon */}
           <div className="flex items-center mb-6">
             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-black">
-                <circle cx="12" cy="12" r="10"/>
-                <circle cx="12" cy="12" r="6"/>
-                <circle cx="12" cy="12" r="2"/>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-black"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="6" />
+                <circle cx="12" cy="12" r="2" />
               </svg>
             </div>
             <span className="ml-3 text-white font-bold text-lg">RECONIFY</span>
@@ -81,23 +104,29 @@ export default function PatchMonitoringPage() {
             <Link href="/" className="block">
               <div className="flex items-center p-3 rounded-2xl hover:bg-gray-900/80 transition-colors duration-200">
                 <Activity className="h-6 w-6 text-gray-400" />
-                <span className="ml-3 text-gray-400 font-medium">Asset Monitoring</span>
+                <span className="ml-3 text-gray-400 font-medium">
+                  Asset Monitoring
+                </span>
               </div>
             </Link>
 
-                         {/* Patch Monitoring */}
-             <Link href="/patches" className="block">
-               <div className="flex items-center p-3 rounded-2xl bg-blue-700/90 hover:bg-blue-700 transition-colors duration-200">
-                 <Shield className="h-6 w-6 text-white" />
-                 <span className="ml-3 text-white font-medium">Patch Monitoring</span>
-               </div>
-             </Link>
+            {/* Patch Monitoring */}
+            <Link href="/patches" className="block">
+              <div className="flex items-center p-3 rounded-2xl bg-blue-700/90 hover:bg-blue-700 transition-colors duration-200">
+                <Shield className="h-6 w-6 text-white" />
+                <span className="ml-3 text-white font-medium">
+                  Patch Monitoring
+                </span>
+              </div>
+            </Link>
 
             {/* Network Monitoring */}
             <Link href="/network" className="block">
               <div className="flex items-center p-3 rounded-2xl hover:bg-gray-900/80 transition-colors duration-200">
                 <Activity className="h-6 w-6 text-gray-400" />
-                <span className="ml-3 text-gray-400 font-medium">Network Monitoring</span>
+                <span className="ml-3 text-gray-400 font-medium">
+                  Network Monitoring
+                </span>
               </div>
             </Link>
 
@@ -109,7 +138,6 @@ export default function PatchMonitoringPage() {
               <div className="flex items-center p-3 rounded-2xl hover:bg-gray-900/80 transition-colors duration-200 group">
                 <Shield className="h-6 w-6 text-gray-400 " />
                 <span className="ml-3 text-gray-400 font-medium ">QS GRC</span>
-                
               </div>
             </button>
           </div>
@@ -129,13 +157,17 @@ export default function PatchMonitoringPage() {
             </div>
             <div className="flex items-center space-x-6">
               <button
-                onClick={() => window.location.href = 'http://localhost:5001/auth/login'}
+                onClick={() =>
+                  (window.location.href = "http://localhost:5001/auth/login")
+                }
                 className="text-gray-600 hover:text-gray-900 text-sm font-medium transition-all duration-200 hover:scale-105"
               >
                 Sign In
               </button>
               <button
-                onClick={() => window.location.href = 'http://localhost:5001/auth/register'}
+                onClick={() =>
+                  (window.location.href = "http://localhost:5001/auth/register")
+                }
                 className="group relative inline-flex items-center px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl text-sm font-medium hover:from-blue-700 hover:to-blue-900 transition-all duration-300 hover:scale-105 hover:shadow-lg overflow-hidden"
               >
                 <span className="relative z-10">Get Started</span>
@@ -165,13 +197,17 @@ export default function PatchMonitoringPage() {
               </h1>
 
               <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-4xl mx-auto leading-relaxed font-light">
-                Automated patch deployment, vulnerability scanning, and security updates for your entire IT infrastructure. 
-                Keep your systems secure and up-to-date with intelligent patch management.
+                Automated patch deployment, vulnerability scanning, and security
+                updates for your entire IT infrastructure. Keep your systems
+                secure and up-to-date with intelligent patch management.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <button
-                  onClick={() => window.location.href = 'http://localhost:5001/auth/register'}
+                  onClick={() =>
+                    (window.location.href =
+                      "http://localhost:5001/auth/register")
+                  }
                   className="group relative inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-2xl font-medium hover:from-blue-700 hover:to-blue-900 transition-all duration-300 hover:scale-105 hover:shadow-xl overflow-hidden"
                 >
                   <span className="relative z-10 flex items-center">
@@ -182,7 +218,9 @@ export default function PatchMonitoringPage() {
                   <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
                 </button>
                 <button
-                  onClick={() => window.location.href = 'http://localhost:5001/auth/login'}
+                  onClick={() =>
+                    (window.location.href = "http://localhost:5001/auth/login")
+                  }
                   className="inline-flex items-center px-8 py-4 border border-gray-200 text-gray-900 rounded-2xl font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 hover:scale-105"
                 >
                   Sign In to Dashboard
@@ -243,7 +281,9 @@ export default function PatchMonitoringPage() {
                     <h3 className="text-xl font-semibold text-gray-900 mb-4 group-hover:text-black transition-colors">
                       {feature.title}
                     </h3>
-                    <p className="text-gray-600 leading-relaxed group-hover:text-gray-800 flex-1">{feature.description}</p>
+                    <p className="text-gray-600 leading-relaxed group-hover:text-gray-800 flex-1">
+                      {feature.description}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -255,12 +295,18 @@ export default function PatchMonitoringPage() {
               <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-[2rem] p-16 text-center relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5"></div>
                 <div className="relative">
-                  <h2 className="text-5xl font-bold text-gray-900 mb-6">Ready to Secure Your Systems?</h2>
+                  <h2 className="text-5xl font-bold text-gray-900 mb-6">
+                    Ready to Secure Your Systems?
+                  </h2>
                   <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto leading-relaxed">
-                    Join organizations already using our Patch Management system to keep their infrastructure secure and up-to-date.
+                    Join organizations already using our Patch Management system
+                    to keep their infrastructure secure and up-to-date.
                   </p>
                   <button
-                    onClick={() => window.location.href = 'http://localhost:5001/auth/register'}
+                    onClick={() =>
+                      (window.location.href =
+                        "http://localhost:5001/auth/register")
+                    }
                     className="group relative inline-flex items-center px-10 py-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-2xl font-medium hover:from-blue-700 hover:to-blue-900 transition-all duration-300 hover:scale-105 hover:shadow-xl overflow-hidden"
                   >
                     <span className="relative z-10 flex items-center">
@@ -283,8 +329,9 @@ export default function PatchMonitoringPage() {
                   See Patch Management In Action
                 </h2>
                 <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-                  Watch how our Patch Management system keeps your infrastructure secure 
-                  and up-to-date with automated vulnerability scanning and patch deployment.
+                  Watch how our Patch Management system keeps your
+                  infrastructure secure and up-to-date with automated
+                  vulnerability scanning and patch deployment.
                 </p>
               </div>
 
@@ -297,12 +344,20 @@ export default function PatchMonitoringPage() {
                       <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
                         <div className="text-center">
                           <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-6 backdrop-blur-sm border border-white/20">
-                            <svg className="w-8 h-8 text-white animate-pulse" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M8 5v14l11-7z"/>
+                            <svg
+                              className="w-8 h-8 text-white animate-pulse"
+                              fill="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M8 5v14l11-7z" />
                             </svg>
                           </div>
-                          <h3 className="text-2xl font-semibold text-white mb-2">Loading Video...</h3>
-                          <p className="text-gray-300">Preparing your patch management demo</p>
+                          <h3 className="text-2xl font-semibold text-white mb-2">
+                            Loading Video...
+                          </h3>
+                          <p className="text-gray-300">
+                            Preparing your patch management demo
+                          </p>
                         </div>
                       </div>
                     ) : videoError ? (
@@ -310,15 +365,28 @@ export default function PatchMonitoringPage() {
                       <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
                         <div className="text-center">
                           <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6 backdrop-blur-sm border border-red-500/30">
-                            <svg className="w-8 h-8 text-red-400" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            <svg
+                              className="w-8 h-8 text-red-400"
+                              fill="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                             </svg>
                           </div>
-                          <h3 className="text-2xl font-semibold text-white mb-2">Video Format Not Supported</h3>
-                          <p className="text-gray-300 mb-6">Please convert your video to MP4 format for web compatibility</p>
+                          <h3 className="text-2xl font-semibold text-white mb-2">
+                            Video Format Not Supported
+                          </h3>
+                          <p className="text-gray-300 mb-6">
+                            Please convert your video to MP4 format for web
+                            compatibility
+                          </p>
                           <div className="inline-flex items-center px-6 py-3 bg-red-500/20 backdrop-blur-sm border border-red-500/30 rounded-xl text-red-300">
-                            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            <svg
+                              className="w-5 h-5 mr-2"
+                              fill="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                             </svg>
                             Convert to MP4
                           </div>
@@ -326,18 +394,21 @@ export default function PatchMonitoringPage() {
                       </div>
                     ) : (
                       /* Video Player */
-                      <video 
+                      <video
                         className="w-full h-full object-cover"
                         controls
                         preload="metadata"
                         poster="/videos/patch-demo-poster.jpg"
                         onError={() => {
-                          console.error('Video error occurred');
+                          console.error("Video error occurred");
                           setVideoError(true);
                         }}
                       >
                         <source src="/videos/patch_demo.mp4" type="video/mp4" />
-                        <source src="/videos/patch_demo.mkv" type="video/x-matroska" />
+                        <source
+                          src="/videos/patch_demo.mkv"
+                          type="video/x-matroska"
+                        />
                         Your browser does not support the video tag.
                       </video>
                     )}
@@ -355,9 +426,13 @@ export default function PatchMonitoringPage() {
             <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">PM</span>
             </div>
-            <span className="text-xl font-semibold text-gray-900">Patch Manager</span>
+            <span className="text-xl font-semibold text-gray-900">
+              Patch Manager
+            </span>
           </div>
-          <p className="text-gray-500 text-lg">&copy; 2025 IT Asset Management System. All rights reserved.</p>
+          <p className="text-gray-500 text-lg">
+            &copy; 2025 IT Asset Management System. All rights reserved.
+          </p>
         </div>
       </footer>
 
@@ -372,17 +447,17 @@ export default function PatchMonitoringPage() {
             transform: translateY(0);
           }
         }
-        
+
         .animate-fade-in-up {
           animation: fade-in-up 0.8s ease-out forwards;
         }
       `}</style>
 
       {/* GRC Modal */}
-      <GRCModal 
-        isOpen={isGRCModalOpen} 
-        onClose={() => setIsGRCModalOpen(false)} 
+      <GRCModal
+        isOpen={isGRCModalOpen}
+        onClose={() => setIsGRCModalOpen(false)}
       />
     </div>
-  )
+  );
 }
