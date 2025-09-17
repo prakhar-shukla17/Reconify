@@ -10,7 +10,7 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "https://itam-328j.onrender.com/api/:path*",
+        destination: "http://localhost:3000/api/:path*",
       },
     ];
   },
