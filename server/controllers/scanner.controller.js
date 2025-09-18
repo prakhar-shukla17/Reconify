@@ -216,41 +216,52 @@ API_BASE_URL=${apiBaseUrl}
 
     fs.writeFileSync(path.join(tempDir, "config.env"), configContent);
 
-    // Check if we have a pre-built executable template
-    const templatePath = path.join(
-      process.cwd(),
-      "..",
-      "scanners",
-      "dist",
-      "ITAM_Scanner.exe"
-    );
-    if (!fs.existsSync(templatePath)) {
-      return res.status(500).json({
-        error:
-          "Pre-built executable template not found. Please run the build script first.",
-      });
-    }
-
-    // Copy the template executable
-    const exePath = path.join(tempDir, "ITAM_Scanner.exe");
-    fs.copyFileSync(templatePath, exePath);
-    console.log("Using pre-built executable template with configuration file");
-
-    // Check if background executable exists and copy it
+    // Check for available pre-built executables and fall back gracefully
+    const scannersDist = path.join(process.cwd(), "..", "scanners", "dist");
+    const primaryTemplatePath = path.join(scannersDist, "ITAM_Scanner.exe");
     const backgroundTemplatePath = path.join(
-      process.cwd(),
-      "..",
-      "scanners",
-      "dist",
+      scannersDist,
       "ITAM_Scanner_Background.exe"
     );
+
+    let exePath = path.join(tempDir, "ITAM_Scanner.exe");
+    let usedExecutable = null;
+
+    if (fs.existsSync(primaryTemplatePath)) {
+      fs.copyFileSync(primaryTemplatePath, exePath);
+      usedExecutable = "ITAM_Scanner.exe";
+      console.log("Using pre-built executable template with configuration file");
+    } else if (fs.existsSync(backgroundTemplatePath)) {
+      // If only background build exists, use it as the main executable
+      fs.copyFileSync(backgroundTemplatePath, exePath);
+      usedExecutable = "ITAM_Scanner_Background.exe (renamed)";
+      console.log(
+        "Primary executable not found. Using background executable as fallback."
+      );
+    } else {
+      // No executables available – fall back to script bundle with runner
+      console.warn(
+        "No pre-built executables found in scanners/dist. Falling back to script bundle."
+      );
+
+      // Create startup scripts for Windows as a minimal runnable package
+      createWindowsScripts(tempDir, tenantId, apiToken, apiBaseUrl);
+
+      // Continue to package the Python scripts and runner without an EXE
+      exePath = null;
+    }
+
+    // Optionally include background executable if present (and not already used as main)
     if (fs.existsSync(backgroundTemplatePath)) {
       const backgroundExePath = path.join(
         tempDir,
         "ITAM_Scanner_Background.exe"
       );
-      fs.copyFileSync(backgroundTemplatePath, backgroundExePath);
-      console.log("Background executable included");
+      // Only copy if we didn't already use it as the main exe
+      if (!usedExecutable || !usedExecutable.includes("Background")) {
+        fs.copyFileSync(backgroundTemplatePath, backgroundExePath);
+        console.log("Background executable included");
+      }
     } else {
       console.log("Background executable not found, skipping");
     }
@@ -273,7 +284,21 @@ API_BASE_URL=${apiBaseUrl}
     const archive = archiver("zip", { zlib: { level: 9 } });
 
     archive.pipe(output);
-    archive.file(exePath, { name: "ITAM_Scanner.exe" });
+    if (exePath) {
+      archive.file(exePath, { name: "ITAM_Scanner.exe" });
+    } else {
+      // No EXE – package python sources and runner instead
+      for (const file of scannerFiles) {
+        const p = path.join(tempDir, file);
+        if (fs.existsSync(p)) {
+          archive.file(p, { name: file });
+        }
+      }
+      const runnerBat = path.join(tempDir, "run_scanner.bat");
+      if (fs.existsSync(runnerBat)) {
+        archive.file(runnerBat, { name: "run_scanner.bat" });
+      }
+    }
     archive.file(path.join(tempDir, "config.env"), { name: "config.env" });
     archive.file(path.join(tempDir, "install_scanner.bat"), {
       name: "install_scanner.bat",
