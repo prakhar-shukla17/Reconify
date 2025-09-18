@@ -1,11 +1,14 @@
 import fs from "fs";
 import path from "path";
-import archiver from "archiver";
+import { exec } from "child_process";
+import { promisify } from "util";
 import jwt from "jsonwebtoken";
 import { generateTenantId } from "../utils/tenantUtils.js";
 import { generateToken } from "../middleware/auth.js";
 
-// Scanner download controller
+const execAsync = promisify(exec);
+
+// Scanner download controller - generates executable instead of zip
 export const downloadScanner = async (req, res) => {
   try {
     const { platform = "windows", token } = req.query;
@@ -129,6 +132,14 @@ export const downloadScanner = async (req, res) => {
       });
     }
 
+    // Only support Windows for executable generation
+    if (platform !== "windows") {
+      return res.status(400).json({
+        error:
+          "Executable generation is currently only supported for Windows platform",
+      });
+    }
+
     // Generate tenant-specific configuration
     const tenantId = user.tenant_id;
     const apiToken = generateToken(user._id, {
@@ -158,6 +169,12 @@ export const downloadScanner = async (req, res) => {
       "telemetry.py",
       "itam_scanner.py",
       "utils.py",
+      "patch.py",
+      "wi-blu.py",
+      "latest_version.py",
+      "compatibility_test.py",
+      "test_mac.py",
+      "generate_test_data.py",
       "requirements.txt",
       "README.md",
     ];
@@ -173,16 +190,18 @@ export const downloadScanner = async (req, res) => {
       }
     }
 
-    // Create platform-specific startup scripts
-    if (platform === "windows") {
-      createWindowsScripts(tempDir, tenantId, apiToken, apiBaseUrl);
-    } else if (platform === "linux") {
-      createLinuxScripts(tempDir, tenantId, apiToken, apiBaseUrl);
-    } else if (platform === "macos") {
-      createMacScripts(tempDir, tenantId, apiToken, apiBaseUrl);
-    }
+    // Create modified itam_scanner.py with embedded configuration
+    const modifiedScannerContent = createConfiguredScanner(
+      tenantId,
+      apiToken,
+      apiBaseUrl
+    );
+    fs.writeFileSync(
+      path.join(tempDir, "itam_scanner.py"),
+      modifiedScannerContent
+    );
 
-    // Create configuration file
+    // Create a configuration file that the executable will read
     const configContent = `# ITAM Scanner Configuration
 # Generated for tenant: ${tenantId}
 # Generated at: ${new Date().toISOString()}
@@ -191,100 +210,91 @@ TENANT_ID=${tenantId}
 API_TOKEN=${apiToken}
 API_BASE_URL=${apiBaseUrl}
 
-# Installation Instructions:
-# 1. Extract all files to a directory
-# 2. Install Python dependencies: pip install -r requirements.txt
-# 3. Run the scanner:
-#    - Windows: Double-click run_scanner.bat
-#    - Linux/Mac: ./run_scanner.sh
-# 4. The scanner will automatically send data to your organization's ITAM system
-
-# Security Note: Keep this configuration file secure and do not share the API_TOKEN
+# This file is automatically read by the ITAM Scanner executable
+# Do not modify or delete this file
 `;
 
     fs.writeFileSync(path.join(tempDir, "config.env"), configContent);
 
-    // Create README for the download
-    const readmeContent = `# ITAM Scanner Package
+    // Check if we have a pre-built executable template
+    const templatePath = path.join(
+      process.cwd(),
+      "..",
+      "scanners",
+      "dist",
+      "ITAM_Scanner.exe"
+    );
+    if (!fs.existsSync(templatePath)) {
+      return res.status(500).json({
+        error:
+          "Pre-built executable template not found. Please run the build script first.",
+      });
+    }
 
-This package contains the ITAM (IT Asset Management) scanner configured for your organization.
+    // Copy the template executable
+    const exePath = path.join(tempDir, "ITAM_Scanner.exe");
+    fs.copyFileSync(templatePath, exePath);
+    console.log("Using pre-built executable template with configuration file");
 
-## Quick Start
+    // Check if background executable exists and copy it
+    const backgroundTemplatePath = path.join(
+      process.cwd(),
+      "..",
+      "scanners",
+      "dist",
+      "ITAM_Scanner_Background.exe"
+    );
+    if (fs.existsSync(backgroundTemplatePath)) {
+      const backgroundExePath = path.join(
+        tempDir,
+        "ITAM_Scanner_Background.exe"
+      );
+      fs.copyFileSync(backgroundTemplatePath, backgroundExePath);
+      console.log("Background executable included");
+    } else {
+      console.log("Background executable not found, skipping");
+    }
 
-1. **Install Python Dependencies:**
-   \`\`\`bash
-   pip install -r requirements.txt
-   \`\`\`
-
-2. **Run the Scanner:**
-   - **Windows:** Double-click \`run_scanner.bat\`
-   - **Linux/Mac:** Run \`./run_scanner.sh\`
-
-3. **Automatic Operation:**
-   - Hardware and software scans run every 60 minutes
-   - Telemetry data is collected every 10 minutes
-   - Data is automatically sent to your organization's ITAM system
-
-## Configuration
-
-The scanner is pre-configured with your organization's settings:
-- **Tenant ID:** ${tenantId}
-- **API URL:** ${apiBaseUrl}
-- **Authentication:** Pre-configured with secure token
-
-## Files Included
-
-- \`hardware.py\` - Hardware detection module
-- \`software.py\` - Software detection module  
-- \`telemetry.py\` - System monitoring module
-- \`itam_scanner.py\` - Main scanner application
-- \`run_scanner.bat\` - Windows startup script
-- \`run_scanner.sh\` - Linux/Mac startup script
-- \`config.env\` - Configuration file
-- \`requirements.txt\` - Python dependencies
-
-## Security
-
-- The scanner uses secure authentication
-- All data is encrypted in transit
-- Configuration includes organization-specific tokens
-- Do not share or modify the configuration files
-
-## Support
-
-For technical support, contact your IT administrator.
-
-Generated for: ${user.firstName} ${user.lastName} (${user.email})
-Organization: ${user.department || "N/A"}
-Generated: ${new Date().toISOString()}
-`;
-
-    fs.writeFileSync(path.join(tempDir, "README_DOWNLOAD.md"), readmeContent);
-
-    // Create ZIP archive
-    const archive = archiver("zip", { zlib: { level: 9 } });
-    const zipPath = path.join(
-      tempDir,
-      `itam_scanner_${tenantId}_${platform}.zip`
+    // Create installer script
+    const installerContent = createInstallerScript(
+      tenantId,
+      apiToken,
+      apiBaseUrl
+    );
+    fs.writeFileSync(
+      path.join(tempDir, "install_scanner.bat"),
+      installerContent
     );
 
+    // Create a ZIP file containing both the executable and config
+    const archiver = (await import("archiver")).default;
+    const zipPath = path.join(tempDir, `ITAM_Scanner_${tenantId}.zip`);
     const output = fs.createWriteStream(zipPath);
+    const archive = archiver("zip", { zlib: { level: 9 } });
+
     archive.pipe(output);
+    archive.file(exePath, { name: "ITAM_Scanner.exe" });
+    archive.file(path.join(tempDir, "config.env"), { name: "config.env" });
+    archive.file(path.join(tempDir, "install_scanner.bat"), {
+      name: "install_scanner.bat",
+    });
 
-    // Add files to archive
-    archive.directory(tempDir, false);
+    // Add background executable if it exists
+    const backgroundExePath = path.join(tempDir, "ITAM_Scanner_Background.exe");
+    if (fs.existsSync(backgroundExePath)) {
+      archive.file(backgroundExePath, { name: "ITAM_Scanner_Background.exe" });
+    }
 
-    // Finalize archive
     await new Promise((resolve, reject) => {
       output.on("close", resolve);
       archive.on("error", reject);
       archive.finalize();
     });
 
-    // Send the ZIP file with headers to force browser download
-    const fileName = `itam_scanner_${tenantId}_${platform}.zip`;
+    // Send the ZIP file
+    const fileName = `ITAM_Scanner_${tenantId}.zip`;
 
-    // Set headers to force browser download and prevent IDM interception
+    // Set headers to force browser download
     res.setHeader("Content-Type", "application/zip");
     res.setHeader(
       "Content-Disposition",
@@ -304,7 +314,7 @@ Generated: ${new Date().toISOString()}
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("Accept-Ranges", "none");
 
-    // Stream the file to response
+    // Stream the ZIP file to response
     const fileStream = fs.createReadStream(zipPath);
 
     // Add a random delay to prevent IDM interception (100-300ms)
@@ -330,9 +340,433 @@ Generated: ${new Date().toISOString()}
     });
   } catch (error) {
     console.error("Scanner download error:", error);
-    res.status(500).json({ error: "Failed to generate scanner package" });
+    res.status(500).json({ error: "Failed to generate scanner executable" });
   }
 };
+
+// Helper function to create configured scanner with embedded settings
+function createConfiguredScanner(tenantId, apiToken, apiBaseUrl) {
+  return `#!/usr/bin/env python3
+"""
+ITAM Scanner - Automated Asset Management Scanner
+Runs hardware and software scans at 1-hour intervals and telemetry at 10-minute intervals
+Pre-configured for tenant: ${tenantId}
+"""
+
+import time
+import threading
+import schedule
+import sys
+import os
+import signal
+import logging
+from datetime import datetime
+import requests
+
+# Configuration - will be read from config.env file or environment variables
+TENANT_ID = os.getenv('TENANT_ID', 'default')
+API_TOKEN = os.getenv('API_TOKEN', '')
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3000/api')
+
+# Try to load configuration from config.env file
+config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.env')
+if os.path.exists(config_file):
+    with open(config_file, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, value = line.split('=', 1)
+                os.environ[key.strip()] = value.strip()
+    
+    # Re-read environment variables after loading config file
+    TENANT_ID = os.getenv('TENANT_ID', 'default')
+    API_TOKEN = os.getenv('API_TOKEN', '')
+    API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3000/api')
+
+# Add current directory to path to import local modules
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Import scanner modules
+try:
+    from hardware import HardwareDetector
+    from software import SoftwareDetector
+    from telemetry import send_telemetry
+except ImportError as e:
+    print(f"Error importing scanner modules: {e}")
+    print("Make sure hardware.py, software.py, and telemetry.py are in the same directory")
+    sys.exit(1)
+
+# Configuration
+HARDWARE_SOFTWARE_INTERVAL = 60  # 1 hour in minutes
+TELEMETRY_INTERVAL = 10  # 10 minutes
+
+# Setup logging
+log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+log_file = os.path.join(log_dir, 'itam_scanner.log')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
+class ITAMScanner:
+    def __init__(self):
+        self.running = False
+        self.hardware_detector = HardwareDetector()
+        self.software_detector = SoftwareDetector()
+        
+        # Log tenant configuration
+        logger.info(f"Scanner initialized for tenant: {TENANT_ID}")
+        logger.info(f"API Base URL: {API_BASE_URL}")
+        
+    def start(self):
+        """Start the ITAM scanner with scheduled tasks."""
+        logger.info("Starting ITAM Scanner...")
+        self.running = True
+        
+        # Schedule tasks
+        schedule.every(HARDWARE_SOFTWARE_INTERVAL).minutes.do(self.run_hardware_software_scan)
+        schedule.every(TELEMETRY_INTERVAL).minutes.do(self.run_telemetry_scan)
+        
+        # Run initial scans
+        logger.info("Running initial scans...")
+        self.run_hardware_software_scan()
+        self.run_telemetry_scan()
+        
+        # Main loop
+        try:
+            while self.running:
+                schedule.run_pending()
+                time.sleep(1)  # Check every second for faster response to signals
+        except KeyboardInterrupt:
+            logger.info("Received KeyboardInterrupt, shutting down...")
+            self.stop()
+    
+    def stop(self):
+        """Stop the ITAM scanner."""
+        logger.info("Stopping ITAM Scanner...")
+        self.running = False
+        # Clear all scheduled tasks
+        schedule.clear()
+    
+    def run_hardware_software_scan(self):
+        """Run hardware and software scans."""
+        logger.info("Starting hardware and software scan...")
+        
+        try:
+            # Hardware scan
+            logger.info("Running hardware scan...")
+            hardware_data = self.hardware_detector.get_comprehensive_hardware_info()
+            hardware_result = self.send_hardware_data(hardware_data)
+            
+            if hardware_result['success']:
+                logger.info("Hardware scan completed successfully")
+            else:
+                logger.error(f"Hardware scan failed: {hardware_result.get('error', 'Unknown error')}")
+            
+            # Software scan
+            logger.info("Running software scan...")
+            software_data = self.software_detector.get_comprehensive_software_info()
+            software_result = self.send_software_data(software_data)
+            
+            if software_result['success']:
+                logger.info("Software scan completed successfully")
+            else:
+                logger.error(f"Software scan failed: {software_result.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            logger.error(f"Error during hardware/software scan: {e}")
+    
+    def run_telemetry_scan(self):
+        """Run telemetry scan."""
+        logger.info("Starting telemetry scan...")
+        
+        try:
+            telemetry_result = send_telemetry(f"{API_BASE_URL}/telemetry")
+            
+            if telemetry_result['success']:
+                logger.info("Telemetry scan completed successfully")
+            else:
+                logger.error(f"Telemetry scan failed: {telemetry_result.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            logger.error(f"Error during telemetry scan: {e}")
+    
+    def send_hardware_data(self, hardware_data):
+        """Send hardware data to the API with change detection."""
+        try:
+            # Import the change detection functions
+            from hardware import send_hardware_data as send_with_changes
+            
+            # Use the new function that handles change detection and alerting
+            success = send_with_changes(hardware_data, API_BASE_URL)
+            
+            return {
+                "success": success,
+                "status_code": 200 if success else 500,
+                "response": "Hardware data processed with change detection"
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    def send_software_data(self, software_data):
+        """Send software data to the API."""
+        try:
+            headers = {'Authorization': f'Bearer {API_TOKEN}'}
+            response = requests.post(f"{API_BASE_URL}/software", json=software_data, headers=headers, timeout=30)
+            return {
+                "success": response.status_code == 200,
+                "status_code": response.status_code,
+                "response": response.json() if 'application/json' in response.headers.get('Content-Type', '') else response.text
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+def signal_handler(signum, frame):
+    """Handle system signals for graceful shutdown."""
+    logger.info(f"Received signal {signum}, shutting down gracefully...")
+    global scanner
+    if scanner:
+        scanner.stop()
+    sys.exit(0)
+
+def check_dependencies():
+    """Check if required dependencies are installed."""
+    required_packages = ['schedule', 'requests', 'psutil']
+    missing_packages = []
+    
+    for package in required_packages:
+        try:
+            __import__(package)
+        except ImportError:
+            missing_packages.append(package)
+    
+    if missing_packages:
+        logger.error(f"Missing required packages: {', '.join(missing_packages)}")
+        logger.info("Install missing packages with: pip install " + " ".join(missing_packages))
+        return False
+    
+    return True
+
+def main():
+    """Main function."""
+    global scanner
+    
+    logger.info("ITAM Scanner starting...")
+    logger.info(f"Hardware/Software scan interval: {HARDWARE_SOFTWARE_INTERVAL} minutes")
+    logger.info(f"Telemetry scan interval: {TELEMETRY_INTERVAL} minutes")
+    logger.info(f"API Base URL: {API_BASE_URL}")
+    logger.info(f"Tenant ID: {TENANT_ID}")
+    
+    # Check dependencies
+    if not check_dependencies():
+        sys.exit(1)
+    
+    # Setup signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    # Create and start scanner
+    scanner = ITAMScanner()
+    
+    try:
+        scanner.start()
+    except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt received in main, shutting down...")
+        if scanner:
+            scanner.stop()
+    except Exception as e:
+        logger.error(f"Fatal error: {e}")
+        if scanner:
+            scanner.stop()
+        sys.exit(1)
+    finally:
+        logger.info("ITAM Scanner stopped.")
+
+if __name__ == "__main__":
+    scanner = None
+    main()
+`;
+}
+
+// Helper function to build executable using PyInstaller
+async function buildExecutable(tempDir, tenantId) {
+  try {
+    // Install PyInstaller if not available
+    try {
+      await execAsync("pyinstaller --version");
+    } catch (error) {
+      console.log("Installing PyInstaller...");
+      await execAsync("pip install pyinstaller");
+    }
+
+    // Change to temp directory
+    const originalCwd = process.cwd();
+    process.chdir(tempDir);
+
+    try {
+      // Run PyInstaller directly with onefile option
+      console.log("Running PyInstaller...");
+      const pyinstallerCmd = `pyinstaller --onefile --clean --name ITAM_Scanner --add-data "hardware.py;." --add-data "software.py;." --add-data "telemetry.py;." --add-data "utils.py;." --add-data "patch.py;." --add-data "wi-blu.py;." --add-data "latest_version.py;." --add-data "compatibility_test.py;." --add-data "test_mac.py;." --add-data "generate_test_data.py;." --hidden-import schedule --hidden-import requests --hidden-import psutil --hidden-import GPUtil itam_scanner.py`;
+      await execAsync(pyinstallerCmd);
+
+      // Check if executable was created
+      const exePath = path.join(tempDir, "dist", "ITAM_Scanner.exe");
+      if (fs.existsSync(exePath)) {
+        console.log(`Executable created successfully: ${exePath}`);
+        return exePath;
+      } else {
+        console.error("Executable not found after build");
+        return null;
+      }
+    } finally {
+      // Restore original working directory
+      process.chdir(originalCwd);
+    }
+  } catch (error) {
+    console.error("Build failed:", error);
+    return null;
+  }
+}
+
+// Helper function to create installer script
+function createInstallerScript(tenantId, apiToken, apiBaseUrl) {
+  return `@echo off
+echo ITAM Scanner Installer
+echo =====================
+echo.
+
+REM Check if running as administrator
+net session >nul 2>&1
+if %errorLevel% == 0 (
+    echo Running with administrator privileges...
+) else (
+    echo Warning: Not running as administrator. Some features may not work properly.
+    echo Consider running as administrator for full functionality.
+    echo.
+)
+
+REM Create installation directory
+set "INSTALL_DIR=%PROGRAMFILES%\ITAM Scanner"
+echo Installation directory: %INSTALL_DIR%
+
+REM Create directory with proper error handling
+if not exist "%INSTALL_DIR%" (
+    echo Creating installation directory...
+    mkdir "%INSTALL_DIR%" 2>nul
+    if errorlevel 1 (
+        echo Error: Failed to create installation directory
+        echo Please run as administrator or choose a different location
+        pause
+        exit /b 1
+    )
+    echo Directory created successfully
+) else (
+    echo Directory already exists
+)
+
+REM Copy executable and configuration
+echo Installing ITAM Scanner...
+
+REM Copy executable
+copy "ITAM_Scanner.exe" "%INSTALL_DIR%\ITAM_Scanner.exe" >nul 2>&1
+if errorlevel 1 (
+    echo Error: Failed to copy ITAM_Scanner.exe
+    echo Make sure the file exists and you have write permissions
+    pause
+    exit /b 1
+)
+echo ITAM_Scanner.exe copied successfully
+
+REM Copy configuration
+copy "config.env" "%INSTALL_DIR%\config.env" >nul 2>&1
+if errorlevel 1 (
+    echo Error: Failed to copy config.env
+    pause
+    exit /b 1
+)
+echo config.env copied successfully
+
+REM Copy background executable if it exists
+if exist "ITAM_Scanner_Background.exe" (
+    copy "ITAM_Scanner_Background.exe" "%INSTALL_DIR%\ITAM_Scanner_Background.exe" >nul 2>&1
+    if errorlevel 1 (
+        echo Error: Failed to copy ITAM_Scanner_Background.exe
+        pause
+        exit /b 1
+    )
+    echo ITAM_Scanner_Background.exe copied successfully
+) else (
+    echo ITAM_Scanner_Background.exe not found, skipping
+)
+
+REM Create start menu shortcut
+set "START_MENU=%APPDATA%\Microsoft\Windows\Start Menu\Programs"
+if not exist "%START_MENU%\ITAM Scanner" (
+    mkdir "%START_MENU%\ITAM Scanner"
+)
+
+REM Create desktop shortcut
+echo Creating shortcuts...
+echo [InternetShortcut] > "%USERPROFILE%\Desktop\ITAM Scanner.url"
+echo URL=file:///%INSTALL_DIR%/ITAM_Scanner.exe >> "%USERPROFILE%\Desktop\ITAM Scanner.url"
+echo IconFile=%INSTALL_DIR%/ITAM_Scanner.exe >> "%USERPROFILE%\Desktop\ITAM Scanner.url"
+echo IconIndex=0 >> "%USERPROFILE%\Desktop\ITAM Scanner.url"
+
+echo.
+echo Verifying installation...
+
+REM Verify files exist
+if exist "%INSTALL_DIR%\ITAM_Scanner.exe" (
+    echo ✓ ITAM_Scanner.exe found
+) else (
+    echo ✗ ITAM_Scanner.exe not found
+    echo Installation may have failed
+    pause
+    exit /b 1
+)
+
+if exist "%INSTALL_DIR%\config.env" (
+    echo ✓ config.env found
+) else (
+    echo ✗ config.env not found
+    echo Installation may have failed
+    pause
+    exit /b 1
+)
+
+echo.
+echo ✅ Installation completed successfully!
+echo.
+echo ITAM Scanner has been installed to: %INSTALL_DIR%
+echo Desktop shortcut created.
+echo.
+echo To start the scanner:
+echo 1. Double-click the desktop shortcut (console mode)
+echo 2. Run: "%INSTALL_DIR%\ITAM_Scanner.exe" (console mode)
+echo 3. Run: "%INSTALL_DIR%\ITAM_Scanner_Background.exe" (background mode)
+echo.
+echo Background mode runs without console window and continues after closing.
+echo.
+echo The scanner is a standalone executable that includes all dependencies.
+echo No Python installation required - it will run automatically in the background.
+echo.
+echo Configuration:
+echo - Tenant ID: ${tenantId}
+echo - API URL: ${apiBaseUrl}
+echo.
+echo The scanner will automatically start scanning your system.
+echo.
+pause
+`;
+}
 
 // Create Windows startup scripts
 function createWindowsScripts(tempDir, tenantId, apiToken, apiBaseUrl) {

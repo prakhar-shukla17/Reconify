@@ -115,7 +115,7 @@ const ScannerDownloadModal = ({ isOpen, onClose }) => {
       // Create a temporary link element for direct browser download
       const link = document.createElement("a");
       link.href = downloadUrl;
-      link.download = `itam_scanner_${selectedPlatform}.zip`;
+      link.download = `ITAM_Scanner_${selectedPlatform}.zip`;
       link.target = "_blank"; // Open in new tab/window
       link.rel = "noopener noreferrer";
 
@@ -179,11 +179,11 @@ const ScannerDownloadModal = ({ isOpen, onClose }) => {
   const getPlatformName = (platformId) => {
     switch (platformId) {
       case "windows":
-        return "Windows";
+        return "Windows (Executable)";
       case "linux":
-        return "Linux";
+        return "Linux (Coming Soon)";
       case "macos":
-        return "macOS";
+        return "macOS (Coming Soon)";
       default:
         return "Unknown";
     }
@@ -197,7 +197,7 @@ const ScannerDownloadModal = ({ isOpen, onClose }) => {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-900 flex items-center">
             <Download className="w-5 h-5 mr-2" />
-            Download ITAM Scanner
+            Download ITAM Scanner Executable
           </h2>
           <button
             onClick={onClose}
@@ -232,40 +232,54 @@ const ScannerDownloadModal = ({ isOpen, onClose }) => {
             Select Platform
           </label>
           <div className="space-y-2">
-            {platforms.map((platform) => (
-              <label
-                key={platform.id}
-                className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                  selectedPlatform === platform.id
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="platform"
-                  value={platform.id}
-                  checked={selectedPlatform === platform.id}
-                  onChange={(e) => setSelectedPlatform(e.target.value)}
-                  className="sr-only"
-                  disabled={isDownloading}
-                />
-                <div className="flex items-center flex-1">
-                  {getPlatformIcon(platform.id)}
-                  <div className="ml-3">
-                    <div className="text-sm font-medium text-gray-900">
-                      {platform.name}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {platform.description}
+            {platforms.map((platform) => {
+              const isWindows = platform.id === "windows";
+              const isDisabled = !isWindows;
+
+              return (
+                <label
+                  key={platform.id}
+                  className={`flex items-center p-3 border rounded-lg transition-colors ${
+                    isDisabled
+                      ? "border-gray-200 bg-gray-50 cursor-not-allowed opacity-60"
+                      : selectedPlatform === platform.id
+                      ? "border-blue-500 bg-blue-50 cursor-pointer"
+                      : "border-gray-200 hover:border-gray-300 cursor-pointer"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="platform"
+                    value={platform.id}
+                    checked={selectedPlatform === platform.id}
+                    onChange={(e) => setSelectedPlatform(e.target.value)}
+                    className="sr-only"
+                    disabled={isDownloading || isDisabled}
+                  />
+                  <div className="flex items-center flex-1">
+                    {getPlatformIcon(platform.id)}
+                    <div className="ml-3">
+                      <div className="text-sm font-medium text-gray-900">
+                        {getPlatformName(platform.id)}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {isDisabled
+                          ? "Executable generation coming soon"
+                          : platform.description}
+                      </div>
                     </div>
                   </div>
-                </div>
-                {selectedPlatform === platform.id && (
-                  <CheckCircle className="w-5 h-5 text-blue-500" />
-                )}
-              </label>
-            ))}
+                  {selectedPlatform === platform.id && isWindows && (
+                    <CheckCircle className="w-5 h-5 text-blue-500" />
+                  )}
+                  {isDisabled && (
+                    <div className="text-xs text-gray-400 px-2 py-1 bg-gray-200 rounded">
+                      Soon
+                    </div>
+                  )}
+                </label>
+              );
+            })}
           </div>
         </div>
 
@@ -274,12 +288,24 @@ const ScannerDownloadModal = ({ isOpen, onClose }) => {
             What's Included:
           </h3>
           <ul className="text-sm text-gray-600 space-y-1">
-            <li>• Pre-configured scanner for your organization</li>
+            <li>
+              • <strong>Standalone executable</strong> - includes all Python
+              dependencies
+            </li>
+            <li>
+              • <strong>No Python required</strong> - runs on any Windows
+              machine
+            </li>
+            <li>• Pre-configured for your organization</li>
             <li>• Hardware and software detection modules</li>
             <li>• System monitoring and telemetry</li>
-            <li>• Platform-specific startup scripts</li>
-            <li>• Installation instructions</li>
-            <li>• Secure authentication tokens</li>
+            <li>• Runs automatically in the background</li>
+            <li>• Configuration file with secure authentication</li>
+            <li>• Windows installer script included</li>
+            <li>
+              • <strong>ZIP package</strong> - contains executable + config +
+              installer
+            </li>
           </ul>
         </div>
 
@@ -339,7 +365,7 @@ const ScannerDownloadModal = ({ isOpen, onClose }) => {
               ) : (
                 <>
                   <Download className="w-4 h-4 mr-2" />
-                  Download Scanner
+                  Download Executable
                 </>
               )}
             </button>
@@ -353,12 +379,19 @@ const ScannerDownloadModal = ({ isOpen, onClose }) => {
         </div>
 
         <div className="mt-4 text-xs text-gray-500">
+          <p>• The package is pre-configured for your organization</p>
           <p>
-            • The scanner package is configured specifically for your
-            organization
+            • <strong>Completely standalone</strong> - includes all Python
+            dependencies
           </p>
-          <p>• Keep the downloaded files secure and do not share them</p>
-          <p>• Follow the included installation instructions</p>
+          <p>
+            • <strong>No Python installation required</strong> - runs on any
+            Windows machine
+          </p>
+          <p>
+            • Extract the ZIP file and run the installer or executable directly
+          </p>
+          <p>• Keep the downloaded package secure and do not share it</p>
         </div>
       </div>
     </div>
