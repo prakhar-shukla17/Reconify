@@ -78,22 +78,7 @@ export default function PatchMonitoringPage() {
           {/* App Icon */}
           <div className="flex items-center mb-6">
             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-black"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <circle cx="12" cy="12" r="6" />
-                <circle cx="12" cy="12" r="2" />
-              </svg>
+              <img src="/itam-logo.svg" alt="ITAM Logo" className="w-6 h-6" />
             </div>
             <span className="ml-3 text-white font-bold text-lg">ManageAssets</span>
           </div>
@@ -119,8 +104,6 @@ export default function PatchMonitoringPage() {
                 </span>
               </div>
             </Link>
-
-           
           </div>
         </div>
       </div>
@@ -130,7 +113,11 @@ export default function PatchMonitoringPage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3 group">
               <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center transform group-hover:scale-105 transition-transform duration-200">
-                <span className="text-white font-bold text-sm">PM</span>
+                <img
+                  src="/itam-logo-white.svg"
+                  alt="ITAM Logo"
+                  className="w-5 h-5"
+                />
               </div>
               <span className="text-xl font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
                 Patch Manager
@@ -405,7 +392,7 @@ export default function PatchMonitoringPage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
           <div className="flex items-center justify-center space-x-3 mb-6">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">PM</span>
+              <img src="/itam-logo.svg" alt="ITAM Logo" className="w-5 h-5" />
             </div>
             <span className="text-xl font-semibold text-gray-900">
               Patch Manager

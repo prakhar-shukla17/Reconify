@@ -136,7 +136,11 @@ export default function RegisterPage() {
           <div className="mb-8">
             <div className="flex items-center space-x-3 mb-8">
               <div className="h-10 w-10 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">IT</span>
+                <img
+                  src="/itam-logo-white.svg"
+                  alt="ITAM Logo"
+                  className="w-6 h-6"
+                />
               </div>
               <h1 className="text-2xl font-bold text-gray-900">ITAM</h1>
             </div>

@@ -219,7 +219,7 @@ class ITAMScannerBackground:
 
 def signal_handler(signum, frame):
     """Handle system signals for graceful shutdown."""
-    logger.info(f"Received signal {signum}, shutting down gracefully...")
+    print(f"Received signal {signum}, shutting down gracefully...")
     global scanner
     if scanner:
         scanner.stop()

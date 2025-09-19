@@ -75,7 +75,11 @@ export default function LoginPage() {
           <div className="mb-8">
             <div className="flex items-center space-x-3 mb-8">
               <div className="h-10 w-10 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">IT</span>
+                <img
+                  src="/itam-logo-white.svg"
+                  alt="ITAM Logo"
+                  className="w-6 h-6"
+                />
               </div>
               <h1 className="text-2xl font-bold text-gray-900">ITAM</h1>
             </div>
@@ -95,29 +99,29 @@ export default function LoginPage() {
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             {/* Email Field */}
             <div>
-                          <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Email
-            </label>
-            <input
-              {...register("email", {
-                required: "Email is required",
-                pattern: {
-                  value: /^\S+@\S+$/i,
-                  message: "Please enter a valid email address",
-                },
-              })}
-              type="email"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
-              placeholder="Enter your email"
-            />
-            {errors.email && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.email.message}
-              </p>
-            )}
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Email
+              </label>
+              <input
+                {...register("email", {
+                  required: "Email is required",
+                  pattern: {
+                    value: /^\S+@\S+$/i,
+                    message: "Please enter a valid email address",
+                  },
+                })}
+                type="email"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
+                placeholder="Enter your email"
+              />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
             {/* Password Field */}

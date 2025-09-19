@@ -1,12 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_all
+
+datas = [('hardware.py', '.'), ('software.py', '.'), ('telemetry.py', '.'), ('utils.py', '.'), ('patch.py', '.'), ('wi-blu.py', '.'), ('latest_version.py', '.'), ('compatibility_test.py', '.'), ('test_mac.py', '.'), ('generate_test_data.py', '.')]
+binaries = []
+hiddenimports = ['schedule', 'schedule.job', 'schedule.every', 'requests', 'psutil', 'GPUtil']
+tmp_ret = collect_all('schedule')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
     ['itam_scanner_background.py'],
     pathex=[],
-    binaries=[],
-    datas=[('hardware.py', '.'), ('software.py', '.'), ('telemetry.py', '.'), ('utils.py', '.'), ('patch.py', '.'), ('wi-blu.py', '.'), ('latest_version.py', '.'), ('compatibility_test.py', '.'), ('test_mac.py', '.'), ('generate_test_data.py', '.')],
-    hiddenimports=['schedule', 'requests', 'psutil', 'GPUtil'],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
