@@ -27,6 +27,7 @@ import {
   Shield,
   FileText,
 } from "lucide-react";
+import ScannerDownloadModal from "../../components/ScannerDownloadModal";
 
 // Export utility functions
 const exportToCSV = (data, filename) => {
@@ -69,6 +70,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [exportLoading, setExportLoading] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
   const [dashboardStats, setDashboardStats] = useState(null);
   const [assignmentStats, setAssignmentStats] = useState(null);
   const [ticketStats, setTicketStats] = useState({
@@ -836,8 +838,113 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+
+            {/* Scanner Download Section */}
+            <div className="mt-10">
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                      ITAM Scanner
+                    </h2>
+                    <p className="text-gray-600">
+                      Download the ITAM scanner to monitor your system assets
+                      automatically
+                    </p>
+                  </div>
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <Download className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      What's Included:
+                    </h3>
+                    <ul className="space-y-2 text-sm text-gray-600">
+                      <li className="flex items-center">
+                        <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                        Standalone executable (no Python required)
+                      </li>
+                      <li className="flex items-center">
+                        <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                        Automatic hardware & software detection
+                      </li>
+                      <li className="flex items-center">
+                        <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                        Background monitoring (runs continuously)
+                      </li>
+                      <li className="flex items-center">
+                        <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                        Pre-configured for your organization
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Features:
+                    </h3>
+                    <ul className="space-y-2 text-sm text-gray-600">
+                      <li className="flex items-center">
+                        <Monitor className="h-4 w-4 text-blue-500 mr-2" />
+                        Real-time system monitoring
+                      </li>
+                      <li className="flex items-center">
+                        <Shield className="h-4 w-4 text-blue-500 mr-2" />
+                        Secure data transmission
+                      </li>
+                      <li className="flex items-center">
+                        <Settings className="h-4 w-4 text-blue-500 mr-2" />
+                        Easy installation & setup
+                      </li>
+                      <li className="flex items-center">
+                        <Bell className="h-4 w-4 text-blue-500 mr-2" />
+                        Automatic updates & alerts
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <button
+                    onClick={() => setShowScannerModal(true)}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl"
+                  >
+                    <Download className="h-5 w-5" />
+                    <span>Download Scanner</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowScannerModal(true)}
+                    className="flex-1 bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors duration-200 flex items-center justify-center space-x-2"
+                  >
+                    <Settings className="h-5 w-5" />
+                    <span>View Details</span>
+                  </button>
+                </div>
+
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>Note:</strong> The scanner runs in the background
+                    and continues monitoring even after closing the console
+                    window. Choose the background version for continuous
+                    operation.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Scanner Download Modal */}
+        {showScannerModal && (
+          <ScannerDownloadModal
+            isOpen={showScannerModal}
+            onClose={() => setShowScannerModal(false)}
+          />
+        )}
       </div>
     </ProtectedRoute>
   );

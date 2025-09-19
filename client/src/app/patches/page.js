@@ -95,7 +95,7 @@ export default function PatchMonitoringPage() {
                 <circle cx="12" cy="12" r="2" />
               </svg>
             </div>
-            <span className="ml-3 text-white font-bold text-lg">RECONIFY</span>
+            <span className="ml-3 text-white font-bold text-lg">ManageAssets</span>
           </div>
 
           {/* Navigation */}
@@ -120,26 +120,7 @@ export default function PatchMonitoringPage() {
               </div>
             </Link>
 
-            {/* Network Monitoring */}
-            <Link href="/network" className="block">
-              <div className="flex items-center p-3 rounded-2xl hover:bg-gray-900/80 transition-colors duration-200">
-                <Activity className="h-6 w-6 text-gray-400" />
-                <span className="ml-3 text-gray-400 font-medium">
-                  Network Monitoring
-                </span>
-              </div>
-            </Link>
-
-            {/* GRC Application */}
-            <button
-              onClick={() => setIsGRCModalOpen(true)}
-              className="block w-full text-left"
-            >
-              <div className="flex items-center p-3 rounded-2xl hover:bg-gray-900/80 transition-colors duration-200 group">
-                <Shield className="h-6 w-6 text-gray-400 " />
-                <span className="ml-3 text-gray-400 font-medium ">QS GRC</span>
-              </div>
-            </button>
+           
           </div>
         </div>
       </div>

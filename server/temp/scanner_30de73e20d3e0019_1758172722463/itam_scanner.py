@@ -2,6 +2,7 @@
 """
 ITAM Scanner - Automated Asset Management Scanner
 Runs hardware and software scans at 1-hour intervals and telemetry at 10-minute intervals
+Pre-configured for tenant: 30de73e20d3e0019
 """
 
 import time
@@ -14,10 +15,25 @@ import logging
 from datetime import datetime
 import requests
 
-# Tenant configuration - these will be set by the download system
+# Configuration - will be read from config.env file or environment variables
 TENANT_ID = os.getenv('TENANT_ID', 'default')
 API_TOKEN = os.getenv('API_TOKEN', '')
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3000/api')
+
+# Try to load configuration from config.env file
+config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.env')
+if os.path.exists(config_file):
+    with open(config_file, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, value = line.split('=', 1)
+                os.environ[key.strip()] = value.strip()
+    
+    # Re-read environment variables after loading config file
+    TENANT_ID = os.getenv('TENANT_ID', 'default')
+    API_TOKEN = os.getenv('API_TOKEN', '')
+    API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3000/api')
 
 # Add current directory to path to import local modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -199,6 +215,7 @@ def main():
     logger.info(f"Hardware/Software scan interval: {HARDWARE_SOFTWARE_INTERVAL} minutes")
     logger.info(f"Telemetry scan interval: {TELEMETRY_INTERVAL} minutes")
     logger.info(f"API Base URL: {API_BASE_URL}")
+    logger.info(f"Tenant ID: {TENANT_ID}")
     
     # Check dependencies
     if not check_dependencies():
