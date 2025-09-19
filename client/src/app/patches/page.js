@@ -90,7 +90,7 @@ export default function PatchMonitoringPage() {
               <div className="flex items-center p-3 rounded-2xl hover:bg-gray-900/80 transition-colors duration-200">
                 <Activity className="h-6 w-6 text-gray-400" />
                 <span className="ml-3 text-gray-400 font-medium">
-                  Asset Monitoring
+                  Asset Manager
                 </span>
               </div>
             </Link>
@@ -100,7 +100,7 @@ export default function PatchMonitoringPage() {
               <div className="flex items-center p-3 rounded-2xl bg-blue-700/90 hover:bg-blue-700 transition-colors duration-200">
                 <Shield className="h-6 w-6 text-white" />
                 <span className="ml-3 text-white font-medium">
-                  Patch Monitoring
+                  Patch Manager
                 </span>
               </div>
             </Link>
