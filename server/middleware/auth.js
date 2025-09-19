@@ -24,14 +24,36 @@ export const verifyToken = async (req, res, next) => {
     console.log("=== verifyToken middleware ===");
     console.log("Headers:", req.headers);
 
-    const token = req.header("Authorization")?.replace("Bearer ", "");
-    console.log("Token:", token ? `${token.substring(0, 20)}...` : "No token");
+    // Accept token from common locations and normalize the value
+    const authHeader =
+      req.header("Authorization") ||
+      req.header("authorization") ||
+      req.header("x-access-token") ||
+      req.query?.token;
+
+    let token = null;
+    if (authHeader) {
+      token = authHeader.startsWith("Bearer ")
+        ? authHeader.slice(7).trim()
+        : String(authHeader).trim();
+    }
+
+    console.log(
+      "Token:",
+      token ? `${token.substring(0, 20)}...` : "No token"
+    );
 
     if (!token) {
       console.log("No token provided");
       return res
         .status(401)
         .json({ error: "Access denied. No token provided." });
+    }
+
+    // Basic structural validation to avoid jwt malformed
+    if (token.split(".").length !== 3) {
+      console.log("Malformed token structure");
+      return res.status(401).json({ error: "Invalid token format." });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -64,7 +86,13 @@ export const verifyToken = async (req, res, next) => {
     next();
   } catch (error) {
     console.error("Token verification error:", error);
-    res.status(401).json({ error: "Invalid token." });
+    const message =
+      error.name === "TokenExpiredError"
+        ? "Token expired."
+        : error.name === "JsonWebTokenError"
+        ? "Invalid token."
+        : "Authentication failed.";
+    res.status(401).json({ error: message });
   }
 };
 

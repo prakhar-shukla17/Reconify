@@ -377,7 +377,7 @@ export const createHardware = async (req, res) => {
       };
 
       // Preserve existing component warranty information
-      console.log("Scanner update: Preserving existing warranty information for asset", id);
+      console.log("Scanner update: Preserving existing warranty information for asset", macAddressString);
       if (existingHardware.cpu?.component_info) {
         console.log("Preserving CPU warranty info:", existingHardware.cpu.component_info);
         updatedData.cpu = {

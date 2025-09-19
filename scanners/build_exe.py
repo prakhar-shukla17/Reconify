@@ -54,9 +54,12 @@ def build_executable():
             "--add-data", "test_mac.py;.",
             "--add-data", "generate_test_data.py;.",
             "--hidden-import", "schedule",
+            "--hidden-import", "schedule.job",
+            "--hidden-import", "schedule.every",
             "--hidden-import", "requests",
             "--hidden-import", "psutil",
             "--hidden-import", "GPUtil",
+            "--collect-all", "schedule",
             "itam_scanner.py"
         ]
         subprocess.check_call(cmd)
@@ -78,12 +81,7 @@ def build_executable():
 def build_background_executable():
     """Build the background executable using PyInstaller."""
     print("Building background executable...")
-    
-    # Clean previous builds
-    if os.path.exists('build'):
-        shutil.rmtree('build')
-    if os.path.exists('dist'):
-        shutil.rmtree('dist')
+    # Do NOT clean dist/build here to preserve the console executable built earlier
     
     try:
         # Run PyInstaller with onefile option for background executable
@@ -102,9 +100,12 @@ def build_background_executable():
             "--add-data", "test_mac.py;.",
             "--add-data", "generate_test_data.py;.",
             "--hidden-import", "schedule",
+            "--hidden-import", "schedule.job",
+            "--hidden-import", "schedule.every",
             "--hidden-import", "requests",
             "--hidden-import", "psutil",
             "--hidden-import", "GPUtil",
+            "--collect-all", "schedule",
             "--noconsole",  # This hides the console window
             "itam_scanner_background.py"
         ]
