@@ -2551,7 +2551,6 @@ export default function AdminPage() {
             {/* Location-wise stats (hardware only) */}
             {activeTab === "assets" &&
               assetType === "hardware" &&
-              showLocationStats &&
               locationStats.length > 0 && (
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
@@ -2559,46 +2558,48 @@ export default function AdminPage() {
                       Location wise overview
                     </h3>
                     <button
-                      onClick={() => setShowLocationStats(false)}
+                      onClick={() => setShowLocationStats((prev) => !prev)}
                       className="text-xs text-blue-600 hover:text-blue-800"
                     >
-                      Hide
+                      {showLocationStats ? 'Hide' : 'Show'}
                     </button>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {locationStats.map((loc) => (
-                      <div
-                        key={loc.location}
-                        className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow"
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white opacity-60"></div>
-                        <div className="relative p-4">
-                          <div className="flex items-baseline justify-between">
-                            <div className="text-sm font-bold text-gray-900 truncate max-w-[65%]">
-                              {loc.location}
+                  {showLocationStats && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {locationStats.map((loc) => (
+                        <div
+                          key={loc.location}
+                          className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow"
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white opacity-60"></div>
+                          <div className="relative p-4">
+                            <div className="flex items-baseline justify-between">
+                              <div className="text-sm font-bold text-gray-900 truncate max-w-[65%]">
+                                {loc.location}
+                              </div>
+                              <div className="text-xs font-medium text-gray-600 bg-gray-100 rounded-full px-2 py-0.5">
+                                {loc.total} assets
+                              </div>
                             </div>
-                            <div className="text-xs font-medium text-gray-600 bg-gray-100 rounded-full px-2 py-0.5">
-                              {loc.total} assets
-                            </div>
-                          </div>
-                          <div className="mt-3 grid grid-cols-4 gap-2 text-[11px] text-gray-700">
-                            <div className="rounded-lg px-2 py-1 text-center bg-blue-50 text-blue-700 border border-blue-100">
-                              Win {loc.windows}
-                            </div>
-                            <div className="rounded-lg px-2 py-1 text-center bg-pink-50 text-pink-700 border border-pink-100">
-                              macOS {loc.macos}
-                            </div>
-                            <div className="rounded-lg px-2 py-1 text-center bg-emerald-50 text-emerald-700 border border-emerald-100">
-                              Linux {loc.linux}
-                            </div>
-                            <div className="rounded-lg px-2 py-1 text-center bg-gray-100 text-gray-700 border border-gray-200">
-                              Unknown {loc.unknown}
+                            <div className="mt-3 grid grid-cols-4 gap-2 text-[11px] text-gray-700">
+                              <div className="rounded-lg px-2 py-1 text-center bg-blue-50 text-blue-700 border border-blue-100">
+                                Win {loc.windows}
+                              </div>
+                              <div className="rounded-lg px-2 py-1 text-center bg-pink-50 text-pink-700 border border-pink-100">
+                                macOS {loc.macos}
+                              </div>
+                              <div className="rounded-lg px-2 py-1 text-center bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                Linux {loc.linux}
+                              </div>
+                              <div className="rounded-lg px-2 py-1 text-center bg-gray-100 text-gray-700 border border-gray-200">
+                                Unknown {loc.unknown}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
