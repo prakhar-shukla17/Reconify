@@ -10,6 +10,7 @@ import ticketrouter from "./router/ticket.route.js";
 import telemetryrouter from "./router/telemetry.route.js";
 import superadminrouter from "./router/superadmin.route.js";
 import scannerrouter from "./router/scanner.route.js";
+import subscriptionrouter from "./router/subscription.route.js";
 
 const app = express();
 configDotenv();
@@ -32,6 +33,7 @@ app.use("/api/tickets", ticketrouter);
 app.use("/api/telemetry", telemetryrouter);
 app.use("/api/superadmin", superadminrouter);
 app.use("/api/scanner", scannerrouter);
+app.use("/api/subscription", subscriptionrouter);
 
 // 404 handler for undefined routes
 app.use("*", (req, res) => {

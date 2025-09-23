@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Enable standalone output for Docker
+  output: 'standalone',
+  
   // Force Next.js to run on port 3001
   experimental: {
     // This ensures consistent port usage
@@ -10,7 +13,9 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:3000/api/:path*",
+        destination: process.env.NODE_ENV === 'production' 
+          ? "http://server:3000/api/:path*"
+          : "http://localhost:3000/api/:path*",
       },
     ];
   },

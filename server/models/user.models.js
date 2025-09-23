@@ -47,6 +47,37 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    
+    // Subscription and billing information
+    subscription_status: {
+      type: String,
+      enum: ["free", "trial", "active", "past_due", "cancelled"],
+      default: "free"
+    },
+    current_subscription: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Subscription"
+    },
+    
+    // Billing information
+    billing_address: {
+      street: String,
+      city: String,
+      state: String,
+      postal_code: String,
+      country: String
+    },
+    
+    // Payment preferences
+    payment_preferences: {
+      preferred_gateway: {
+        type: String,
+        enum: ["stripe", "paypal", "razorpay"],
+        default: "stripe"
+      },
+      auto_renew: { type: Boolean, default: true },
+      billing_email: String
+    },
   },
   {
     timestamps: true,

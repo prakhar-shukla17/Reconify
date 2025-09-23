@@ -17,6 +17,11 @@ import {
   Activity,
   Thermometer,
   Zap,
+  Printer,
+  Laptop,
+  Router,
+  Video,
+  Smartphone,
 } from "lucide-react";
 import { telemetryAPI } from "../lib/api";
 
@@ -61,6 +66,74 @@ const HardwareCard = ({ hardware, onClick }) => {
     const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+  };
+
+  // Get asset type configuration based on category
+  const getAssetTypeConfig = (category) => {
+    const categoryLower = (category || "").toLowerCase();
+    
+    if (categoryLower.includes("printer")) {
+      return {
+        icon: Printer,
+        bgColor: "bg-purple-50",
+        iconBgColor: "bg-purple-100",
+        iconColor: "text-purple-600",
+        borderColor: "border-purple-200",
+        hoverBorderColor: "hover:border-purple-300",
+        cardBg: "bg-gradient-to-br from-white to-purple-50/30",
+      };
+    } else if (categoryLower.includes("laptop")) {
+      return {
+        icon: Laptop,
+        bgColor: "bg-green-50",
+        iconBgColor: "bg-green-100",
+        iconColor: "text-green-600",
+        borderColor: "border-green-200",
+        hoverBorderColor: "hover:border-green-300",
+        cardBg: "bg-gradient-to-br from-white to-green-50/30",
+      };
+    } else if (categoryLower.includes("router") || categoryLower.includes("network")) {
+      return {
+        icon: Router,
+        bgColor: "bg-orange-50",
+        iconBgColor: "bg-orange-100",
+        iconColor: "text-orange-600",
+        borderColor: "border-orange-200",
+        hoverBorderColor: "hover:border-orange-300",
+        cardBg: "bg-gradient-to-br from-white to-orange-50/30",
+      };
+    } else if (categoryLower.includes("cctv") || categoryLower.includes("camera")) {
+      return {
+        icon: Video,
+        bgColor: "bg-indigo-50",
+        iconBgColor: "bg-indigo-100",
+        iconColor: "text-indigo-600",
+        borderColor: "border-indigo-200",
+        hoverBorderColor: "hover:border-indigo-300",
+        cardBg: "bg-gradient-to-br from-white to-indigo-50/30",
+      };
+    } else if (categoryLower.includes("phone") || categoryLower.includes("mobile")) {
+      return {
+        icon: Smartphone,
+        bgColor: "bg-pink-50",
+        iconBgColor: "bg-pink-100",
+        iconColor: "text-pink-600",
+        borderColor: "border-pink-200",
+        hoverBorderColor: "hover:border-pink-300",
+        cardBg: "bg-gradient-to-br from-white to-pink-50/30",
+      };
+    } else {
+      // Default for Computer/Desktop/PC
+      return {
+        icon: Monitor,
+        bgColor: "bg-blue-50",
+        iconBgColor: "bg-blue-100",
+        iconColor: "text-blue-600",
+        borderColor: "border-blue-200",
+        hoverBorderColor: "hover:border-blue-300",
+        cardBg: "bg-gradient-to-br from-white to-blue-50/30",
+      };
+    }
   };
 
   // Helper function to get warranty status
@@ -165,24 +238,35 @@ const HardwareCard = ({ hardware, onClick }) => {
     telemetryData?.health_analysis?.overall_health_score
   );
 
+  // Get asset type configuration
+  const assetConfig = getAssetTypeConfig(hardware.asset_info?.category);
+  const AssetIcon = assetConfig.icon;
+
   return (
     <div
-      className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer border h-80 flex flex-col"
+      className={`${assetConfig.cardBg} rounded-lg shadow-md p-6 hover:shadow-lg transition-all duration-300 cursor-pointer border ${assetConfig.borderColor} ${assetConfig.hoverBorderColor} h-80 flex flex-col hover:scale-[1.02]`}
       onClick={() => onClick && onClick(hardware)}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
-          <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-            <Monitor className="h-6 w-6 text-blue-600" />
+          <div className={`h-10 w-10 ${assetConfig.iconBgColor} rounded-lg flex items-center justify-center shadow-sm`}>
+            <AssetIcon className={`h-6 w-6 ${assetConfig.iconColor}`} />
           </div>
           <div>
             <h3 className="text-base font-semibold text-gray-900">
               {hardware.system?.hostname || "Unknown Device"}
             </h3>
-            <p className="text-sm text-gray-500">
-              {hardware.system?.platform} {hardware.system?.platform_release}
-            </p>
+            <div className="flex items-center space-x-2">
+              <p className="text-sm text-gray-500">
+                {hardware.system?.platform} {hardware.system?.platform_release}
+              </p>
+              {hardware.asset_info?.category && (
+                <span className={`text-xs px-2 py-0.5 rounded-full ${assetConfig.bgColor} ${assetConfig.iconColor} font-medium`}>
+                  {hardware.asset_info.category}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="text-right">
@@ -321,7 +405,7 @@ const HardwareCard = ({ hardware, onClick }) => {
               e.stopPropagation();
               onClick && onClick(hardware);
             }}
-            className="flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+            className={`flex items-center space-x-1 text-xs ${assetConfig.iconColor} hover:opacity-80 transition-all duration-200 px-2 py-1 rounded-md ${assetConfig.bgColor} hover:shadow-sm`}
           >
             <Eye className="h-3 w-3" />
             <span>View Details</span>

@@ -620,3 +620,6 @@ The system provides the following major functions:
 
 *This Software Requirements Specification document provides a comprehensive overview of the IT Asset Management System requirements. For questions or clarifications, please contact the development team.*
 
+
+
+

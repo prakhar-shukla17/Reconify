@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
-import { LogOut, User, Settings, Shield, Menu, X, Package } from "lucide-react";
+import { LogOut, User, Settings, Shield, Menu, X, Package, CreditCard, Crown } from "lucide-react";
 import { useState } from "react";
 
 const Navbar = () => {
@@ -94,6 +94,24 @@ const Navbar = () => {
                   >
                     <Settings className="h-4 w-4 mr-2" />
                     Profile Settings
+                  </Link>
+
+                  <Link
+                    href="/subscription"
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setIsDropdownOpen(false)}
+                  >
+                    <Crown className="h-4 w-4 mr-2" />
+                    Subscription
+                  </Link>
+
+                  <Link
+                    href="/billing"
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setIsDropdownOpen(false)}
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Billing
                   </Link>
 
                   {user?.role === "admin" && (
