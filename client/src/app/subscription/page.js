@@ -1,25 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Cookies from "js-cookie";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function SubscriptionPage() {
+  const { isAuthenticated } = useAuth();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     fetchPlans();
-    // Check if user is authenticated
-    const token = localStorage.getItem("token");
-    setIsAuthenticated(!!token);
   }, []);
 
   const fetchPlans = async () => {
     try {
-      const response = await fetch(
-        "http://localhost:3000/api/subscription/plans"
-      );
+      const response = await fetch("/api/subscription/plans");
       const result = await response.json();
 
       if (result.success) {
@@ -45,12 +42,10 @@ export default function SubscriptionPage() {
       return;
     }
 
-    // Check if user is authenticated
-    const token = localStorage.getItem("token");
+    // Require authentication
+    const token = Cookies.get("token");
     if (!token) {
-      alert(
-        "Please authenticate first. Visit /auth-test to create a test user."
-      );
+      window.location.href = "/login";
       return;
     }
 
@@ -102,13 +97,8 @@ export default function SubscriptionPage() {
 
           {!isAuthenticated && (
             <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 max-w-2xl mx-auto">
-              <p className="text-yellow-800">
-                <strong>⚠️ Authentication Required:</strong> You need to be
-                logged in to subscribe to paid plans.{" "}
-                <a href="/auth-test" className="underline font-semibold">
-                  Create a test account here
-                </a>
-                .
+              <p className="text-yellow-800 font-medium">
+                ⚠️ Authentication Required: Please log in to subscribe to paid plans. <a href="/login" className="underline">Go to login</a>
               </p>
             </div>
           )}
