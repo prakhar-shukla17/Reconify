@@ -89,7 +89,7 @@ const updateExistingSubscription = async (existingSubscription, newPlan, billing
 export const createOrGetStripeCustomer = async (req, res) => {
   try {
     const { email, name, organization_name } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user._id;
     const tenantId = req.user.tenant_id;
 
     // Check if customer already exists for this tenant
@@ -156,10 +156,10 @@ export const createStripeSubscription = async (req, res) => {
   try {
     console.log("🔧 DEBUG - createStripeSubscription called");
     console.log("🔧 DEBUG - Request body:", req.body);
-    console.log("🔧 DEBUG - User:", { userId: req.user.userId, tenantId: req.user.tenant_id });
+    console.log("🔧 DEBUG - User:", { userId: req.user._id, tenantId: req.user.tenant_id });
     
     const { plan_id, billing_cycle = "monthly", payment_method_id } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user._id;
     const tenantId = req.user.tenant_id;
 
     // Check if user already has an active subscription
@@ -376,7 +376,7 @@ export const updateStripeSubscription = async (req, res) => {
   try {
     const { subscription_id } = req.params;
     const { plan_id, billing_cycle } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user._id;
     const tenantId = req.user.tenant_id;
 
     const subscription = await Subscription.findOne({
@@ -500,7 +500,7 @@ export const cancelStripeSubscription = async (req, res) => {
   try {
     const { subscription_id } = req.params;
     const { cancel_immediately = false } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user._id;
     const tenantId = req.user.tenant_id;
 
     const subscription = await Subscription.findOne({
@@ -568,7 +568,7 @@ export const cancelStripeSubscription = async (req, res) => {
 // Get Stripe customer portal session
 export const createCustomerPortalSession = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     const tenantId = req.user.tenant_id;
 
     const subscription = await Subscription.findOne({
@@ -881,7 +881,7 @@ export const getTenantSubscriptionAnalytics = async (req, res) => {
 // Get current user subscription for billing section
 export const getCurrentSubscription = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     const tenantId = req.user.tenant_id;
 
     console.log("🔧 DEBUG - Getting subscription for user:", userId, "tenant:", tenantId);
@@ -935,7 +935,7 @@ export const getCurrentSubscription = async (req, res) => {
 export const createPaymentIntent = async (req, res) => {
   try {
     const { amount = 2900, currency = "usd", description = "Test Payment" } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user._id;
     const tenantId = req.user.tenant_id;
 
     console.log("🔧 DEBUG - Creating payment intent:", { amount, currency, description });
