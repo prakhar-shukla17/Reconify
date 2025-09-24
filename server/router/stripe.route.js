@@ -7,6 +7,8 @@ import {
   createCustomerPortalSession,
   handleStripeWebhook,
   getTenantSubscriptionAnalytics,
+  getCurrentSubscription,
+  createPaymentIntent,
 } from "../controllers/stripe.controller.js";
 import { verifyToken } from "../middleware/auth.js";
 
@@ -31,6 +33,12 @@ router.post("/portal", createCustomerPortalSession);
 
 // Analytics
 router.get("/analytics", getTenantSubscriptionAnalytics);
+
+// Get current subscription
+router.get("/current-subscription", getCurrentSubscription);
+
+// Create payment intent for testing
+router.post("/payment-intent", createPaymentIntent);
 
 export default router;
 

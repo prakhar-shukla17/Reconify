@@ -7,6 +7,84 @@ import { generateTenantId } from "../utils/tenantUtils.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// Helper function to update existing subscription
+const updateExistingSubscription = async (existingSubscription, newPlan, billing_cycle, payment_method_id, res) => {
+  try {
+    // Create Stripe product first
+    const product = await stripe.products.create({
+      name: newPlan.display_name,
+      description: newPlan.description,
+      metadata: {
+        plan_id: newPlan.plan_id,
+        tenant_id: existingSubscription.tenant_id,
+      },
+    });
+
+    // Create new Stripe price
+    const price = await stripe.prices.create({
+      unit_amount: newPlan.getPricing(billing_cycle).amount,
+      currency: newPlan.getPricing(billing_cycle).currency,
+      recurring: {
+        interval: billing_cycle === "yearly" ? "year" : "month",
+      },
+      product: product.id,
+    });
+
+    // Get current Stripe subscription
+    const stripeSubscription = await stripe.subscriptions.retrieve(
+      existingSubscription.gateway_subscription_id
+    );
+
+    // Update Stripe subscription
+    const updatedStripeSubscription = await stripe.subscriptions.update(
+      existingSubscription.gateway_subscription_id,
+      {
+        items: [{
+          id: stripeSubscription.items.data[0].id,
+          price: price.id,
+        }],
+        proration_behavior: "create_prorations",
+      }
+    );
+
+    // Update local subscription
+    existingSubscription.plan_id = newPlan.plan_id;
+    existingSubscription.plan_name = newPlan.name;
+    existingSubscription.plan_type = newPlan.plan_type;
+    existingSubscription.amount = newPlan.getPricing(billing_cycle).amount;
+    existingSubscription.currency = newPlan.getPricing(billing_cycle).currency;
+    existingSubscription.billing_cycle = billing_cycle;
+    existingSubscription.features = newPlan.features;
+    await existingSubscription.save();
+
+    return res.json({
+      success: true,
+      message: "Subscription updated successfully",
+      subscription: {
+        id: existingSubscription._id,
+        plan_id: existingSubscription.plan_id,
+        plan_name: existingSubscription.plan_name,
+        plan_type: existingSubscription.plan_type,
+        status: existingSubscription.status,
+        billing_cycle: existingSubscription.billing_cycle,
+        amount: existingSubscription.amount,
+        currency: existingSubscription.currency,
+        features: existingSubscription.features,
+      },
+      stripe_subscription: {
+        id: updatedStripeSubscription.id,
+        status: updatedStripeSubscription.status,
+      },
+    });
+  } catch (error) {
+    console.error("🔧 DEBUG - Error updating subscription:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to update subscription",
+    });
+  }
+};
+
 // Create or retrieve Stripe customer for tenant
 export const createOrGetStripeCustomer = async (req, res) => {
   try {
@@ -91,14 +169,7 @@ export const createStripeSubscription = async (req, res) => {
       status: { $in: ["active", "trialing"] },
     });
 
-    if (existingSubscription) {
-      return res.status(400).json({
-        success: false,
-        error: "User already has an active subscription",
-      });
-    }
-
-    // Get the subscription plan
+    // Get the subscription plan first
     console.log("🔧 DEBUG - Looking for plan:", plan_id);
     const plan = await SubscriptionPlan.findOne({ plan_id, is_active: true });
     console.log("🔧 DEBUG - Plan found:", plan ? "✅ Yes" : "❌ No");
@@ -111,6 +182,20 @@ export const createStripeSubscription = async (req, res) => {
         success: false,
         error: "Subscription plan not found",
       });
+    }
+
+    if (existingSubscription) {
+      // If user has same plan, return error
+      if (existingSubscription.plan_id === plan_id) {
+        return res.status(400).json({
+          success: false,
+          error: "User already has this subscription plan",
+        });
+      }
+      
+      // If different plan, update existing subscription instead of creating new one
+      console.log("🔧 DEBUG - Updating existing subscription from", existingSubscription.plan_id, "to", plan_id);
+      return await updateExistingSubscription(existingSubscription, plan, billing_cycle, payment_method_id, res);
     }
 
     // Get or create Stripe customer
@@ -176,16 +261,19 @@ export const createStripeSubscription = async (req, res) => {
         user_id: userId,
         plan_id: plan.plan_id,
       },
-      trial_period_days: plan.trial_days,
+      // Only add trial if no payment method is provided
+      ...(payment_method_id ? {} : { trial_period_days: plan.trial_days }),
     };
 
-    // If payment method is provided, set payment behavior and settings
+    // If payment method is provided, charge immediately
     if (payment_method_id) {
       subscriptionParams.default_payment_method = payment_method_id;
       subscriptionParams.payment_behavior = "default_incomplete";
       subscriptionParams.payment_settings = { 
         save_default_payment_method: "on_subscription" 
       };
+      // Remove trial to charge immediately
+      subscriptionParams.trial_period_days = 0;
     }
 
     const stripeSubscription = await stripe.subscriptions.create(subscriptionParams);
@@ -193,8 +281,22 @@ export const createStripeSubscription = async (req, res) => {
       id: stripeSubscription.id,
       status: stripeSubscription.status,
       latest_invoice: stripeSubscription.latest_invoice ? "exists" : "null",
-      payment_intent: stripeSubscription.latest_invoice?.payment_intent ? "exists" : "null"
+      payment_intent: stripeSubscription.latest_invoice?.payment_intent ? "exists" : "null",
+      trial_end: stripeSubscription.trial_end,
+      current_period_start: stripeSubscription.current_period_start,
+      current_period_end: stripeSubscription.current_period_end
     });
+
+    // Log payment intent details if it exists
+    if (stripeSubscription.latest_invoice?.payment_intent) {
+      console.log("🔧 DEBUG - Payment Intent details:", {
+        id: stripeSubscription.latest_invoice.payment_intent.id,
+        status: stripeSubscription.latest_invoice.payment_intent.status,
+        amount: stripeSubscription.latest_invoice.payment_intent.amount,
+        currency: stripeSubscription.latest_invoice.payment_intent.currency,
+        client_secret: stripeSubscription.latest_invoice.payment_intent.client_secret ? "exists" : "null"
+      });
+    }
 
     // Create local subscription record
     const now = new Date();
@@ -772,6 +874,147 @@ export const getTenantSubscriptionAnalytics = async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to fetch subscription analytics",
+    });
+  }
+};
+
+// Get current user subscription for billing section
+export const getCurrentSubscription = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const tenantId = req.user.tenant_id;
+
+    console.log("🔧 DEBUG - Getting subscription for user:", userId, "tenant:", tenantId);
+
+    const subscription = await Subscription.findOne({
+      user_id: userId,
+      tenant_id: tenantId,
+      status: { $in: ["active", "trialing", "past_due"] },
+    });
+
+    if (!subscription) {
+      return res.json({
+        success: true,
+        subscription: null,
+        message: "No active subscription found"
+      });
+    }
+
+    console.log("🔧 DEBUG - Found subscription:", subscription.plan_name);
+
+    res.json({
+      success: true,
+      subscription: {
+        id: subscription._id,
+        plan_id: subscription.plan_id,
+        plan_name: subscription.plan_name,
+        plan_type: subscription.plan_type,
+        status: subscription.status,
+        billing_cycle: subscription.billing_cycle,
+        amount: subscription.amount,
+        currency: subscription.currency,
+        start_date: subscription.start_date,
+        trial_end_date: subscription.trial_end_date,
+        features: subscription.features,
+        usage: subscription.usage,
+        isActive: subscription.isActive,
+        isTrial: subscription.isTrial,
+        gateway_subscription_id: subscription.gateway_subscription_id,
+      }
+    });
+  } catch (error) {
+    console.error("🔧 DEBUG - Error getting current subscription:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to get current subscription"
+    });
+  }
+};
+
+// Create a one-time payment intent for testing
+export const createPaymentIntent = async (req, res) => {
+  try {
+    const { amount = 2900, currency = "usd", description = "Test Payment" } = req.body;
+    const userId = req.user.userId;
+    const tenantId = req.user.tenant_id;
+
+    console.log("🔧 DEBUG - Creating payment intent:", { amount, currency, description });
+
+    // Get or create customer
+    const user = await User.findById(userId);
+    let customer;
+    
+    try {
+      // Try to find existing customer
+      const customers = await stripe.customers.list({
+        email: user.email,
+        limit: 1
+      });
+      
+      if (customers.data.length > 0) {
+        customer = customers.data[0];
+        console.log("🔧 DEBUG - Using existing customer:", customer.id);
+      } else {
+        // Create new customer
+        customer = await stripe.customers.create({
+          email: user.email,
+          name: `${user.firstName} ${user.lastName}`,
+          metadata: {
+            tenant_id: tenantId,
+            user_id: userId,
+          },
+        });
+        console.log("🔧 DEBUG - Created new customer:", customer.id);
+      }
+    } catch (error) {
+      console.error("🔧 DEBUG - Customer creation error:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to create customer"
+      });
+    }
+
+    // Create payment intent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amount,
+      currency: currency,
+      customer: customer.id,
+      description: description,
+      metadata: {
+        tenant_id: tenantId,
+        user_id: userId,
+      },
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    });
+
+    console.log("🔧 DEBUG - Payment intent created:", {
+      id: paymentIntent.id,
+      status: paymentIntent.status,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency
+    });
+
+    res.json({
+      success: true,
+      payment_intent: {
+        id: paymentIntent.id,
+        client_secret: paymentIntent.client_secret,
+        status: paymentIntent.status,
+        amount: paymentIntent.amount,
+        currency: paymentIntent.currency,
+      },
+      customer: {
+        id: customer.id,
+        email: customer.email,
+      }
+    });
+  } catch (error) {
+    console.error("🔧 DEBUG - Error creating payment intent:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to create payment intent"
     });
   }
 };

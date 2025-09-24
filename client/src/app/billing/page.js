@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "../../contexts/AuthContext";
 import { 
   CreditCard, 
   Download, 
@@ -14,34 +13,43 @@ import {
   RefreshCw
 } from "lucide-react";
 import Link from "next/link";
+import { authenticatedFetch, isAuthenticated as checkAuth } from "../../utils/authUtils";
 
 export default function BillingPage() {
-  const { user, isAuthenticated } = useAuth();
   const [currentSubscription, setCurrentSubscription] = useState(null);
   const [billingHistory, setBillingHistory] = useState([]);
   const [usage, setUsage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState("current");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    // Check authentication
+    const authStatus = checkAuth();
+    setIsAuthenticated(authStatus);
+    
+    if (authStatus) {
       fetchBillingData();
+    } else {
+      setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, []);
 
   const fetchBillingData = async () => {
     try {
       const token = localStorage.getItem("token");
       
-      // Fetch current subscription
-      const subscriptionResponse = await fetch("/api/subscription/current", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Fetch current subscription using authenticatedFetch
+      const subscriptionResponse = await authenticatedFetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"}/stripe/current-subscription`
+      );
       const subscriptionData = await subscriptionResponse.json();
+      console.log("🔧 DEBUG - Subscription response:", subscriptionData);
       if (subscriptionData.success) {
         setCurrentSubscription(subscriptionData.subscription);
+        console.log("🔧 DEBUG - Current subscription set:", subscriptionData.subscription);
+      } else {
+        console.log("🔧 DEBUG - No subscription found or error:", subscriptionData);
       }
 
       // Fetch billing history
