@@ -14,8 +14,8 @@ const nextConfig = {
       {
         source: "/api/:path*",
         destination: process.env.NODE_ENV === 'production' 
-          ? "http://server:3000/api/:path*"
-          : "http://localhost:3000/api/:path*",
+          ? "https://itam-328j.onrender.com/api/:path*"
+          : "https://itam-328j.onrender.com/api/:path*",
       },
     ];
   },
