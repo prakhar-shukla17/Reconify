@@ -14,6 +14,7 @@ import {
   Zap,
   RefreshCw,
   ExternalLink,
+  Target,
 } from "lucide-react";
 import GRCModal from "../../components/GRCModal";
 
@@ -78,9 +79,9 @@ export default function PatchMonitoringPage() {
           {/* App Icon */}
           <div className="flex items-center mb-6">
             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <img src="/itam-logo.svg" alt="ITAM Logo" className="w-6 h-6" />
+              <Target className="w-6 h-6 text-black" />
             </div>
-            <span className="ml-3 text-white font-bold text-lg">ManageAssets</span>
+            <span className="ml-3 text-white font-bold text-lg">Reconify</span>
           </div>
 
           {/* Navigation */}
@@ -113,11 +114,7 @@ export default function PatchMonitoringPage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3 group">
               <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center transform group-hover:scale-105 transition-transform duration-200">
-                <img
-                  src="/itam-logo-white.svg"
-                  alt="ITAM Logo"
-                  className="w-5 h-5"
-                />
+                <Target className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
                 Patch Manager
@@ -392,14 +389,14 @@ export default function PatchMonitoringPage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
           <div className="flex items-center justify-center space-x-3 mb-6">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center">
-              <img src="/itam-logo.svg" alt="ITAM Logo" className="w-5 h-5" />
+              <Target className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-semibold text-gray-900">
               Patch Manager
             </span>
           </div>
           <p className="text-gray-500 text-lg">
-            &copy; 2025 IT Asset Management System. All rights reserved.
+            &copy; 2025 Reconify - IT Asset Reconnaissance System. All rights reserved.
           </p>
         </div>
       </footer>

@@ -3,8 +3,8 @@ import { AuthProvider } from "../contexts/AuthContext";
 import { Toaster } from "react-hot-toast";
 
 export const metadata = {
-  title: "ITAM - IT Asset Management",
-  description: "Comprehensive IT Asset Management System",
+  title: "Reconify - IT Asset Management",
+  description: "Comprehensive IT Asset Management and Reconnaissance System",
 };
 
 export default function RootLayout({ children }) {

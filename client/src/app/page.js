@@ -11,6 +11,7 @@ import {
   Activity,
   Lock,
   ExternalLink,
+  Target,
 } from "lucide-react";
 import GRCModal from "../components/GRCModal";
 
@@ -75,9 +76,9 @@ export default function HomePage() {
           {/* App Icon */}
           <div className="flex items-center mb-6">
             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <img src="/itam-logo.svg" alt="ITAM Logo" className="w-6 h-6" />
+              <Target className="w-6 h-6 text-black" />
             </div>
-            <span className="ml-3 text-white font-bold text-lg">ManageAssets</span>
+            <span className="ml-3 text-white font-bold text-lg">Reconify</span>
           </div>
 
           {/* Navigation */}
@@ -112,14 +113,10 @@ export default function HomePage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3 group">
               <div className="w-8 h-8 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center transform group-hover:scale-105 transition-transform duration-200">
-                <img
-                  src="/itam-logo-white.svg"
-                  alt="ITAM Logo"
-                  className="w-5 h-5"
-                />
+                <Target className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
-                Asset Manager
+                Reconify
               </span>
             </div>
             <div className="flex items-center space-x-6">
@@ -152,10 +149,10 @@ export default function HomePage() {
               </div>
 
               <h1 className="text-6xl md:text-8xl font-bold text-gray-900 mb-8 leading-[0.9] tracking-tight">
-                IT Asset Management
+                IT Asset
                 <br />
                 <span className="bg-gradient-to-r from-gray-600 to-gray-400 bg-clip-text text-transparent">
-                  Made Simple
+                  Reconnaissance
                 </span>
               </h1>
 
@@ -381,14 +378,14 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
           <div className="flex items-center justify-center space-x-3 mb-6">
             <div className="w-8 h-8 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center">
-              <img src="/itam-logo.svg" alt="ITAM Logo" className="w-5 h-5" />
+              <Target className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-semibold text-gray-900">
-              Asset Manager
+              Reconify
             </span>
           </div>
           <p className="text-gray-500 text-lg">
-            &copy; 2025 IT Asset Management System. All rights reserved.
+            &copy; 2025 Reconify - IT Asset Reconnaissance System. All rights reserved.
           </p>
         </div>
       </footer>

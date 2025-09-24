@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useAuth } from "../../contexts/AuthContext";
 import Link from "next/link";
-import { Eye, EyeOff, UserPlus } from "lucide-react";
+import { Eye, EyeOff, UserPlus, Target } from "lucide-react";
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -136,13 +136,9 @@ export default function RegisterPage() {
           <div className="mb-8">
             <div className="flex items-center space-x-3 mb-8">
               <div className="h-10 w-10 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center">
-                <img
-                  src="/itam-logo-white.svg"
-                  alt="ITAM Logo"
-                  className="w-6 h-6"
-                />
+                <Target className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">ITAM</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Reconify</h1>
             </div>
           </div>
 
@@ -417,7 +413,7 @@ export default function RegisterPage() {
 
       {/* Footer */}
       <div className="absolute bottom-4 left-4 right-4 flex justify-between text-sm text-gray-500">
-        <span>Copyright © 2025 ITAM Enterprises LTD.</span>
+        <span>Copyright © 2025 Reconify Enterprises LTD.</span>
         <Link href="#" className="hover:text-gray-700">
           Privacy Policy
         </Link>
