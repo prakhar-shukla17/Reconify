@@ -47,7 +47,7 @@ function PaymentForm({ onSuccess, onError }) {
       }
 
       // Create subscription
-      const response = await fetch("/api/stripe/subscription", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"}/stripe/subscription`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -130,7 +130,7 @@ function SubscriptionPlans() {
 
   const fetchPlans = async () => {
     try {
-      const response = await fetch("/api/subscription/plans");
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"}/subscription/plans`);
       const result = await response.json();
 
       if (result.success) {

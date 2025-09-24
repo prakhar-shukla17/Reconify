@@ -1,5 +1,9 @@
 import jwt from "jsonwebtoken";
 import User from "../models/user.models.js";
+import Subscription from "../models/subscription.models.js";
+
+// Get JWT secret dynamically to ensure environment variables are loaded
+const getJWTSecret = () => process.env.JWT_SECRET || "your-secret-key-change-in-production";
 
 // Create a test user and token for development
 export const createTestUser = async (req, res) => {
@@ -32,7 +36,7 @@ export const createTestUser = async (req, res) => {
         tenant_id: testUser.tenant_id,
         organization_name: testUser.organization_name,
       },
-      process.env.JWT_SECRET || "your-secret-key-change-in-production",
+      getJWTSecret(),
       { expiresIn: "24h" } // 24 hours for testing
     );
 
@@ -89,7 +93,7 @@ export const refreshToken = async (req, res) => {
         tenant_id: user.tenant_id,
         organization_name: user.organization_name,
       },
-      process.env.JWT_SECRET || "your-secret-key-change-in-production",
+      getJWTSecret(),
       { expiresIn: "24h" }
     );
 
@@ -137,7 +141,10 @@ export const autoRefreshToken = async (req, res) => {
       await testUser.save();
     }
 
-    // Create new JWT token
+    // Create new JWT token  
+    const jwtSecret = getJWTSecret();
+    console.log("JWT_SECRET being used for token creation:", jwtSecret);
+    
     const token = jwt.sign(
       {
         userId: testUser._id,
@@ -146,7 +153,7 @@ export const autoRefreshToken = async (req, res) => {
         tenant_id: testUser.tenant_id,
         organization_name: testUser.organization_name,
       },
-      process.env.JWT_SECRET || "your-secret-key-change-in-production",
+      jwtSecret,
       { expiresIn: "24h" }
     );
 
@@ -169,6 +176,33 @@ export const autoRefreshToken = async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to auto-refresh token",
+    });
+  }
+};
+
+// Clear test user subscriptions for testing
+export const clearTestSubscriptions = async (req, res) => {
+  try {
+    console.log("🔧 DEBUG - Clearing test subscriptions...");
+    
+    // Clear all subscriptions for test users
+    const result = await Subscription.deleteMany({
+      tenant_id: "test-tenant-123"
+    });
+    
+    console.log("🔧 DEBUG - Cleared test subscriptions:", result.deletedCount);
+    
+    res.json({
+      success: true,
+      message: `Cleared ${result.deletedCount} test subscriptions`,
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    console.error("🔧 DEBUG - Error clearing test subscriptions:", error);
+    console.error("🔧 DEBUG - Error stack:", error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to clear test subscriptions"
     });
   }
 };

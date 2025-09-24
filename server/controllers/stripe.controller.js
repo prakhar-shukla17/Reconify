@@ -76,6 +76,10 @@ export const createOrGetStripeCustomer = async (req, res) => {
 // Create subscription with Stripe
 export const createStripeSubscription = async (req, res) => {
   try {
+    console.log("🔧 DEBUG - createStripeSubscription called");
+    console.log("🔧 DEBUG - Request body:", req.body);
+    console.log("🔧 DEBUG - User:", { userId: req.user.userId, tenantId: req.user.tenant_id });
+    
     const { plan_id, billing_cycle = "monthly", payment_method_id } = req.body;
     const userId = req.user.userId;
     const tenantId = req.user.tenant_id;
@@ -95,8 +99,14 @@ export const createStripeSubscription = async (req, res) => {
     }
 
     // Get the subscription plan
+    console.log("🔧 DEBUG - Looking for plan:", plan_id);
     const plan = await SubscriptionPlan.findOne({ plan_id, is_active: true });
+    console.log("🔧 DEBUG - Plan found:", plan ? "✅ Yes" : "❌ No");
     if (!plan) {
+      console.log("🔧 DEBUG - Available plans:");
+      const allPlans = await SubscriptionPlan.find({});
+      console.log(allPlans.map(p => ({ plan_id: p.plan_id, is_active: p.is_active })));
+      
       return res.status(404).json({
         success: false,
         error: "Subscription plan not found",
@@ -122,6 +132,16 @@ export const createStripeSubscription = async (req, res) => {
       customerId = customer.id;
     }
 
+    // Create Stripe product first
+    const product = await stripe.products.create({
+      name: plan.display_name,
+      description: plan.description,
+      metadata: {
+        plan_id: plan.plan_id,
+        tenant_id: tenantId,
+      },
+    });
+
     // Create Stripe price for the plan
     const price = await stripe.prices.create({
       unit_amount: plan.getPricing(billing_cycle).amount,
@@ -129,22 +149,27 @@ export const createStripeSubscription = async (req, res) => {
       recurring: {
         interval: billing_cycle === "yearly" ? "year" : "month",
       },
-      product_data: {
-        name: plan.display_name,
-        description: plan.description,
-        metadata: {
-          plan_id: plan.plan_id,
-          tenant_id: tenantId,
-        },
-      },
+      product: product.id,
     });
 
+    // Attach payment method to customer if provided
+    if (payment_method_id) {
+      await stripe.paymentMethods.attach(payment_method_id, {
+        customer: customerId,
+      });
+
+      // Set as default payment method
+      await stripe.customers.update(customerId, {
+        invoice_settings: {
+          default_payment_method: payment_method_id,
+        },
+      });
+    }
+
     // Create Stripe subscription
-    const stripeSubscription = await stripe.subscriptions.create({
+    const subscriptionParams = {
       customer: customerId,
       items: [{ price: price.id }],
-      payment_behavior: "default_incomplete",
-      payment_settings: { save_default_payment_method: "on_subscription" },
       expand: ["latest_invoice.payment_intent"],
       metadata: {
         tenant_id: tenantId,
@@ -152,6 +177,23 @@ export const createStripeSubscription = async (req, res) => {
         plan_id: plan.plan_id,
       },
       trial_period_days: plan.trial_days,
+    };
+
+    // If payment method is provided, set payment behavior and settings
+    if (payment_method_id) {
+      subscriptionParams.default_payment_method = payment_method_id;
+      subscriptionParams.payment_behavior = "default_incomplete";
+      subscriptionParams.payment_settings = { 
+        save_default_payment_method: "on_subscription" 
+      };
+    }
+
+    const stripeSubscription = await stripe.subscriptions.create(subscriptionParams);
+    console.log("🔧 DEBUG - Stripe subscription created:", {
+      id: stripeSubscription.id,
+      status: stripeSubscription.status,
+      latest_invoice: stripeSubscription.latest_invoice ? "exists" : "null",
+      payment_intent: stripeSubscription.latest_invoice?.payment_intent ? "exists" : "null"
     });
 
     // Create local subscription record
@@ -214,14 +256,15 @@ export const createStripeSubscription = async (req, res) => {
         id: stripeSubscription.id,
         status: stripeSubscription.status,
         client_secret:
-          stripeSubscription.latest_invoice.payment_intent.client_secret,
+          stripeSubscription.latest_invoice?.payment_intent?.client_secret || null,
       },
     });
   } catch (error) {
-    console.error("Error creating Stripe subscription:", error);
+    console.error("🔧 DEBUG - Error creating Stripe subscription:", error);
+    console.error("🔧 DEBUG - Error stack:", error.stack);
     res.status(500).json({
       success: false,
-      error: "Failed to create subscription",
+      error: error.message || "Failed to create subscription",
     });
   }
 };
@@ -259,6 +302,16 @@ export const updateStripeSubscription = async (req, res) => {
       });
     }
 
+    // Create Stripe product first
+    const product = await stripe.products.create({
+      name: newPlan.display_name,
+      description: newPlan.description,
+      metadata: {
+        plan_id: newPlan.plan_id,
+        tenant_id: tenantId,
+      },
+    });
+
     // Create new Stripe price
     const price = await stripe.prices.create({
       unit_amount: newPlan.getPricing(
@@ -272,14 +325,7 @@ export const updateStripeSubscription = async (req, res) => {
             ? "year"
             : "month",
       },
-      product_data: {
-        name: newPlan.display_name,
-        description: newPlan.description,
-        metadata: {
-          plan_id: newPlan.plan_id,
-          tenant_id: tenantId,
-        },
-      },
+      product: product.id,
     });
 
     // Update Stripe subscription
@@ -729,4 +775,3 @@ export const getTenantSubscriptionAnalytics = async (req, res) => {
     });
   }
 };
-

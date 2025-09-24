@@ -87,7 +87,7 @@ export default function PaymentModal({
       const token = localStorage.getItem("token");
       
       // Create payment intent
-      const response = await fetch("/api/subscription/payment/stripe", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"}/subscription/payment/stripe`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -123,7 +123,7 @@ export default function PaymentModal({
     try {
       const token = localStorage.getItem("token");
       
-      const response = await fetch("/api/subscription/payment/paypal", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"}/subscription/payment/paypal`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -160,7 +160,7 @@ export default function PaymentModal({
     try {
       const token = localStorage.getItem("token");
       
-      const response = await fetch("/api/subscription/payment/razorpay", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"}/subscription/payment/razorpay`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

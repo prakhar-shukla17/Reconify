@@ -1,8 +1,8 @@
 import jwt from "jsonwebtoken";
 import User from "../models/user.models.js";
 
-const JWT_SECRET =
-  process.env.JWT_SECRET || "your-secret-key-change-in-production";
+// Get JWT secret dynamically to ensure environment variables are loaded
+const getJWTSecret = () => process.env.JWT_SECRET || "your-secret-key-change-in-production";
 
 // Generate JWT token
 export const generateToken = (userId, userData = {}) => {
@@ -15,13 +15,15 @@ export const generateToken = (userId, userData = {}) => {
     department: userData.department,
     role: userData.role,
   };
-  return jwt.sign(tokenData, JWT_SECRET, { expiresIn: "7d" });
+  return jwt.sign(tokenData, getJWTSecret(), { expiresIn: "7d" });
 };
 
 // Verify JWT token middleware
 export const verifyToken = async (req, res, next) => {
   try {
     console.log("=== verifyToken middleware ===");
+    const JWT_SECRET = getJWTSecret();
+    console.log("JWT_SECRET being used:", JWT_SECRET);
     console.log("Headers:", req.headers);
 
     // Accept token from common locations and normalize the value
@@ -56,8 +58,9 @@ export const verifyToken = async (req, res, next) => {
       return res.status(401).json({ error: "Invalid token format." });
     }
 
+    console.log("🔧 DEBUG - About to verify token with secret:", JWT_SECRET);
     const decoded = jwt.verify(token, JWT_SECRET);
-    console.log("Decoded token:", decoded);
+    console.log("🔧 DEBUG - Token verified successfully. Decoded:", decoded);
 
     const user = await User.findById(decoded.userId).select("-password");
     console.log(
@@ -77,11 +80,18 @@ export const verifyToken = async (req, res, next) => {
       return res.status(401).json({ error: "Account is deactivated." });
     }
 
-    req.user = user;
+    // Set user with both database document and decoded token data
+    req.user = {
+      ...user.toObject(),
+      userId: user._id.toString(),
+      tenant_id: user.tenant_id || decoded.tenant_id,
+    };
     console.log("User set in req.user:", {
       id: req.user._id,
+      userId: req.user.userId,
       email: req.user.email,
       role: req.user.role,
+      tenant_id: req.user.tenant_id,
     });
     next();
   } catch (error) {

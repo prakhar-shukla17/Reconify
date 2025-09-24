@@ -15,6 +15,11 @@ import {
 } from "../../utils/authUtils";
 import AuthGuard from "../../components/AuthGuard";
 
+// Debug: Log environment variables
+console.log("🔧 DEBUG - Environment Variables:");
+console.log("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:", process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+console.log("NEXT_PUBLIC_API_URL:", process.env.NEXT_PUBLIC_API_URL);
+
 // Initialize Stripe
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "pk_test_51234567890abcdef"
@@ -55,6 +60,13 @@ function PaymentForm({ plan, onSuccess, onError, onCancel }) {
     const cardElement = elements.getElement(CardElement);
 
     try {
+      console.log("🔧 DEBUG - Starting payment process");
+      
+      // Debug: Check authentication
+      const token = localStorage.getItem("token");
+      console.log("🔧 DEBUG - Token exists:", !!token);
+      console.log("🔧 DEBUG - Token preview:", token ? token.substring(0, 50) + "..." : "No token");
+      
       const { error: pmError, paymentMethod } =
         await stripe.createPaymentMethod({
           type: "card",
@@ -62,14 +74,19 @@ function PaymentForm({ plan, onSuccess, onError, onCancel }) {
         });
 
       if (pmError) {
+        console.log("🔧 DEBUG - Stripe payment method error:", pmError);
         setError(pmError.message);
         setLoading(false);
         return;
       }
 
+      console.log("🔧 DEBUG - Payment method created successfully:", paymentMethod.id);
+
       // Create subscription with automatic token refresh
+      console.log("🔧 DEBUG - Making API call to:", `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"}/stripe/subscription`);
+      
       const response = await authenticatedFetch(
-        "http://localhost:3000/api/stripe/subscription",
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"}/stripe/subscription`,
         {
           method: "POST",
           body: JSON.stringify({
@@ -80,10 +97,15 @@ function PaymentForm({ plan, onSuccess, onError, onCancel }) {
         }
       );
 
+      console.log("🔧 DEBUG - API Response status:", response.status);
+      console.log("🔧 DEBUG - API Response headers:", response.headers);
+      
       const result = await response.json();
+      console.log("🔧 DEBUG - API Response body:", result);
 
       if (result.success) {
         if (result.stripe_subscription?.client_secret) {
+          // Confirm the payment intent for the subscription
           const { error: confirmError } = await stripe.confirmCardPayment(
             result.stripe_subscription.client_secret
           );
@@ -97,9 +119,11 @@ function PaymentForm({ plan, onSuccess, onError, onCancel }) {
           onSuccess(result);
         }
       } else {
+        console.log("🔧 DEBUG - API call failed:", result.error);
         setError(result.error || "Subscription creation failed");
       }
     } catch (err) {
+      console.log("🔧 DEBUG - Network error:", err);
       setError("Network error: " + err.message);
     }
 
@@ -413,7 +437,7 @@ export default function PaymentPage() {
     try {
       console.log("Fetching plan with ID:", planId);
       const response = await fetch(
-        `http://localhost:3000/api/subscription/plans/${planId}`
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"}/subscription/plans/${planId}`
       );
       const result = await response.json();
       console.log("Plan fetch result:", result);

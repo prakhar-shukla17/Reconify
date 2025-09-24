@@ -230,7 +230,7 @@ async function seedPlans() {
 }
 
 // Run the seeding function
-seedSubscriptionPlans();
+seedPlans();
 
 
 

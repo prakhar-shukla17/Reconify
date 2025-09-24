@@ -2,6 +2,10 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import { configDotenv } from "dotenv";
+
+// Load environment variables FIRST
+configDotenv();
+
 import hardwarerouter from "./router/hardware.route.js";
 import authrouter from "./router/auth.route.js";
 import softwarerouter from "./router/software.route.js";
@@ -16,7 +20,13 @@ import licenserouter from "./router/license.route.js";
 import testauthrouter from "./router/test-auth.route.js";
 
 const app = express();
-configDotenv();
+
+// Debug: Log environment variables
+console.log("🔧 DEBUG - Server Environment Variables:");
+console.log("PORT:", process.env.PORT);
+console.log("JWT_SECRET:", process.env.JWT_SECRET ? `✅ Set (${process.env.JWT_SECRET})` : "❌ Missing");
+console.log("MONGODB_URI:", process.env.MONGODB_URI ? "✅ Set" : "❌ Missing");
+console.log("STRIPE_SECRET_KEY:", process.env.STRIPE_SECRET_KEY ? "✅ Set" : "❌ Missing");
 
 // Middleware
 app.use(
