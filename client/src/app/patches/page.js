@@ -81,7 +81,7 @@ export default function PatchMonitoringPage() {
             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
               <Target className="w-6 h-6 text-black" />
             </div>
-            <span className="ml-3 text-white font-bold text-lg">Reconify</span>
+            <span className="ml-3 text-white font-bold text-lg">ManageAsset</span>
           </div>
 
           {/* Navigation */}
@@ -396,7 +396,7 @@ export default function PatchMonitoringPage() {
             </span>
           </div>
           <p className="text-gray-500 text-lg">
-            &copy; 2025 Reconify - IT Asset Reconnaissance System. All rights reserved.
+            &copy; 2025 ManageAsset - IT Asset Management System. All rights reserved.
           </p>
         </div>
       </footer>
