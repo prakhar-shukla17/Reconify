@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
-import { LogOut, User, Settings, Shield, Menu, X, Package, CreditCard, Crown } from "lucide-react";
+import { LogOut, User, Settings, Shield, Menu, X, Package, CreditCard, Crown, Target } from "lucide-react";
 import { useState } from "react";
-import ItamLogo from "./ItamLogo";
 
 const Navbar = () => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -21,14 +20,14 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center min-w-0">
             <Link href="/" className="flex-shrink-0 flex items-center">
-              <div className="h-8 w-8 bg-gray-900 rounded-lg flex items-center justify-center p-1">
-                <ItamLogo variant="white" width={20} height={20} />
+              <div className="h-8 w-8 bg-gray-900 rounded-lg flex items-center justify-center">
+                <Target className="w-5 h-5 text-white" />
               </div>
               <span className="ml-2 text-lg sm:text-xl font-semibold text-gray-900 hidden sm:block">
-                Reconify
+                ManageAsset
               </span>
               <span className="ml-2 text-lg font-semibold text-gray-900 sm:hidden">
-                Reconify
+                ManageAsset
               </span>
             </Link>
 

@@ -11,9 +11,9 @@ import {
   Activity,
   Lock,
   ExternalLink,
+  Target,
 } from "lucide-react";
 import GRCModal from "../components/GRCModal";
-import ItamLogo from "../components/ItamLogo";
 
 export default function HomePage() {
   const [scrollY, setScrollY] = useState(0);
@@ -75,10 +75,10 @@ export default function HomePage() {
         <div className="p-6 h-full flex flex-col">
           {/* App Icon */}
           <div className="flex items-center mb-6">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center p-1">
-              <ItamLogo variant="black" width={24} height={24} />
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+              <Target className="w-6 h-6 text-black" />
             </div>
-            <span className="ml-3 text-white font-bold text-lg">Reconify</span>
+            <span className="ml-3 text-white font-bold text-lg">ManageAsset</span>
           </div>
 
           {/* Navigation */}
@@ -112,11 +112,11 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3 group">
-              <div className="w-8 h-8 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center transform group-hover:scale-105 transition-transform duration-200 p-1">
-                <ItamLogo variant="white" width={20} height={20} />
+              <div className="w-8 h-8 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center transform group-hover:scale-105 transition-transform duration-200">
+                <Target className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
-                Reconify
+                ManageAsset
               </span>
             </div>
             <div className="flex items-center space-x-6">
@@ -377,15 +377,15 @@ export default function HomePage() {
       <footer className="border-t border-gray-100 py-16 bg-gray-50/50 ml-72">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
           <div className="flex items-center justify-center space-x-3 mb-6">
-            <div className="w-8 h-8 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center p-1">
-              <ItamLogo variant="white" width={20} height={20} />
+            <div className="w-8 h-8 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center">
+              <Target className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-semibold text-gray-900">
-              Reconify
+              ManageAsset
             </span>
           </div>
           <p className="text-gray-500 text-lg">
-            &copy; 2025 Reconify - IT Asset Reconnaissance System. All rights reserved.
+            &copy; 2025 ManageAsset - IT Asset Management System. All rights reserved.
           </p>
         </div>
       </footer>

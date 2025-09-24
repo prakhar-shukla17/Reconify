@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useAuth } from "../../contexts/AuthContext";
 import Link from "next/link";
-import { Eye, EyeOff, LogIn } from "lucide-react";
-import ItamLogo from "../../components/ItamLogo";
+import { Eye, EyeOff, LogIn, Target } from "lucide-react";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -75,10 +74,10 @@ export default function LoginPage() {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center space-x-3 mb-8">
-              <div className="h-10 w-10 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center p-1">
-                <ItamLogo variant="white" width={24} height={24} />
+              <div className="h-10 w-10 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center">
+                <Target className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">Reconify</h1>
+              <h1 className="text-2xl font-bold text-gray-900">ManageAsset</h1>
             </div>
           </div>
 
@@ -264,7 +263,7 @@ export default function LoginPage() {
 
       {/* Footer */}
       <div className="absolute bottom-4 left-4 right-4 flex justify-between text-sm text-gray-500">
-        <span>Copyright © 2025 Reconify Enterprises LTD.</span>
+        <span>Copyright © 2025 ManageAsset Enterprises LTD.</span>
         <Link href="#" className="hover:text-gray-700">
           Privacy Policy
         </Link>

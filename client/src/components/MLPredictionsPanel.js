@@ -7,6 +7,7 @@ import {
   TrendingUp,
   TrendingDown,
   Clock,
+  Target,
   Brain,
   Zap,
   BarChart3,
@@ -260,7 +261,7 @@ const MLPredictionsPanel = ({ macAddress }) => {
               <span className="text-sm font-medium text-gray-700">
                 Pressure Risk
               </span>
-              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <Target className="h-4 w-4 text-red-600" />
             </div>
             <div
               className={`text-2xl font-bold ${getRiskColor(
