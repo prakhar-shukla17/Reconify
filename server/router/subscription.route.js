@@ -1,13 +1,14 @@
 import express from "express";
 import {
   getSubscriptionPlans,
+  getSubscriptionPlan,
   getCurrentSubscription,
   createSubscription,
   cancelSubscription,
   updateSubscription,
   getSubscriptionUsage,
   updateSubscriptionUsage,
-  getBillingHistory
+  getBillingHistory,
 } from "../controllers/subscription.controller.js";
 import {
   createPaymentIntent,
@@ -15,21 +16,22 @@ import {
   createRazorpayPayment,
   handlePaymentWebhook,
   getPaymentMethods,
-  processRefund
+  processRefund,
 } from "../controllers/payment.controller.js";
 import { verifyToken } from "../middleware/auth.js";
-import { 
+import {
   requireActiveSubscription,
   checkSubscriptionLimits,
   requireFeature,
   updateUsageAfterAction,
-  checkTrialStatus
+  checkTrialStatus,
 } from "../middleware/subscription.js";
 
 const router = express.Router();
 
 // Public routes (no auth required)
 router.get("/plans", getSubscriptionPlans);
+router.get("/plans/:planId", getSubscriptionPlan);
 
 // Payment webhook (no auth required, verified by webhook signature)
 router.post("/webhook", handlePaymentWebhook);
@@ -60,40 +62,69 @@ router.get("/api/status", requireFeature("api_access"), (req, res) => {
   res.json({ success: true, message: "API access granted" });
 });
 
-router.get("/analytics/advanced", requireFeature("advanced_analytics"), (req, res) => {
-  res.json({ success: true, message: "Advanced analytics access granted" });
-});
+router.get(
+  "/analytics/advanced",
+  requireFeature("advanced_analytics"),
+  (req, res) => {
+    res.json({ success: true, message: "Advanced analytics access granted" });
+  }
+);
 
-router.get("/branding/custom", requireFeature("custom_branding"), (req, res) => {
-  res.json({ success: true, message: "Custom branding access granted" });
-});
+router.get(
+  "/branding/custom",
+  requireFeature("custom_branding"),
+  (req, res) => {
+    res.json({ success: true, message: "Custom branding access granted" });
+  }
+);
 
-router.get("/patches/management", requireFeature("patch_management"), (req, res) => {
-  res.json({ success: true, message: "Patch management access granted" });
-});
+router.get(
+  "/patches/management",
+  requireFeature("patch_management"),
+  (req, res) => {
+    res.json({ success: true, message: "Patch management access granted" });
+  }
+);
 
-router.get("/compliance/reports", requireFeature("compliance_reporting"), (req, res) => {
-  res.json({ success: true, message: "Compliance reporting access granted" });
-});
+router.get(
+  "/compliance/reports",
+  requireFeature("compliance_reporting"),
+  (req, res) => {
+    res.json({ success: true, message: "Compliance reporting access granted" });
+  }
+);
 
-router.get("/sso/integration", requireFeature("sso_integration"), (req, res) => {
-  res.json({ success: true, message: "SSO integration access granted" });
-});
+router.get(
+  "/sso/integration",
+  requireFeature("sso_integration"),
+  (req, res) => {
+    res.json({ success: true, message: "SSO integration access granted" });
+  }
+);
 
-router.get("/integrations/custom", requireFeature("custom_integrations"), (req, res) => {
-  res.json({ success: true, message: "Custom integrations access granted" });
-});
+router.get(
+  "/integrations/custom",
+  requireFeature("custom_integrations"),
+  (req, res) => {
+    res.json({ success: true, message: "Custom integrations access granted" });
+  }
+);
 
 router.get("/white-label", requireFeature("white_label"), (req, res) => {
   res.json({ success: true, message: "White label access granted" });
 });
 
-router.get("/support/dedicated", requireFeature("dedicated_support"), (req, res) => {
-  res.json({ success: true, message: "Dedicated support access granted" });
-});
+router.get(
+  "/support/dedicated",
+  requireFeature("dedicated_support"),
+  (req, res) => {
+    res.json({ success: true, message: "Dedicated support access granted" });
+  }
+);
 
 // Example routes with usage tracking
-router.post("/assets", 
+router.post(
+  "/assets",
   checkSubscriptionLimits("add_asset"),
   updateUsageAfterAction("asset_added"),
   (req, res) => {
@@ -102,7 +133,8 @@ router.post("/assets",
   }
 );
 
-router.post("/users", 
+router.post(
+  "/users",
   checkSubscriptionLimits("add_user"),
   updateUsageAfterAction("user_added"),
   (req, res) => {
@@ -111,7 +143,8 @@ router.post("/users",
   }
 );
 
-router.post("/scans", 
+router.post(
+  "/scans",
   checkSubscriptionLimits("perform_scan"),
   updateUsageAfterAction("scan_performed"),
   (req, res) => {
@@ -121,5 +154,3 @@ router.post("/scans",
 );
 
 export default router;
-
-

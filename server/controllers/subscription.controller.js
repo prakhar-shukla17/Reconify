@@ -7,10 +7,10 @@ import User from "../models/user.models.js";
 export const getSubscriptionPlans = async (req, res) => {
   try {
     const plans = await SubscriptionPlan.getPublicPlans();
-    
+
     res.json({
       success: true,
-      plans: plans.map(plan => ({
+      plans: plans.map((plan) => ({
         id: plan.plan_id,
         name: plan.name,
         display_name: plan.display_name,
@@ -24,14 +24,57 @@ export const getSubscriptionPlans = async (req, res) => {
         popular: plan.popular,
         trial_days: plan.trial_days,
         yearlyDiscount: plan.yearlyDiscount,
-        yearlyDiscountPercentage: plan.yearlyDiscountPercentage
-      }))
+        yearlyDiscountPercentage: plan.yearlyDiscountPercentage,
+      })),
     });
   } catch (error) {
     console.error("Error fetching subscription plans:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to fetch subscription plans"
+      error: "Failed to fetch subscription plans",
+    });
+  }
+};
+
+// Get individual subscription plan by ID
+export const getSubscriptionPlan = async (req, res) => {
+  try {
+    const { planId } = req.params;
+
+    const plan = await SubscriptionPlan.findOne({ plan_id: planId });
+
+    if (!plan) {
+      return res.status(404).json({
+        success: false,
+        error: "Plan not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      plan: {
+        id: plan.plan_id,
+        name: plan.name,
+        display_name: plan.display_name,
+        plan_type: plan.plan_type,
+        category: plan.category,
+        pricing: plan.pricing,
+        features: plan.features,
+        limits: plan.limits,
+        description: plan.description,
+        short_description: plan.short_description,
+        features_list: plan.features_list,
+        popular: plan.popular,
+        trial_days: plan.trial_days,
+        yearlyDiscount: plan.yearlyDiscount,
+        yearlyDiscountPercentage: plan.yearlyDiscountPercentage,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching subscription plan:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch subscription plan",
     });
   }
 };
@@ -45,14 +88,14 @@ export const getCurrentSubscription = async (req, res) => {
     const subscription = await Subscription.findOne({
       user_id: userId,
       tenant_id: tenantId,
-      status: { $in: ["active", "trialing"] }
+      status: { $in: ["active", "trialing"] },
     }).populate("subscription_id");
 
     if (!subscription) {
       return res.json({
         success: true,
         subscription: null,
-        status: "free"
+        status: "free",
       });
     }
 
@@ -74,14 +117,14 @@ export const getCurrentSubscription = async (req, res) => {
         usage: subscription.usage,
         auto_renew: subscription.auto_renew,
         isActive: subscription.isActive,
-        isTrial: subscription.isTrial
-      }
+        isTrial: subscription.isTrial,
+      },
     });
   } catch (error) {
     console.error("Error fetching current subscription:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to fetch subscription"
+      error: "Failed to fetch subscription",
     });
   }
 };
@@ -97,13 +140,13 @@ export const createSubscription = async (req, res) => {
     const existingSubscription = await Subscription.findOne({
       user_id: userId,
       tenant_id: tenantId,
-      status: { $in: ["active", "trialing"] }
+      status: { $in: ["active", "trialing"] },
     });
 
     if (existingSubscription) {
       return res.status(400).json({
         success: false,
-        error: "User already has an active subscription"
+        error: "User already has an active subscription",
       });
     }
 
@@ -112,13 +155,15 @@ export const createSubscription = async (req, res) => {
     if (!plan) {
       return res.status(404).json({
         success: false,
-        error: "Subscription plan not found"
+        error: "Subscription plan not found",
       });
     }
 
     // Create subscription with trial
     const now = new Date();
-    const trialEndDate = new Date(now.getTime() + (plan.trial_days * 24 * 60 * 60 * 1000));
+    const trialEndDate = new Date(
+      now.getTime() + plan.trial_days * 24 * 60 * 60 * 1000
+    );
 
     const subscription = new Subscription({
       tenant_id: tenantId,
@@ -138,8 +183,8 @@ export const createSubscription = async (req, res) => {
         current_assets: 0,
         current_users: 1,
         scans_this_month: 0,
-        last_reset_date: now
-      }
+        last_reset_date: now,
+      },
     });
 
     await subscription.save();
@@ -147,7 +192,7 @@ export const createSubscription = async (req, res) => {
     // Update user subscription status
     await User.findByIdAndUpdate(userId, {
       subscription_status: "trial",
-      current_subscription: subscription._id
+      current_subscription: subscription._id,
     });
 
     res.json({
@@ -166,14 +211,14 @@ export const createSubscription = async (req, res) => {
         features: subscription.features,
         usage: subscription.usage,
         isActive: subscription.isActive,
-        isTrial: subscription.isTrial
-      }
+        isTrial: subscription.isTrial,
+      },
     });
   } catch (error) {
     console.error("Error creating subscription:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to create subscription"
+      error: "Failed to create subscription",
     });
   }
 };
@@ -188,13 +233,13 @@ export const cancelSubscription = async (req, res) => {
     const subscription = await Subscription.findOne({
       _id: subscription_id,
       user_id: userId,
-      tenant_id: tenantId
+      tenant_id: tenantId,
     });
 
     if (!subscription) {
       return res.status(404).json({
         success: false,
-        error: "Subscription not found"
+        error: "Subscription not found",
       });
     }
 
@@ -206,18 +251,18 @@ export const cancelSubscription = async (req, res) => {
 
     // Update user subscription status
     await User.findByIdAndUpdate(userId, {
-      subscription_status: "cancelled"
+      subscription_status: "cancelled",
     });
 
     res.json({
       success: true,
-      message: "Subscription cancelled successfully"
+      message: "Subscription cancelled successfully",
     });
   } catch (error) {
     console.error("Error cancelling subscription:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to cancel subscription"
+      error: "Failed to cancel subscription",
     });
   }
 };
@@ -233,22 +278,25 @@ export const updateSubscription = async (req, res) => {
     const subscription = await Subscription.findOne({
       _id: subscription_id,
       user_id: userId,
-      tenant_id: tenantId
+      tenant_id: tenantId,
     });
 
     if (!subscription) {
       return res.status(404).json({
         success: false,
-        error: "Subscription not found"
+        error: "Subscription not found",
       });
     }
 
     // Get the new plan
-    const newPlan = await SubscriptionPlan.findOne({ plan_id, is_active: true });
+    const newPlan = await SubscriptionPlan.findOne({
+      plan_id,
+      is_active: true,
+    });
     if (!newPlan) {
       return res.status(404).json({
         success: false,
-        error: "Subscription plan not found"
+        error: "Subscription plan not found",
       });
     }
 
@@ -256,10 +304,14 @@ export const updateSubscription = async (req, res) => {
     subscription.plan_id = newPlan.plan_id;
     subscription.plan_name = newPlan.name;
     subscription.plan_type = newPlan.plan_type;
-    subscription.amount = newPlan.getPricing(billing_cycle || subscription.billing_cycle).amount;
-    subscription.currency = newPlan.getPricing(billing_cycle || subscription.billing_cycle).currency;
+    subscription.amount = newPlan.getPricing(
+      billing_cycle || subscription.billing_cycle
+    ).amount;
+    subscription.currency = newPlan.getPricing(
+      billing_cycle || subscription.billing_cycle
+    ).currency;
     subscription.features = newPlan.features;
-    
+
     if (billing_cycle) {
       subscription.billing_cycle = billing_cycle;
     }
@@ -278,14 +330,14 @@ export const updateSubscription = async (req, res) => {
         amount: subscription.amount,
         currency: subscription.currency,
         features: subscription.features,
-        usage: subscription.usage
-      }
+        usage: subscription.usage,
+      },
     });
   } catch (error) {
     console.error("Error updating subscription:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to update subscription"
+      error: "Failed to update subscription",
     });
   }
 };
@@ -299,7 +351,7 @@ export const getSubscriptionUsage = async (req, res) => {
     const subscription = await Subscription.findOne({
       user_id: userId,
       tenant_id: tenantId,
-      status: { $in: ["active", "trialing"] }
+      status: { $in: ["active", "trialing"] },
     });
 
     if (!subscription) {
@@ -312,9 +364,9 @@ export const getSubscriptionUsage = async (req, res) => {
           limits: {
             max_assets: 100,
             max_users: 5,
-            max_scans_per_month: 1000
-          }
-        }
+            max_scans_per_month: 1000,
+          },
+        },
       });
     }
 
@@ -327,15 +379,15 @@ export const getSubscriptionUsage = async (req, res) => {
         limits: {
           max_assets: subscription.features.max_assets,
           max_users: subscription.features.max_users,
-          max_scans_per_month: subscription.features.max_scans_per_month
-        }
-      }
+          max_scans_per_month: subscription.features.max_scans_per_month,
+        },
+      },
     });
   } catch (error) {
     console.error("Error fetching subscription usage:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to fetch subscription usage"
+      error: "Failed to fetch subscription usage",
     });
   }
 };
@@ -350,13 +402,13 @@ export const updateSubscriptionUsage = async (req, res) => {
     const subscription = await Subscription.findOne({
       user_id: userId,
       tenant_id: tenantId,
-      status: { $in: ["active", "trialing"] }
+      status: { $in: ["active", "trialing"] },
     });
 
     if (!subscription) {
       return res.status(404).json({
         success: false,
-        error: "No active subscription found"
+        error: "No active subscription found",
       });
     }
 
@@ -366,13 +418,13 @@ export const updateSubscriptionUsage = async (req, res) => {
     res.json({
       success: true,
       message: "Usage updated successfully",
-      usage: subscription.usage
+      usage: subscription.usage,
     });
   } catch (error) {
     console.error("Error updating subscription usage:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to update subscription usage"
+      error: "Failed to update subscription usage",
     });
   }
 };
@@ -386,21 +438,21 @@ export const getBillingHistory = async (req, res) => {
 
     const payments = await Payment.find({
       user_id: userId,
-      tenant_id: tenantId
+      tenant_id: tenantId,
     })
-    .sort({ created_at: -1 })
-    .limit(limit * 1)
-    .skip((page - 1) * limit)
-    .populate("subscription_id", "plan_name plan_type");
+      .sort({ created_at: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .populate("subscription_id", "plan_name plan_type");
 
     const total = await Payment.countDocuments({
       user_id: userId,
-      tenant_id: tenantId
+      tenant_id: tenantId,
     });
 
     res.json({
       success: true,
-      payments: payments.map(payment => ({
+      payments: payments.map((payment) => ({
         id: payment._id,
         amount: payment.amount,
         amountInDollars: payment.amountInDollars,
@@ -412,21 +464,19 @@ export const getBillingHistory = async (req, res) => {
         billing_period_start: payment.billing_period_start,
         billing_period_end: payment.billing_period_end,
         created_at: payment.created_at,
-        subscription: payment.subscription_id
+        subscription: payment.subscription_id,
       })),
       pagination: {
         current: page,
         pages: Math.ceil(total / limit),
-        total
-      }
+        total,
+      },
     });
   } catch (error) {
     console.error("Error fetching billing history:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to fetch billing history"
+      error: "Failed to fetch billing history",
     });
   }
 };
-
-

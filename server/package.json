@@ -11,7 +11,10 @@
     "dev": "nodemon index.js",
     "start": "node index.js",
     "setup": "node scripts/createAdmin.js",
-    "generate-telemetry": "node scripts/generate_demo_telemetry.js"
+    "generate-telemetry": "node scripts/generate_demo_telemetry.js",
+    "setup-stripe": "node scripts/setup-stripe.js",
+    "test-stripe": "node scripts/test-stripe.js",
+    "seed:plans": "node scripts/seed-subscription-plans.js"
   },
   "dependencies": {
     "archiver": "^6.0.1",
@@ -24,8 +27,8 @@
     "multer": "^2.0.2",
     "nodemailer": "^7.0.5",
     "nodemon": "^3.1.10",
-    "stripe": "^14.21.0",
+    "paypal-rest-sdk": "^1.8.1",
     "razorpay": "^2.9.2",
-    "paypal-rest-sdk": "^1.8.1"
+    "stripe": "^14.25.0"
   }
 }

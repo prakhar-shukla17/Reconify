@@ -1,19 +1,27 @@
+#!/usr/bin/env node
+
+/**
+ * Subscription Plans Seeder
+ * Creates default subscription plans for the ITAM platform
+ */
+
 import mongoose from "mongoose";
+import dotenv from "dotenv";
 import SubscriptionPlan from "../models/subscriptionPlan.models.js";
-import { configDotenv } from "dotenv";
 
-configDotenv();
+// Load environment variables
+dotenv.config();
 
-const subscriptionPlans = [
+const plans = [
   {
     plan_id: "free",
-    name: "free",
-    display_name: "Free",
+    name: "Free",
+    display_name: "Free Plan",
     plan_type: "free",
     category: "individual",
     pricing: {
       monthly: { amount: 0, currency: "USD" },
-      yearly: { amount: 0, currency: "USD" }
+      yearly: { amount: 0, currency: "USD" },
     },
     features: {
       max_assets: 100,
@@ -29,31 +37,32 @@ const subscriptionPlans = [
       sso_integration: false,
       custom_integrations: false,
       white_label: false,
-      dedicated_support: false
+      dedicated_support: false,
     },
-    description: "Perfect for individuals and small teams getting started with IT asset management",
-    short_description: "Free plan for basic asset tracking",
+    description:
+      "Perfect for small teams getting started with IT asset management",
+    short_description: "Free plan for small teams",
     features_list: [
       "Up to 100 assets",
       "Up to 5 users",
       "1,000 scans per month",
       "Basic reporting",
-      "Email support"
+      "Email support",
     ],
     trial_days: 0,
     is_active: true,
     is_public: true,
-    sort_order: 1
+    sort_order: 1,
   },
   {
     plan_id: "basic",
-    name: "basic",
-    display_name: "Basic",
+    name: "Basic",
+    display_name: "Basic Plan",
     plan_type: "basic",
     category: "small_business",
     pricing: {
       monthly: { amount: 2900, currency: "USD" }, // $29.00
-      yearly: { amount: 29000, currency: "USD", discount_percentage: 17 } // $290.00
+      yearly: { amount: 29000, currency: "USD" }, // $290.00 (2 months free)
     },
     features: {
       max_assets: 500,
@@ -62,42 +71,42 @@ const subscriptionPlans = [
       api_access: true,
       priority_support: true,
       custom_branding: false,
-      advanced_analytics: true,
+      advanced_analytics: false,
       data_export: true,
       patch_management: true,
       compliance_reporting: false,
       sso_integration: false,
       custom_integrations: false,
       white_label: false,
-      dedicated_support: false
+      dedicated_support: false,
     },
-    description: "Ideal for growing businesses that need more advanced features and higher limits",
-    short_description: "Perfect for small to medium businesses",
+    description:
+      "Ideal for growing businesses that need more advanced features",
+    short_description: "Perfect for growing businesses",
     features_list: [
       "Up to 500 assets",
       "Up to 25 users",
       "10,000 scans per month",
       "API access",
-      "Advanced analytics",
       "Patch management",
       "Priority support",
-      "14-day free trial"
+      "Advanced reporting",
     ],
+    popular: true,
     trial_days: 14,
     is_active: true,
     is_public: true,
-    popular: true,
-    sort_order: 2
+    sort_order: 2,
   },
   {
     plan_id: "professional",
-    name: "professional",
-    display_name: "Professional",
+    name: "Professional",
+    display_name: "Professional Plan",
     plan_type: "professional",
     category: "small_business",
     pricing: {
-      monthly: { amount: 9900, currency: "USD" }, // $99.00
-      yearly: { amount: 99000, currency: "USD", discount_percentage: 17 } // $990.00
+      monthly: { amount: 7900, currency: "USD" }, // $79.00
+      yearly: { amount: 79000, currency: "USD" }, // $790.00 (2 months free)
     },
     features: {
       max_assets: 2000,
@@ -111,40 +120,37 @@ const subscriptionPlans = [
       patch_management: true,
       compliance_reporting: true,
       sso_integration: true,
-      custom_integrations: true,
+      custom_integrations: false,
       white_label: false,
-      dedicated_support: false
+      dedicated_support: false,
     },
-    description: "Comprehensive solution for organizations that need advanced features and compliance capabilities",
-    short_description: "Advanced features for growing organizations",
+    description: "Advanced features for established organizations",
+    short_description: "Advanced features for established teams",
     features_list: [
       "Up to 2,000 assets",
       "Up to 100 users",
       "50,000 scans per month",
-      "API access",
+      "Custom branding",
       "Advanced analytics",
-      "Patch management",
       "Compliance reporting",
       "SSO integration",
-      "Custom integrations",
-      "Custom branding",
+      "API access",
       "Priority support",
-      "14-day free trial"
     ],
     trial_days: 14,
     is_active: true,
     is_public: true,
-    sort_order: 3
+    sort_order: 3,
   },
   {
     plan_id: "enterprise",
-    name: "enterprise",
-    display_name: "Enterprise",
+    name: "Enterprise",
+    display_name: "Enterprise Plan",
     plan_type: "enterprise",
     category: "enterprise",
     pricing: {
-      monthly: { amount: 29900, currency: "USD" }, // $299.00
-      yearly: { amount: 299000, currency: "USD", discount_percentage: 17 } // $2,990.00
+      monthly: { amount: 19900, currency: "USD" }, // $199.00
+      yearly: { amount: 199000, currency: "USD" }, // $1,990.00 (2 months free)
     },
     features: {
       max_assets: 10000,
@@ -160,61 +166,68 @@ const subscriptionPlans = [
       sso_integration: true,
       custom_integrations: true,
       white_label: true,
-      dedicated_support: true
+      dedicated_support: true,
     },
-    description: "Enterprise-grade solution with unlimited features, white-label options, and dedicated support",
-    short_description: "Enterprise solution with unlimited features",
+    description: "Complete solution for large enterprises with custom needs",
+    short_description: "Complete enterprise solution",
     features_list: [
-      "Up to 10,000 assets",
+      "Unlimited assets",
       "Up to 500 users",
       "200,000 scans per month",
-      "API access",
-      "Advanced analytics",
-      "Patch management",
-      "Compliance reporting",
-      "SSO integration",
-      "Custom integrations",
-      "Custom branding",
       "White-label solution",
+      "Custom integrations",
       "Dedicated support",
-      "14-day free trial"
+      "All Professional features",
+      "Custom SLA",
+      "On-premise deployment option",
     ],
-    trial_days: 14,
+    trial_days: 30,
     is_active: true,
     is_public: true,
-    sort_order: 4
-  }
+    sort_order: 4,
+    restrictions: {
+      requires_approval: true,
+      min_contract_period: 12,
+      cancellation_policy: "custom",
+    },
+  },
 ];
 
-async function seedSubscriptionPlans() {
+async function seedPlans() {
   try {
+    console.log("🌱 Seeding subscription plans...");
+
     // Connect to MongoDB
-    const mongoUri = process.env.MONGODB_URI;
-    await mongoose.connect(mongoUri);
-    console.log("Connected to MongoDB");
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log("✅ Connected to MongoDB");
 
     // Clear existing plans
     await SubscriptionPlan.deleteMany({});
-    console.log("Cleared existing subscription plans");
+    console.log("🧹 Cleared existing plans");
 
     // Insert new plans
-    const createdPlans = await SubscriptionPlan.insertMany(subscriptionPlans);
-    console.log(`Created ${createdPlans.length} subscription plans:`);
-    
-    createdPlans.forEach(plan => {
-      console.log(`- ${plan.display_name} (${plan.plan_id})`);
+    const createdPlans = await SubscriptionPlan.insertMany(plans);
+    console.log(`✅ Created ${createdPlans.length} subscription plans`);
+
+    // Display created plans
+    console.log("\n📋 Created Plans:");
+    createdPlans.forEach((plan) => {
+      console.log(`  • ${plan.display_name} (${plan.plan_id})`);
+      console.log(`    Monthly: $${plan.pricing.monthly.amount / 100}`);
+      console.log(`    Yearly: $${plan.pricing.yearly.amount / 100}`);
+      console.log(`    Assets: ${plan.features.max_assets}`);
+      console.log(`    Users: ${plan.features.max_users}`);
+      console.log("");
     });
 
-    console.log("Subscription plans seeded successfully!");
+    console.log("🎉 Subscription plans seeded successfully!");
   } catch (error) {
-    console.error("Error seeding subscription plans:", error);
+    console.error("❌ Error seeding plans:", error);
   } finally {
     await mongoose.disconnect();
-    console.log("Disconnected from MongoDB");
+    console.log("👋 Disconnected from MongoDB");
   }
 }
 
-// Run the seeding function
-seedSubscriptionPlans();
-
-
+// Run the seeder
+seedPlans();

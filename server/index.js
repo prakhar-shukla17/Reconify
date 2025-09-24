@@ -11,6 +11,9 @@ import telemetryrouter from "./router/telemetry.route.js";
 import superadminrouter from "./router/superadmin.route.js";
 import scannerrouter from "./router/scanner.route.js";
 import subscriptionrouter from "./router/subscription.route.js";
+import striperouter from "./router/stripe.route.js";
+import licenserouter from "./router/license.route.js";
+import testauthrouter from "./router/test-auth.route.js";
 
 const app = express();
 configDotenv();
@@ -34,6 +37,9 @@ app.use("/api/telemetry", telemetryrouter);
 app.use("/api/superadmin", superadminrouter);
 app.use("/api/scanner", scannerrouter);
 app.use("/api/subscription", subscriptionrouter);
+app.use("/api/stripe", striperouter);
+app.use("/api/license", licenserouter);
+app.use("/api/test-auth", testauthrouter);
 
 // 404 handler for undefined routes
 app.use("*", (req, res) => {
