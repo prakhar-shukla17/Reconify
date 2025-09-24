@@ -14,9 +14,9 @@ import {
   Zap,
   RefreshCw,
   ExternalLink,
-  Target,
 } from "lucide-react";
 import GRCModal from "../../components/GRCModal";
+import ItamLogo from "../../components/ItamLogo";
 
 export default function PatchMonitoringPage() {
   const [scrollY, setScrollY] = useState(0);
@@ -78,8 +78,8 @@ export default function PatchMonitoringPage() {
         <div className="p-6 h-full flex flex-col">
           {/* App Icon */}
           <div className="flex items-center mb-6">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <Target className="w-6 h-6 text-black" />
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center p-1">
+              <ItamLogo variant="black" width={24} height={24} />
             </div>
             <span className="ml-3 text-white font-bold text-lg">Reconify</span>
           </div>
@@ -113,8 +113,8 @@ export default function PatchMonitoringPage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3 group">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center transform group-hover:scale-105 transition-transform duration-200">
-                <Target className="w-5 h-5 text-white" />
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center transform group-hover:scale-105 transition-transform duration-200 p-1">
+                <ItamLogo variant="white" width={20} height={20} />
               </div>
               <span className="text-xl font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
                 Patch Manager
@@ -388,8 +388,8 @@ export default function PatchMonitoringPage() {
       <footer className="border-t border-gray-100 py-16 bg-gray-50/50 ml-72">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
           <div className="flex items-center justify-center space-x-3 mb-6">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center">
-              <Target className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center p-1">
+              <ItamLogo variant="white" width={20} height={20} />
             </div>
             <span className="text-xl font-semibold text-gray-900">
               Patch Manager

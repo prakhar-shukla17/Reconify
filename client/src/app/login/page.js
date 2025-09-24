@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useAuth } from "../../contexts/AuthContext";
 import Link from "next/link";
-import { Eye, EyeOff, LogIn, Target } from "lucide-react";
+import { Eye, EyeOff, LogIn } from "lucide-react";
+import ItamLogo from "../../components/ItamLogo";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -74,8 +75,8 @@ export default function LoginPage() {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center space-x-3 mb-8">
-              <div className="h-10 w-10 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center">
-                <Target className="w-6 h-6 text-white" />
+              <div className="h-10 w-10 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center p-1">
+                <ItamLogo variant="white" width={24} height={24} />
               </div>
               <h1 className="text-2xl font-bold text-gray-900">Reconify</h1>
             </div>
