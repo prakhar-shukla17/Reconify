@@ -5,6 +5,16 @@ import { Toaster } from "react-hot-toast";
 export const metadata = {
   title: "Reconify - IT Asset Management",
   description: "Comprehensive IT Asset Management and Reconnaissance System",
+  icons: {
+    icon: [
+      { url: '/itam-logo.svg', type: 'image/svg+xml' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+  },
 };
 
 export default function RootLayout({ children }) {
