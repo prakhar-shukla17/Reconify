@@ -137,3 +137,7 @@ SubscriptionPlanSchema.statics.getPlansByCategory = function(category) {
 export default mongoose.model("SubscriptionPlan", SubscriptionPlanSchema);
 
 
+
+
+
+
