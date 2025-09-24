@@ -56,3 +56,7 @@ db.tickets.createIndex({ "user_id": 1 });
 
 print("Database initialization completed successfully!");
 
+
+
+
+

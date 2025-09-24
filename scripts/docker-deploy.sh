@@ -199,3 +199,7 @@ echo ""
 echo "To stop the application:"
 echo "  docker-compose -f $COMPOSE_FILE down"
 
+
+
+
+

@@ -229,5 +229,11 @@ async function seedPlans() {
   }
 }
 
-// Run the seeder
-seedPlans();
+// Run the seeding function
+seedSubscriptionPlans();
+
+
+
+
+
+

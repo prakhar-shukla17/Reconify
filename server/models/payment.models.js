@@ -168,3 +168,7 @@ PaymentSchema.statics.getPaymentStats = async function(tenant_id, startDate, end
 export default mongoose.model("Payment", PaymentSchema);
 
 
+
+
+
+
