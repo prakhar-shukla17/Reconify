@@ -1,9 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable standalone output for Docker
-  output: 'standalone',
-  
-  // Force Next.js to run on port 3001
+  // Force Next.js to run on port 3001 (for local development)
   experimental: {
     // This ensures consistent port usage
   },
